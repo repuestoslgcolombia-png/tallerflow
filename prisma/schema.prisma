@@ -44,6 +44,7 @@ model Customer {
   devices    Device[]
   workOrders WorkOrder[]
   invoices   Invoice[]
+  reminders  Reminder[]
 
   @@index([lastName])
 }
@@ -97,6 +98,7 @@ model WorkOrder {
   invoice     Invoice?
   partsUsed   InventoryMovement[]
   diagnosis   Diagnosis?
+  reminders   Reminder[]
 
   @@index([customerId])
   @@index([deviceId])
@@ -242,8 +244,53 @@ model Invoice {
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
   customer  Customer  @relation(fields: [customerId], references: [id])
+  items     InvoiceItem[]
 
   @@index([customerId])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float    @default(0)
+  total       Float    @default(0)
+  itemType    String   @default("other") // part | labor | other
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// ============== RECORDATORIOS POST-SERVICIO ==============
+
+model Reminder {
+  id           String   @id @default(cuid())
+  customerId   String
+  workOrderId  String?
+  type         String   @default("follow_up") // follow_up | warranty_check | service_review | maintenance | custom
+  title        String
+  message      String?  // mensaje plantilla o personalizado
+  dueDate      DateTime // fecha programada del recordatorio
+  channel      String   @default("whatsapp") // whatsapp | email | phone | sms
+  status       String   @default("pending") // pending | sent | done | snoozed | cancelled
+  priority     String   @default("normal") // low | normal | high
+  daysAfter    Int?     // días después del servicio (para auto-cálculo)
+  completedAt  DateTime?
+  completedBy  String?
+  completionNotes String? // resultado del contacto
+  snoozedUntil DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([customerId])
+  @@index([workOrderId])
+  @@index([status, dueDate])
 }
 
 // ============== AUDITORÍA ==============

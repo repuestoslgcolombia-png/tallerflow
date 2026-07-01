@@ -135,6 +135,35 @@ export async function GET(_req: NextRequest) {
       count: statusMap[key] || 0,
     }))
 
+    // ============== RECORDATORIOS ==============
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const endOfToday = new Date(startOfToday)
+    endOfToday.setDate(endOfToday.getDate() + 1)
+
+    const remindersToday = await db.reminder.findMany({
+      where: {
+        status: 'pending',
+        dueDate: { gte: startOfToday, lt: endOfToday },
+      },
+      include: {
+        customer: true,
+        workOrder: { include: { device: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 5,
+    })
+
+    const overdueReminders = await db.reminder.count({
+      where: {
+        status: 'pending',
+        dueDate: { lt: startOfToday },
+      },
+    })
+
+    const pendingRemindersCount = await db.reminder.count({
+      where: { status: 'pending' },
+    })
+
     return ok({
       totals: {
         customers: totalCustomers,
@@ -145,6 +174,8 @@ export async function GET(_req: NextRequest) {
         pendingQuoteValue,
         activeOrdersValue,
         quoteApprovalRate: Math.round(quoteApprovalRate),
+        pendingReminders: pendingRemindersCount,
+        overdueReminders,
       },
       statusDistribution: statusLabels,
       priorityDistribution: priorityMap,
@@ -159,6 +190,7 @@ export async function GET(_req: NextRequest) {
       })),
       technicianWorkloads: techLoad,
       ordersTimeline: days,
+      remindersToday,
     })
   } catch (e) {
     return serverError('Error al obtener dashboard', e)
