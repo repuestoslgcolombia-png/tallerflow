@@ -850,3 +850,65 @@ export async function sendWhatsAppMessage(params: {
   }
   return url
 }
+
+// ============== WHATSAPP CONNECTION ==============
+export function useWhatsAppConnection() {
+  return useQuery({
+    queryKey: ['whatsapp-connection'],
+    queryFn: async () => {
+      const res = await fetch('/api/whatsapp/connection')
+      if (!res.ok) throw new Error('Error al obtener conexión')
+      return res.json()
+    },
+  })
+}
+
+export function useWhatsAppConnectionMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { action: 'pair' | 'connect' | 'disconnect' | 'update_profile'; phone?: string; displayName?: string; businessName?: string }) => {
+      const res = await fetch('/api/whatsapp/connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error en conexión')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-connection'] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+// Enviar factura por WhatsApp
+export function useSendInvoiceWhatsApp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (invoiceId: string) => {
+      const res = await fetch(`/api/whatsapp/invoices/${invoiceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al enviar factura')
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-messages'] })
+      // Abrir WhatsApp con el mensaje pre-generado
+      if (typeof window !== 'undefined' && data.whatsappUrl) {
+        window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer')
+      }
+      toast.success('Factura enviada por WhatsApp')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}

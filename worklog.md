@@ -288,3 +288,43 @@ Stage Summary:
 - Módulo de WhatsApp completo: 10 plantillas del sistema, composición con vista previa, envío vía wa.me, historial, CRUD de plantillas personalizadas
 - Variables dinámicas en plantillas: {cliente}, {equipo}, {codigo}, {total}, {fecha}, {taller}, {telefono}
 - Lint pasa sin errores, verificación end-to-end exitosa
+
+---
+Task ID: 6
+Agent: orchestrator (main)
+Task: Integración QR de WhatsApp Business + envío de facturas por WhatsApp
+
+Work Log:
+- Instalé librería `qrcode` y `@types/qrcode` para generar códigos QR
+- Añadí modelo WhatsAppConnection al schema: id, phone, displayName, businessName, status (disconnected/pairing/connected), pairingCode, qrToken, qrExpiresAt, connectedAt, lastSeenAt, apiKey
+- Creé API /api/whatsapp/connection:
+  - GET: obtiene estado de conexión; si está en pairing y el QR no ha expirado, regenera la imagen QR (data URL) desde el token almacenado
+  - POST con actions: 'pair' (genera QR + código de 6 dígitos, expira en 2 min), 'connect' (confirma conexión con teléfono y nombre), 'disconnect' (limpia todo), 'update_profile' (actualiza nombre visible)
+- Creé API /api/whatsapp/invoices/[id]: genera mensaje formateado de factura con todos los detalles (código, fecha, equipo, items, subtotal, impuesto, total, saldo, estado, notas), construye URL wa.me, registra el envío en WhatsAppMessage, devuelve la URL para abrir WhatsApp
+- Añadí hooks: useWhatsAppConnection, useWhatsAppConnectionMutation, useSendInvoiceWhatsApp
+- Construí ConnectionTab en la vista de WhatsApp con 3 estados:
+  - Desconectado: pantalla inicial con pasos 1-2-3 (genera QR, escanea, confirma) y botón "Generar código QR"
+  - Emparejamiento: muestra QR generado (imagen base64), código de 6 dígitos, formulario para confirmar teléfono y nombre de negocio, botón "Nuevo QR" para regenerar
+  - Conectado: muestra info del número enlazado (teléfono, nombre, fecha conexión, última actividad), botones actualizar nombre y desconectar, badge "En línea"
+- Añadí pestaña "Conexión" como primera pestaña de la vista WhatsApp (ahora son 4: Conexión, Enviar, Plantillas, Historial)
+- Añadí botón "Enviar por WhatsApp" en:
+  - Dropdown de acciones de cada factura en la tabla
+  - Footer del diálogo de detalle de factura
+- Añadí 2 plantillas nuevas al seed: invoice_sent (envío de factura) y payment_confirmation (confirmación de pago), total 12 plantillas
+- Corregí error de hidratación: reemplacé toLocaleDateString con dateStyle/timeStyle por formatDateTime (más estable)
+- Verificación con Agent Browser:
+  - Estado desconectado: ✓ Muestra pantalla inicial con botón "Generar código QR"
+  - Generar QR: ✓ Muestra imagen QR (base64), código de 6 dígitos, formulario de confirmación
+  - Confirmar conexión: ✓ Ingresa teléfono y nombre, confirma, pasa a estado conectado
+  - Estado conectado: ✓ Muestra info del número, botones actualizar/desconectar, badge "En línea"
+  - Enviar factura por WhatsApp: ✓ Botón en dropdown de facturas, genera mensaje formateado, abre wa.me, registra en historial
+  - Historial de WhatsApp: ✓ Muestra mensaje enviado a Camila Ortega con orden OT-2024-006 vinculada
+  - APIs responden 200: connection, whatsapp/invoices, whatsapp/messages
+  - Sin errores de consola
+
+Stage Summary:
+- Sistema completo de conexión WhatsApp Business con QR: genera código QR + pairing code de 6 dígitos, flujo de 3 pasos (generar/escanear/confirmar), estado persistente
+- Envío de facturas por WhatsApp: botón en tabla y diálogo de detalle, genera mensaje formateado con todos los datos de la factura, abre wa.me con mensaje pre-escrito, registra en historial
+- 12 plantillas del sistema (2 nuevas: invoice_sent, payment_confirmation)
+- Vista WhatsApp ahora tiene 4 pestañas: Conexión, Enviar, Plantillas, Historial
+- Lint pasa sin errores, verificación end-to-end exitosa

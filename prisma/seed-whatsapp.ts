@@ -144,6 +144,39 @@ Hola *{cliente}*,
 
 [Escribe aquí tu mensaje personalizado]`,
     },
+    {
+      code: 'invoice_sent',
+      name: 'Factura enviada',
+      category: 'invoices',
+      subject: 'Envío de factura',
+      body: `🧾 *{taller}*
+
+Hola *{cliente}*, adjuntamos los detalles de tu factura:
+
+📋 Factura: *{codigo}*
+💵 Total: *{total}*
+
+✅ Estado: {estado}
+
+Si tienes alguna pregunta sobre tu factura, no dudes en contactarnos.
+
+¡Gracias por tu preferencia!`,
+    },
+    {
+      code: 'payment_confirmation',
+      name: 'Confirmación de pago',
+      category: 'invoices',
+      subject: 'Pago recibido',
+      body: `✅ *{taller}*
+
+Hola *{cliente}*, confirmamos la recepción de tu pago.
+
+📋 Factura: *{codigo}*
+💵 Total: *{total}*
+💳 Método: {metodo}
+
+¡Gracias por tu pago! Tu equipo está listo para ser retirado.`,
+    },
   ]
 
   for (const t of templates) {

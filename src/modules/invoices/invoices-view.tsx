@@ -21,8 +21,10 @@ import {
   FileCheck,
   Clock,
   DollarSign,
+  MessageCircle,
+  Send,
 } from 'lucide-react'
-import { useInvoices, useInvoiceMutations, useWorkOrders, useSettings } from '@/lib/hooks/api'
+import { useInvoices, useInvoiceMutations, useWorkOrders, useSettings, useSendInvoiceWhatsApp } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
 import {
   INVOICE_STATUS,
@@ -67,6 +69,7 @@ export function InvoicesView() {
   const { data: invoices, isLoading } = useInvoices({ status: statusFilter === 'all' ? undefined : statusFilter, search })
   const { update: updateInvoice, remove: removeInvoice } = useInvoiceMutations()
   const { data: settings } = useSettings()
+  const sendWhatsApp = useSendInvoiceWhatsApp()
 
   // Stats from all invoices
   const { data: allInvoices } = useInvoices({})
@@ -233,6 +236,14 @@ export function InvoicesView() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setViewing(inv)}>
                                 <Eye className="mr-2 size-4" /> Ver detalle
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => sendWhatsApp.mutate(inv.id)}
+                                disabled={sendWhatsApp.isPending}
+                                className="text-emerald-600 focus:text-emerald-600"
+                              >
+                                <MessageCircle className="mr-2 size-4" />
+                                {sendWhatsApp.isPending ? 'Enviando...' : 'Enviar por WhatsApp'}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => window.print()}>
                                 <Printer className="mr-2 size-4" /> Imprimir
@@ -625,6 +636,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 function InvoiceDetailDialog({ invoice, onClose, onPay }: { invoice: any; onClose: () => void; onPay: () => void }) {
   const { data: settings } = useSettings()
   const { navigate } = useAppStore()
+  const sendWhatsApp = useSendInvoiceWhatsApp()
   const symbol = settings?.currencySymbol || '$'
   const balance = invoice.total - invoice.paid
   const canPay = invoice.status === 'pending' || invoice.status === 'partial'
@@ -764,7 +776,16 @@ function InvoiceDetailDialog({ invoice, onClose, onPay }: { invoice: any; onClos
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => sendWhatsApp.mutate(invoice.id)}
+            disabled={sendWhatsApp.isPending}
+            className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+          >
+            <MessageCircle className="size-4" />
+            {sendWhatsApp.isPending ? 'Enviando...' : 'Enviar por WhatsApp'}
+          </Button>
           <Button variant="outline" onClick={() => window.print()} className="gap-1.5">
             <Printer className="size-4" /> Imprimir
           </Button>

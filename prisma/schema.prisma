@@ -298,6 +298,22 @@ model Reminder {
 
 // ============== MENSAJES WHATSAPP ==============
 
+model WhatsAppConnection {
+  id            String   @id @default("default")
+  phone         String?  // número de WhatsApp Business enlazado
+  displayName   String?  // nombre visible del negocio
+  status        String   @default("disconnected") // disconnected | pairing | connected
+  pairingCode   String?  // código de emparejamiento (6 dígitos)
+  qrToken       String?  // token único del QR
+  qrExpiresAt   DateTime?
+  connectedAt   DateTime?
+  lastSeenAt    DateTime?
+  businessName  String?  // nombre del taller
+  apiKey        String?  // para futura integración con Cloud API
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model WhatsAppTemplate {
   id          String   @id @default(cuid())
   code        String   @unique // quote_sent | order_ready | follow_up | etc.

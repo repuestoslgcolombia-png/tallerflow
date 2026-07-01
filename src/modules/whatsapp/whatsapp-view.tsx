@@ -26,6 +26,13 @@ import {
   History,
   Phone,
   ClipboardList,
+  QrCode,
+  Link2,
+  Unlink,
+  RefreshCw,
+  CheckCircle2,
+  Smartphone,
+  Wifi,
 } from 'lucide-react'
 import {
   useWhatsAppTemplates,
@@ -34,6 +41,8 @@ import {
   useWhatsAppRender,
   sendWhatsAppMessage,
   useCustomers,
+  useWhatsAppConnection,
+  useWhatsAppConnectionMutation,
 } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
 import { formatDateTime, timeAgo, fullName, getInitials } from '@/lib/constants'
@@ -70,12 +79,16 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export function WhatsAppView() {
-  const [tab, setTab] = useState('compose')
+  const [tab, setTab] = useState('connection')
 
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:w-auto">
+          <TabsTrigger value="connection" className="gap-1.5">
+            <QrCode className="size-3.5" />
+            <span className="hidden sm:inline">Conexión</span>
+          </TabsTrigger>
           <TabsTrigger value="compose" className="gap-1.5">
             <Send className="size-3.5" />
             <span className="hidden sm:inline">Enviar</span>
@@ -90,6 +103,9 @@ export function WhatsAppView() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="connection" className="mt-4">
+          <ConnectionTab />
+        </TabsContent>
         <TabsContent value="compose" className="mt-4">
           <ComposeTab />
         </TabsContent>
@@ -100,6 +116,257 @@ export function WhatsAppView() {
           <HistoryTab />
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+// ============== Connection Tab ==============
+function ConnectionTab() {
+  const { data: conn, isLoading } = useWhatsAppConnection()
+  const mutation = useWhatsAppConnectionMutation()
+
+  const [phone, setPhone] = useState('')
+  const [displayName, setDisplayName] = useState('')
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-96" />
+        <Skeleton className="h-96" />
+      </div>
+    )
+  }
+
+  // Estado: CONECTADO
+  if (conn?.status === 'connected') {
+    return (
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400">
+                <CheckCircle2 className="size-5" />
+              </div>
+              WhatsApp Business Conectado
+            </CardTitle>
+            <CardDescription>Tu número de negocio está enlazado y listo para enviar mensajes</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Número de teléfono</p>
+                <p className="mt-1 flex items-center gap-1.5 font-mono text-sm font-semibold">
+                  <Phone className="size-3.5 text-emerald-500" />
+                  {conn.phone}
+                </p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Nombre visible</p>
+                <p className="mt-1 text-sm font-semibold">{conn.displayName || conn.businessName || 'Taller'}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Conectado desde</p>
+                <p className="mt-1 text-sm">{conn.connectedAt ? formatDateTime(conn.connectedAt) : '—'}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Última actividad</p>
+                <p className="mt-1 text-sm">{conn.lastSeenAt ? timeAgo(conn.lastSeenAt) : '—'}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => mutation.mutate({ action: 'update_profile', displayName, businessName: displayName })}
+                disabled={!displayName || mutation.isPending}
+              >
+                <Pencil className="size-3.5" /> Actualizar nombre
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-rose-600 hover:text-rose-700"
+                onClick={() => mutation.mutate({ action: 'disconnect' })}
+                disabled={mutation.isPending}
+              >
+                <Unlink className="size-3.5" /> Desconectar
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
+              <Wifi className="size-4 shrink-0 text-emerald-600" />
+              <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                Los mensajes se envían a través de tu WhatsApp Business. El destinatario verá tu número de negocio como remitente.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Smartphone className="size-4" />
+              Estado del Dispositivo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <span className="text-sm">Estado</span>
+              <Badge className="border-emerald-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <span className="mr-1 size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                En línea
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <span className="text-sm">Mensajes enviados</span>
+              <span className="text-sm font-semibold">Activos</span>
+            </div>
+            <div className="rounded-lg border border-dashed p-3 text-center">
+              <p className="text-xs text-muted-foreground">
+                Para usar la API oficial de WhatsApp Business Cloud, configura tu token en la sección de ajustes avanzados.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Estado: EMPAREJAMIENTO (QR generado)
+  if (conn?.status === 'pairing') {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Card>
+          <CardHeader className="pb-3 text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-base">
+              <QrCode className="size-5 text-emerald-500" />
+              Escanea el código QR
+            </CardTitle>
+            <CardDescription>Abre WhatsApp en tu teléfono y escanea este código para enlazar tu número de negocio</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            {conn.qr && (
+              <div className="rounded-xl border-2 border-emerald-200 bg-white p-4 dark:border-emerald-800">
+                <img
+                  src={conn.qr}
+                  alt="QR WhatsApp"
+                  className="size-64"
+                />
+              </div>
+            )}
+
+            <div className="text-center">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Código de emparejamiento</p>
+              <p className="mt-1 font-mono text-3xl font-bold tracking-[0.3em] text-emerald-600">{conn.pairingCode}</p>
+            </div>
+
+            <div className="w-full rounded-md border bg-amber-50 p-3 dark:bg-amber-950/20">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                ⏱️ El código expira en 2 minutos. Si no puedes escanear a tiempo, genera uno nuevo.
+              </p>
+            </div>
+
+            {/* Formulario de confirmación */}
+            <div className="w-full space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">Confirma tu número de WhatsApp Business</p>
+              <div className="grid gap-2">
+                <Label htmlFor="phone-confirm">Número de teléfono *</Label>
+                <Input
+                  id="phone-confirm"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+57 300 123 4567"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="name-confirm">Nombre del negocio</Label>
+                <Input
+                  id="name-confirm"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="TallerTech Pro"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-1.5"
+                  onClick={() => mutation.mutate({ action: 'pair' })}
+                  disabled={mutation.isPending}
+                >
+                  <RefreshCw className="size-3.5" /> Nuevo QR
+                </Button>
+                <Button
+                  className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => {
+                    mutation.mutate({ action: 'connect', phone, displayName, businessName: displayName })
+                    setPhone('')
+                    setDisplayName('')
+                  }}
+                  disabled={!phone || mutation.isPending}
+                >
+                  <Link2 className="size-3.5" /> Confirmar conexión
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Estado: DESCONECTADO (inicial)
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader className="pb-3 text-center">
+          <div className="mx-auto mb-2 flex size-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
+            <MessageCircle className="size-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <CardTitle className="text-lg">Conecta tu WhatsApp Business</CardTitle>
+          <CardDescription className="mx-auto max-w-md">
+            Enlaza tu número de WhatsApp de negocio para enviar cotizaciones, facturas y recordatorios directamente desde TallerFlow
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border bg-muted/30 p-3 text-center">
+              <QrCode className="mx-auto mb-1.5 size-5 text-emerald-500" />
+              <p className="text-xs font-medium">1. Genera el QR</p>
+              <p className="text-[10px] text-muted-foreground">Crea un código único</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-center">
+              <Smartphone className="mx-auto mb-1.5 size-5 text-emerald-500" />
+              <p className="text-xs font-medium">2. Escanea</p>
+              <p className="text-[10px] text-muted-foreground">Ábrelo en WhatsApp</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-center">
+              <CheckCircle2 className="mx-auto mb-1.5 size-5 text-emerald-500" />
+              <p className="text-xs font-medium">3. Confirma</p>
+              <p className="text-[10px] text-muted-foreground">Verifica tu número</p>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
+            <p className="flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+              <span>Tus mensajes se envían a través de WhatsApp Web/API usando tu número enlazado. No almacenamos tu contraseña ni claves privadas.</span>
+            </p>
+          </div>
+
+          <Button
+            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+            size="lg"
+            onClick={() => mutation.mutate({ action: 'pair' })}
+            disabled={mutation.isPending}
+          >
+            <QrCode className="size-5" />
+            {mutation.isPending ? 'Generando...' : 'Generar código QR'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }
