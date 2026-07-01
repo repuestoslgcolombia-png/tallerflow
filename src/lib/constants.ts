@@ -108,6 +108,69 @@ export const MOVEMENT_TYPES = {
   adjustment: { label: 'Ajuste', color: 'bg-amber-100 text-amber-700', sign: '=' },
 } as const
 
+export const REMINDER_TYPES = {
+  follow_up: {
+    label: 'Seguimiento post-servicio',
+    description: 'Contactar al cliente días después de la entrega',
+    icon: 'Phone',
+    defaultDays: 7,
+    defaultTemplate: 'Hola {cliente}, ¿cómo va el equipo {equipo} que reparamos? Si tiene alguna duda, estamos para ayudarte.',
+  },
+  warranty_check: {
+    label: 'Revisión de garantía',
+    description: 'Verificar el equipo antes de que venza la garantía',
+    icon: 'ShieldCheck',
+    defaultDays: 25,
+    defaultTemplate: 'Su garantía por la reparación está por vencer. ¿Le gustaría una revisión preventiva sin costo?',
+  },
+  service_review: {
+    label: 'Solicitud de reseña',
+    description: 'Pedir al cliente su opinión del servicio',
+    icon: 'Star',
+    defaultDays: 3,
+    defaultTemplate: '¿Cómo calificaría el servicio recibido? Su opinión nos ayuda a mejorar. ¡Gracias!',
+  },
+  maintenance: {
+    label: 'Mantenimiento preventivo',
+    description: 'Recordar mantenimiento periódico del equipo',
+    icon: 'Wrench',
+    defaultDays: 90,
+    defaultTemplate: 'Es momento del mantenimiento preventivo de su {equipo}. Contáctenos para agendar.',
+  },
+  custom: {
+    label: 'Personalizado',
+    description: 'Recordatorio personalizado',
+    icon: 'Bell',
+    defaultDays: 1,
+    defaultTemplate: '',
+  },
+} as const
+
+export type ReminderTypeKey = keyof typeof REMINDER_TYPES
+
+export const REMINDER_STATUS = {
+  pending: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  sent: { label: 'Enviado', color: 'bg-sky-100 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
+  done: { label: 'Completado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  snoozed: { label: 'Pospuesto', color: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
+  cancelled: { label: 'Cancelado', color: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' },
+} as const
+
+export type ReminderStatusKey = keyof typeof REMINDER_STATUS
+
+export const REMINDER_CHANNELS = {
+  whatsapp: { label: 'WhatsApp', icon: 'MessageCircle', color: 'bg-emerald-100 text-emerald-700' },
+  email: { label: 'Email', icon: 'Mail', color: 'bg-sky-100 text-sky-700' },
+  phone: { label: 'Llamada', icon: 'Phone', color: 'bg-violet-100 text-violet-700' },
+  sms: { label: 'SMS', icon: 'Smartphone', color: 'bg-amber-100 text-amber-700' },
+} as const
+
+export const PAYMENT_METHODS = {
+  cash: { label: 'Efectivo', icon: 'Banknote' },
+  card: { label: 'Tarjeta', icon: 'CreditCard' },
+  transfer: { label: 'Transferencia', icon: 'Landmark' },
+} as const
+
 // ============== FLUJO DE ESTADOS ==============
 
 export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {

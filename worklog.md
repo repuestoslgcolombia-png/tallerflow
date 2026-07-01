@@ -139,3 +139,61 @@ Stage Summary:
 - Toasts de sonner para feedback (links copiados, cotizaciones enviadas, etc.)
 - Copy to clipboard via navigator.clipboard.writeText con URL formato `${window.location.origin}/?quote=${id}&token=${approvalToken}`
 - Mobile-first responsive en todas las vistas (grid sm:cols-2 / lg:cols-3 / lg:cols-4)
+
+---
+Task ID: 2
+Agent: orchestrator (main)
+Task: Añadir módulos de Recordatorios y Facturas
+
+Work Log:
+- Extendí schema Prisma: añadí modelo Reminder (recordatorios post-servicio con tipo, canal, fecha, estado) e InvoiceItem (items de factura)
+- Añadí relaciones inversas: Customer.reminders, WorkOrder.reminders, Invoice.items
+- Ejecuté `bun run db:push` exitosamente
+- Creé API routes: /api/reminders (GET, POST), /api/reminders/[id] (GET, PUT con actions: complete/snooze/cancel/reactivate, DELETE), /api/invoices (GET, POST con auto-cálculo desde items o cotización aprobada), /api/invoices/[id] (GET, PUT con actions: register_payment/cancel/mark_paid, DELETE)
+- Actualicé /api/dashboard para incluir: remindersToday (top 5 recordatorios de hoy), totals.pendingReminders, totals.overdueReminders
+- Añadí constantes: REMINDER_TYPES (5 tipos: follow_up, warranty_check, service_review, maintenance, custom con plantillas predeterminadas), REMINDER_STATUS, REMINDER_CHANNELS, PAYMENT_METHODS
+- Actualicé badges.tsx: añadí ReminderStatusBadge, mejoré InvoiceStatusBadge con dot
+- Añadí hooks: useReminders, useReminder, useReminderMutations (create/update/remove), useInvoices, useInvoice, useInvoiceMutations (create/update/remove)
+- Actualicé store app-store.ts: añadí vistas 'invoices' y 'reminders', selectedInvoiceId, selectedReminderId, filtros
+- Actualicé sidebar.tsx: añadí items Facturas y Recordatorios, separé en grupos "Operación" y "Gestión"
+- Actualicé header.tsx: añadí títulos para invoices y reminders
+- Actualicé page.tsx: añadí render de InvoicesView y RemindersView
+
+Stage Summary:
+- Backend completo para ambos módulos
+- Faltan: vistas RemindersView, InvoicesView; actualización de DashboardView para mostrar recordatorios del día; actualización de WorkOrderDetailView para añadir botón "Generar Factura"
+- Delego las vistas a subagents en paralelo (Task 2-A: Reminders + Dashboard update; Task 2-B: Invoices + WorkOrder update)
+
+---
+Task ID: 3
+Agent: orchestrator (main)
+Task: Finalización de módulos de Recordatorios y Facturas
+
+Work Log:
+- Creé src/modules/reminders/reminders-view.tsx: vista completa de recordatorios con stats (Pendientes Hoy, Vencidos, Pospuestos, Completados), filtros por estado, lista de cards con iconos por tipo, menú de acciones contextuales (completar, posponer, cancelar, reactivar, editar, eliminar), diálogos para crear/editar/completar/posponer con auto-llenado de plantillas según tipo
+- Creé src/modules/invoices/invoices-view.tsx: vista completa de facturas con stats (Total, Pendientes, Pagadas, Ingresos del Mes), tabla con código/cliente/orden/equipo/estado/total/pagado, diálogos para crear factura desde orden (con items editables y cálculo de impuesto), ver detalle completo, registrar pagos parciales/totales, anular, eliminar
+- Actualicé src/modules/work-orders/work-order-detail-view.tsx: añadí botón "Generar Factura" en el header (solo para órdenes entregadas sin factura), actualicé la tarjeta "Resumen Financiero" para mostrar info de factura si existe (código clickable, estado, total, pagado), añadí botón "Ver Factura" cuando ya existe, implementé componente CreateInvoiceFromOrderDialog que autocompleta items desde cotización aprobada o total de la orden
+- Actualicé el dashboard (ya tenía soporte de recordatorios del subagent anterior) — verificado que muestra los 3 recordatorios de hoy correctamente
+- Corregí bug de hooks llamados dentro de event handlers en reminders-view (moví useReminderMutations al top del componente)
+- Añadí DialogClose al import en work-order-detail-view
+- Silencié el console.log de db.ts que ensuciaba el dev.log
+- Ejecuté seed de recordatorios (prisma/seed-reminders.ts): 8 recordatorios en distintos estados (3 pendientes hoy, 1 vencido, 1 pospuesto, 1 completado, 2 futuros)
+- Verificación con Agent Browser:
+  - Dashboard renderiza con KPIs + recordatorios de hoy ✓
+  - Sidebar muestra los 2 nuevos módulos (Facturas, Recordatorios) agrupados en "Operación" ✓
+  - Módulo Recordatorios: stats correctas, lista con 5 recordatorios pendientes, filtros funcionan ✓
+  - Módulo Facturas: tabla con FAC-2024-001 (pagada), stats correctas ✓
+  - Work Order Detail: botón "Generar Factura" aparece tras entregar orden ✓
+  - Crear factura desde orden: diálogo autocompleta items desde cotización, cálculo de impuesto 19%, registro de pago ✓
+  - Factura creada aparece en módulo de Facturas (FAC-2026-006) ✓
+  - Diálogo crear recordatorio: auto-llenado de plantilla según tipo, fecha por defecto hoy+defaultDays ✓
+  - Responsive móvil verificado ✓
+  - Sin errores en consola ✓
+
+Stage Summary:
+- 2 módulos nuevos completos y funcionales: Recordatorios (seguimiento post-servicio) y Facturas (facturación y pagos)
+- Integración con Work Order Detail: botón "Generar Factura" en órdenes entregadas
+- Dashboard actualizado con tarjeta "Recordatorios de Hoy" (3 pendientes) + banner de vencidos
+- 8 recordatorios seed en distintos estados para demostración
+- Todos los flujos verificados end-to-end con Agent Browser
+- Lint pasa sin errores

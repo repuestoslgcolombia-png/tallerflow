@@ -11,6 +11,12 @@ import {
   Wrench,
   ChevronRight,
   Activity,
+  Bell,
+  BellRing,
+  Phone,
+  ShieldCheck,
+  Star,
+  CheckCircle2,
 } from 'lucide-react'
 import { useDashboard } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
@@ -19,8 +25,31 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { StatusBadge, PriorityBadge } from '@/components/tallerflow/badges'
-import { formatCurrency, timeAgo, WORK_ORDER_STATUS } from '@/lib/constants'
+import {
+  formatCurrency,
+  timeAgo,
+  WORK_ORDER_STATUS,
+  REMINDER_TYPES,
+  fullName,
+} from '@/lib/constants'
 import { cn } from '@/lib/utils'
+
+// Icon mapping for reminder types
+const REMINDER_TYPE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  follow_up: Phone,
+  warranty_check: ShieldCheck,
+  service_review: Star,
+  maintenance: Wrench,
+  custom: Bell,
+}
+
+const REMINDER_TYPE_COLOR_MAP: Record<string, string> = {
+  follow_up: 'bg-emerald-100 text-emerald-600',
+  warranty_check: 'bg-violet-100 text-violet-600',
+  service_review: 'bg-amber-100 text-amber-600',
+  maintenance: 'bg-orange-100 text-orange-600',
+  custom: 'bg-slate-100 text-slate-600',
+}
 
 export function DashboardView() {
   const { data, isLoading } = useDashboard()
@@ -81,8 +110,31 @@ export function DashboardView() {
     },
   ]
 
+  const overdueReminders = totals.overdueReminders || 0
+
   return (
     <div className="space-y-4">
+      {/* Overdue reminders alert banner */}
+      {overdueReminders > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <BellRing className="size-4 text-rose-600" />
+            <span>
+              Tienes <strong className="font-bold">{overdueReminders}</strong>{' '}
+              recordatorio{overdueReminders === 1 ? '' : 's'} vencido{overdueReminders === 1 ? '' : 's'}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 border-rose-300 bg-white text-rose-700 hover:bg-rose-100 hover:text-rose-800"
+            onClick={() => navigate('reminders')}
+          >
+            Ver <ChevronRight className="size-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {kpis.map((kpi) => {
@@ -241,6 +293,62 @@ export function DashboardView() {
 
         {/* Side panels */}
         <div className="space-y-4">
+          {/* Today's reminders */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Bell className="size-4 text-amber-500" />
+                  Recordatorios de Hoy
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => navigate('reminders')}>
+                  Ver todos <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(!data.remindersToday || data.remindersToday.length === 0) ? (
+                <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <CheckCircle2 className="size-5" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Sin recordatorios para hoy</p>
+                </div>
+              ) : (
+                data.remindersToday.slice(0, 5).map((r: any) => {
+                  const TypeIcon = REMINDER_TYPE_ICON_MAP[r.type] || Bell
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => navigate('reminders')}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-md border bg-muted/30 p-2 transition-colors hover:bg-muted/60"
+                    >
+                      <div
+                        className={cn(
+                          'flex size-8 shrink-0 items-center justify-center rounded-full',
+                          REMINDER_TYPE_COLOR_MAP[r.type] || REMINDER_TYPE_COLOR_MAP.custom
+                        )}
+                      >
+                        <TypeIcon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">{r.title}</p>
+                        {r.customer && (
+                          <p className="truncate text-[10px] text-muted-foreground">
+                            {fullName(r.customer.firstName, r.customer.lastName)}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="shrink-0 border-amber-200 bg-amber-50 text-[10px] font-medium text-amber-700">
+                        Hoy
+                      </Badge>
+                    </div>
+                  )
+                })
+              )}
+            </CardContent>
+          </Card>
+
           {/* Low stock */}
           <Card>
             <CardHeader className="pb-3">

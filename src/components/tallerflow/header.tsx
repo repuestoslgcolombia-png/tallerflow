@@ -14,7 +14,9 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   'customer-detail': { title: 'Detalle de Cliente', subtitle: 'Historial y equipos del cliente' },
   devices: { title: 'Equipos', subtitle: 'Inventario de equipos registrados' },
   quotes: { title: 'Cotizaciones', subtitle: 'Cotizaciones enviadas y aprobaciones' },
+  invoices: { title: 'Facturas', subtitle: 'Facturación y registro de pagos' },
   inventory: { title: 'Inventario', subtitle: 'Control de repuestos y stock' },
+  reminders: { title: 'Recordatorios', subtitle: 'Seguimiento post-servicio a clientes' },
   settings: { title: 'Configuración', subtitle: 'Ajustes del taller' },
 }
 

@@ -478,3 +478,202 @@ export function useSettingsMutation() {
     onError: (e: Error) => toast.error(e.message),
   })
 }
+
+// ============== RECORDATORIOS ==============
+export function useReminders(params: {
+  status?: string
+  customerId?: string
+  workOrderId?: string
+  type?: string
+  dueToday?: boolean
+  overdue?: boolean
+} = {}) {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.customerId) query.set('customerId', params.customerId)
+  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+  if (params.type) query.set('type', params.type)
+  if (params.dueToday) query.set('dueToday', 'true')
+  if (params.overdue) query.set('overdue', 'true')
+  return useQuery({
+    queryKey: ['reminders', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/reminders?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar recordatorios')
+      return res.json()
+    },
+  })
+}
+
+export function useReminder(id: string | null) {
+  return useQuery({
+    queryKey: ['reminder', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/reminders/${id}`)
+      if (!res.ok) throw new Error('Error al cargar recordatorio')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
+export function useReminderMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear recordatorio')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reminders'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Recordatorio creado')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const update = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/reminders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reminders'] })
+      qc.invalidateQueries({ queryKey: ['reminder'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Recordatorio actualizado')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al eliminar')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reminders'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Recordatorio eliminado')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}
+
+// ============== FACTURAS ==============
+export function useInvoices(params: {
+  status?: string
+  customerId?: string
+  workOrderId?: string
+  search?: string
+} = {}) {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.customerId) query.set('customerId', params.customerId)
+  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+  if (params.search) query.set('search', params.search)
+  return useQuery({
+    queryKey: ['invoices', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/invoices?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar facturas')
+      return res.json()
+    },
+  })
+}
+
+export function useInvoice(id: string | null) {
+  return useQuery({
+    queryKey: ['invoice', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/invoices/${id}`)
+      if (!res.ok) throw new Error('Error al cargar factura')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
+export function useInvoiceMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear factura')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Factura creada exitosamente')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const update = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar factura')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoice'] })
+      qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Factura actualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al eliminar factura')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success('Factura eliminada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}

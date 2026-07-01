@@ -10,7 +10,9 @@ import { DevicesView } from '@/modules/devices/devices-view'
 import { WorkOrdersView } from '@/modules/work-orders/work-orders-view'
 import { WorkOrderDetailView } from '@/modules/work-orders/work-order-detail-view'
 import { QuotesView } from '@/modules/quotes/quotes-view'
+import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
+import { RemindersView } from '@/modules/reminders/reminders-view'
 import { SettingsView } from '@/modules/settings/settings-view'
 
 export default function HomePage() {
@@ -30,7 +32,9 @@ export default function HomePage() {
             {currentView === 'work-orders' && <WorkOrdersView />}
             {currentView === 'work-order-detail' && <WorkOrderDetailView />}
             {currentView === 'quotes' && <QuotesView />}
+            {currentView === 'invoices' && <InvoicesView />}
             {currentView === 'inventory' && <InventoryView />}
+            {currentView === 'reminders' && <RemindersView />}
             {currentView === 'settings' && <SettingsView />}
           </main>
         </div>
@@ -41,7 +45,7 @@ export default function HomePage() {
           <p>
             <span className="font-medium text-foreground">TallerFlow</span> · Sistema de gestión de talleres
           </p>
-          <p>v1.0 MVP · © {new Date().getFullYear()}</p>
+          <p>v1.1 MVP · © {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

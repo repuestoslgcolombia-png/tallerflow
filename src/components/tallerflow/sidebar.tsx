@@ -10,6 +10,8 @@ import {
   Settings,
   Wrench,
   X,
+  Bell,
+  Receipt,
 } from 'lucide-react'
 import { useAppStore, type View } from '@/store/app-store'
 import { cn } from '@/lib/utils'
@@ -19,16 +21,19 @@ interface NavItem {
   label: string
   icon: typeof LayoutDashboard
   description: string
+  group: 'operation' | 'admin'
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Vista general' },
-  { id: 'work-orders', label: 'Órdenes', icon: ClipboardList, description: 'Órdenes de trabajo' },
-  { id: 'customers', label: 'Clientes', icon: Users, description: 'Gestión de clientes' },
-  { id: 'devices', label: 'Equipos', icon: Laptop, description: 'Inventario de equipos' },
-  { id: 'quotes', label: 'Cotizaciones', icon: FileText, description: 'Cotizaciones y aprobaciones' },
-  { id: 'inventory', label: 'Inventario', icon: Package, description: 'Repuestos y stock' },
-  { id: 'settings', label: 'Configuración', icon: Settings, description: 'Ajustes del taller' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Vista general', group: 'operation' },
+  { id: 'work-orders', label: 'Órdenes', icon: ClipboardList, description: 'Órdenes de trabajo', group: 'operation' },
+  { id: 'customers', label: 'Clientes', icon: Users, description: 'Gestión de clientes', group: 'operation' },
+  { id: 'devices', label: 'Equipos', icon: Laptop, description: 'Inventario de equipos', group: 'operation' },
+  { id: 'quotes', label: 'Cotizaciones', icon: FileText, description: 'Cotizaciones y aprobaciones', group: 'operation' },
+  { id: 'invoices', label: 'Facturas', icon: Receipt, description: 'Facturación y pagos', group: 'operation' },
+  { id: 'reminders', label: 'Recordatorios', icon: Bell, description: 'Seguimiento post-servicio', group: 'operation' },
+  { id: 'inventory', label: 'Inventario', icon: Package, description: 'Repuestos y stock', group: 'admin' },
+  { id: 'settings', label: 'Configuración', icon: Settings, description: 'Ajustes del taller', group: 'admin' },
 ]
 
 export function Sidebar() {
@@ -75,11 +80,39 @@ export function Sidebar() {
           <p className="px-3 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Operación
           </p>
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((i) => i.group === 'operation').map((item) => {
             const Icon = item.icon
             const active = currentView === item.id ||
               (item.id === 'customers' && currentView === 'customer-detail') ||
               (item.id === 'work-orders' && currentView === 'work-order-detail')
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.id)}
+                className={cn(
+                  'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent'
+                )}
+              >
+                <Icon className={cn('size-4.5 shrink-0', active ? '' : 'text-muted-foreground group-hover:text-foreground')} />
+                <div className="flex flex-col items-start">
+                  <span>{item.label}</span>
+                  <span className={cn('text-[11px] font-normal', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                    {item.description}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+          <p className="px-3 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Gestión
+          </p>
+          {NAV_ITEMS.filter((i) => i.group === 'admin').map((item) => {
+            const Icon = item.icon
+            const active = currentView === item.id
 
             return (
               <button

@@ -8,6 +8,7 @@ import {
   QUOTE_STATUS,
   INVOICE_STATUS,
   USER_ROLES,
+  REMINDER_STATUS,
   type WorkOrderStatusKey,
   type PriorityKey,
 } from '@/lib/constants'
@@ -47,7 +48,19 @@ export function InvoiceStatusBadge({ status, className }: { status: string; clas
   const conf = (INVOICE_STATUS as any)[status]
   if (!conf) return <Badge variant="outline" className={className}>{status}</Badge>
   return (
-    <Badge variant="outline" className={cn('border font-medium', conf.color, className)}>
+    <Badge variant="outline" className={cn('gap-1.5 border font-medium', conf.color, className)}>
+      <span className={cn('size-1.5 rounded-full', (INVOICE_STATUS as any)[status]?.dot || 'bg-slate-400')} />
+      {conf.label}
+    </Badge>
+  )
+}
+
+export function ReminderStatusBadge({ status, className }: { status: string; className?: string }) {
+  const conf = (REMINDER_STATUS as any)[status]
+  if (!conf) return <Badge variant="outline" className={className}>{status}</Badge>
+  return (
+    <Badge variant="outline" className={cn('gap-1.5 border font-medium', conf.color, className)}>
+      <span className={cn('size-1.5 rounded-full', conf.dot)} />
       {conf.label}
     </Badge>
   )
