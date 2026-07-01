@@ -677,3 +677,176 @@ export function useInvoiceMutations() {
   })
   return { create, update, remove }
 }
+
+// ============== WHATSAPP ==============
+export function useWhatsAppTemplates(category?: string) {
+  const query = new URLSearchParams()
+  if (category) query.set('category', category)
+  query.set('active', 'true')
+  return useQuery({
+    queryKey: ['whatsapp-templates', category],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/templates?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar plantillas')
+      return res.json()
+    },
+  })
+}
+
+export function useWhatsAppTemplateMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/whatsapp/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear plantilla')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      toast.success('Plantilla creada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const update = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/whatsapp/templates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      toast.success('Plantilla actualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/whatsapp/templates/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al eliminar')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      toast.success('Plantilla eliminada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}
+
+export function useWhatsAppMessages(params: { customerId?: string; workOrderId?: string; limit?: number } = {}) {
+  const query = new URLSearchParams()
+  if (params.customerId) query.set('customerId', params.customerId)
+  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+  if (params.limit) query.set('limit', String(params.limit))
+  return useQuery({
+    queryKey: ['whatsapp-messages', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/messages?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar mensajes')
+      return res.json()
+    },
+  })
+}
+
+export function useWhatsAppMessageMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/whatsapp/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al registrar mensaje')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['whatsapp-messages'] })
+      toast.success('Mensaje registrado')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create }
+}
+
+export function useWhatsAppRender() {
+  return useMutation({
+    mutationFn: async (data: { templateCode: string; customerId?: string; workOrderId?: string; customVars?: Record<string, string> }) => {
+      const res = await fetch('/api/whatsapp/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al renderizar')
+      }
+      return res.json()
+    },
+  })
+}
+
+// Helper para generar URL de WhatsApp (wa.me)
+export function buildWhatsAppUrl(phone: string, message: string): string {
+  const cleanPhone = phone.replace(/[^0-9]/g, '')
+  const encodedMessage = encodeURIComponent(message)
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
+}
+
+// Helper para enviar un mensaje por WhatsApp (abre wa.me) y registrar el envío
+export async function sendWhatsAppMessage(params: {
+  phone: string
+  message: string
+  customerId: string
+  workOrderId?: string
+  reminderId?: string
+  templateId?: string
+  customerName?: string
+}) {
+  const url = buildWhatsAppUrl(params.phone, params.message)
+  if (typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+  try {
+    await fetch('/api/whatsapp/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId: params.customerId,
+        workOrderId: params.workOrderId || null,
+        reminderId: params.reminderId || null,
+        templateId: params.templateId || null,
+        toPhone: params.phone,
+        toName: params.customerName,
+        message: params.message,
+        status: 'sent',
+        channel: 'whatsapp',
+        sentBy: 'Usuario',
+      }),
+    })
+  } catch {
+    // best-effort
+  }
+  return url
+}

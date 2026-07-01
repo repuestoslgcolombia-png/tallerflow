@@ -45,6 +45,7 @@ model Customer {
   workOrders WorkOrder[]
   invoices   Invoice[]
   reminders  Reminder[]
+  messages   WhatsAppMessage[]
 
   @@index([lastName])
 }
@@ -99,6 +100,7 @@ model WorkOrder {
   partsUsed   InventoryMovement[]
   diagnosis   Diagnosis?
   reminders   Reminder[]
+  messages    WhatsAppMessage[]
 
   @@index([customerId])
   @@index([deviceId])
@@ -287,13 +289,57 @@ model Reminder {
 
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+  whatsApp  WhatsAppMessage?
 
   @@index([customerId])
   @@index([workOrderId])
   @@index([status, dueDate])
 }
 
-// ============== AUDITORÍA ==============
+// ============== MENSAJES WHATSAPP ==============
+
+model WhatsAppTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique // quote_sent | order_ready | follow_up | etc.
+  name        String
+  category    String   @default("general") // general | quotes | orders | reminders | marketing
+  subject     String?  // asunto corto para referencia
+  body        String   // cuerpo del mensaje con variables {cliente}, {equipo}, etc.
+  active      Boolean  @default(true)
+  isSystem    Boolean  @default(false) // true = plantilla del sistema (no editable)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages WhatsAppMessage[]
+
+  @@index([category])
+  @@index([active])
+}
+
+model WhatsAppMessage {
+  id           String   @id @default(cuid())
+  customerId   String
+  workOrderId  String?
+  reminderId   String? @unique
+  templateId   String?
+  toPhone      String   // número de destino
+  toName       String?  // nombre del destinatario
+  message      String   // mensaje final enviado
+  status       String   @default("sent") // sent | failed | pending
+  channel      String   @default("whatsapp") // whatsapp | email
+  sentAt       DateTime @default(now())
+  sentBy       String?  // usuario que envió
+  createdAt    DateTime @default(now())
+
+  customer  Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  reminder  Reminder?         @relation(fields: [reminderId], references: [id])
+  template  WhatsAppTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([customerId])
+  @@index([workOrderId])
+  @@index([sentAt])
+}
 
 model AuditLog {
   id          String   @id @default(cuid())

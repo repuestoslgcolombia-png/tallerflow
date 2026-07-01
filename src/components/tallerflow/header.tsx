@@ -18,6 +18,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   invoices: { title: 'Facturas', subtitle: 'Facturación y registro de pagos' },
   inventory: { title: 'Inventario', subtitle: 'Control de repuestos y stock' },
   reminders: { title: 'Recordatorios', subtitle: 'Seguimiento post-servicio a clientes' },
+  whatsapp: { title: 'WhatsApp', subtitle: 'Mensajería y plantillas de comunicación' },
   settings: { title: 'Configuración', subtitle: 'Ajustes del taller' },
 }
 

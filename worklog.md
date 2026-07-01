@@ -240,3 +240,51 @@ Stage Summary:
 - Responsive móvil optimizado: sidebar con ancho fluido (85vw), tablas con scroll horizontal, diálogos a pantalla casi completa, tap targets mínimos, safe area iOS
 - Todas las tablas de todos los módulos ahora tienen overflow-x-auto para scroll horizontal en móvil
 - Lint pasa sin errores, verificación end-to-end con Agent Browser exitosa
+
+---
+Task ID: 5
+Agent: orchestrator (main)
+Task: Fusión con repo de GitHub + módulo de WhatsApp
+
+Work Log:
+- Cloné y analicé el repositorio https://github.com/arenaglomerante-cloud/taller.git
+  - Es un proyecto skeleton/boilerplate con estructura modular, schema Prisma con enums (PostgreSQL), documentación completa (visión, roadmap, arquitectura) y CI/CD con GitHub Actions
+  - No tenía módulo de WhatsApp implementado (solo mencionado en roadmap)
+  - Nuestro TallerFlow ya tenía mucha más funcionalidad que el repo
+- Fusioné la documentación del repo:
+  - Actualicé docs/product/vision.md con estado actual (v1.2) y nuevas funcionalidades
+  - Actualicé docs/tech/arquitectura.md con stack completo, modelos de datos y sección dedicada al módulo WhatsApp
+  - Actualicé docs/product/roadmap-90-dias.md marcando Fases 1 y 2 como completadas
+  - Creé .github/workflows/ci.yml adaptado a Bun
+- Implementé el módulo de WhatsApp completo:
+  - Schema Prisma: añadí modelos WhatsAppTemplate (plantillas con código, categoría, body, isSystem) y WhatsAppMessage (historial de envíos con relaciones a customer, workOrder, reminder, template)
+  - Añadí relaciones inversas en Customer (messages), WorkOrder (messages), Reminder (whatsApp)
+  - API Routes: 
+    - /api/whatsapp/templates (GET, POST) + [id] (PUT, DELETE) — CRUD de plantillas
+    - /api/whatsapp/messages (GET, POST) — historial y registro de envíos
+    - /api/whatsapp/render (POST) — renderiza plantilla con variables ({cliente}, {equipo}, {codigo}, {total}, {fecha}, {taller}, {telefono})
+  - Hooks de React Query: useWhatsAppTemplates, useWhatsAppTemplateMutations, useWhatsAppMessages, useWhatsAppMessageMutations, useWhatsAppRender, sendWhatsAppMessage (helper que abre wa.me y registra el envío), buildWhatsAppUrl
+  - Vista WhatsAppView con 3 pestañas:
+    - Enviar: formulario con selección de cliente, plantilla, mensaje editable, vista previa estilo WhatsApp, botón enviar (abre wa.me)
+    - Plantillas: grid de tarjetas con búsqueda, filtro por categoría, CRUD completo (crear/editar/eliminar)
+    - Historial: lista de mensajes enviados con cliente, teléfono, plantilla usada, orden vinculada, fecha
+  - 10 plantillas del sistema (isSystem=true, no editables/eliminables): order_received, quote_sent, quote_approved, order_ready, order_delivered, follow_up, warranty_check, service_review, maintenance_reminder, custom_message
+  - Cada plantilla tiene cuerpo con variables y formato WhatsApp (emojis, negritas con asteriscos)
+- Actualicé store (app-store.ts): añadí vista 'whatsapp'
+- Actualicé sidebar: añadí item WhatsApp con icono MessageCircle en grupo "Operación"
+- Actualicé header: añadí título "WhatsApp" con subtítulo "Mensajería y plantillas de comunicación"
+- Actualicé page.tsx: añadí render de WhatsAppView
+- Verificación con Agent Browser:
+  - Módulo WhatsApp carga con 3 pestañas ✓
+  - Pestaña Enviar: selección de cliente (7 clientes), selección de plantilla (10 plantillas), renderizado de variables ({cliente}→"Andrés Quintero", {taller}→"TallerTech Pro") ✓
+  - Pestaña Plantillas: 10 plantillas visibles, botones editar ✓
+  - Pestaña Historial: vacía (sin envíos previos) con empty state ✓
+  - Sin errores de consola ✓
+  - APIs responden 200 ✓
+
+Stage Summary:
+- Documentación del repo de GitHub fusionada y actualizada al estado actual
+- CI/CD de GitHub Actions añadido (adaptado a Bun)
+- Módulo de WhatsApp completo: 10 plantillas del sistema, composición con vista previa, envío vía wa.me, historial, CRUD de plantillas personalizadas
+- Variables dinámicas en plantillas: {cliente}, {equipo}, {codigo}, {total}, {fecha}, {taller}, {telefono}
+- Lint pasa sin errores, verificación end-to-end exitosa

@@ -13,6 +13,7 @@ import { QuotesView } from '@/modules/quotes/quotes-view'
 import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
 import { RemindersView } from '@/modules/reminders/reminders-view'
+import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
 import { SettingsView } from '@/modules/settings/settings-view'
 
 export default function HomePage() {
@@ -35,6 +36,7 @@ export default function HomePage() {
             {currentView === 'invoices' && <InvoicesView />}
             {currentView === 'inventory' && <InventoryView />}
             {currentView === 'reminders' && <RemindersView />}
+            {currentView === 'whatsapp' && <WhatsAppView />}
             {currentView === 'settings' && <SettingsView />}
           </main>
         </div>

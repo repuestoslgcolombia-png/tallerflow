@@ -11,6 +11,7 @@ export type View =
   | 'invoices'
   | 'inventory'
   | 'reminders'
+  | 'whatsapp'
   | 'settings'
 
 interface AppState {
