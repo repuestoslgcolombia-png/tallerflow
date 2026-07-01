@@ -197,3 +197,46 @@ Stage Summary:
 - 8 recordatorios seed en distintos estados para demostración
 - Todos los flujos verificados end-to-end con Agent Browser
 - Lint pasa sin errores
+
+---
+Task ID: 4
+Agent: orchestrator (main)
+Task: Integración de modo oscuro y optimización móvil
+
+Work Log:
+- Creé ThemeProvider con next-themes (src/components/theme/theme-provider.tsx) y ThemeToggle (src/components/theme/theme-toggle.tsx) con menú desplegable de 3 opciones: Claro, Oscuro, Sistema
+- Actualicé layout.tsx: añadí ThemeProvider con attribute="class", storageKey="tallerflow-theme", enableSystem, disableTransitionOnChange. Añadí script anti-flash (inline en <head>) que aplica el tema antes de la hidratación para evitar parpadeo
+- Mejoré globals.css significativamente:
+  - Variables dark mode con tono azulado-grisáceo sutil (no negro puro) para mejor contraste
+  - Primary color en dark mode: verde esmeralda (oklch 0.62 0.14 165) para coherencia con la marca
+  - Scrollbars estilizadas (thin) con variables dedicadas para light/dark
+  - Mejoras de contraste: placeholders de inputs en dark mode
+  - Media queries para diálogos y dropdowns en móvil (ocupan casi toda la pantalla)
+  - Safe area para iOS (notch/home indicator)
+  - Tap targets mínimos de 40px en móvil
+- Actualicé header.tsx: añadí ThemeToggle, mejoré responsive (gap reducido en móvil, avatar oculto en móvil, búsqueda oculta en móvil, truncado de título)
+- Actualicé sidebar.tsx: ancho responsive (85vw max 300px en móvil), animación suave con duration-300, shadow-xl en móvil, overlay con bg-black/50
+- Actualicé page.tsx: padding responsive (p-3 sm:p-4 lg:p-6), footer con safe-bottom para iOS
+- Arreglé todas las tablas para scroll horizontal en móvil: envolví cada <Table> en <div className="overflow-x-auto"> en:
+  - work-orders-view.tsx (tabla principal)
+  - customers-view.tsx (tabla principal)
+  - customer-detail-view.tsx (3 tablas: equipos, órdenes, facturas)
+  - quotes-view.tsx (tabla principal + tabla de items del diálogo)
+  - devices-view.tsx (tabla principal)
+  - inventory-view.tsx (tabla principal)
+- Verificación con Agent Browser:
+  - Modo claro desktop: ✓ Dashboard, Órdenes, Detalle de Orden, Facturas, Inventario
+  - Modo oscuro desktop: ✓ Dashboard, Órdenes, Detalle de Orden, Facturas
+  - Modo oscuro móvil (390x844): ✓ Dashboard, Órdenes (con scroll horizontal), Recordatorios, Inventario
+  - Diálogos en móvil: ✓ Crear recordatorio se abre correctamente
+  - Toggle de tema: ✓ Cambio instantáneo entre Claro/Oscuro/Sistema
+  - Persistencia: ✓ El tema se mantiene tras recargar (localStorage)
+  - Anti-flash: ✓ Script en <head> previene parpadeo
+  - Sin errores de consola en ningún modo
+
+Stage Summary:
+- Modo oscuro completamente funcional con 3 opciones (Claro/Oscuro/Sistema) y persistencia
+- Paleta dark mode optimizada: fondo azulado-grisáceo sutil, primary verde esmeralda, scrollbars estilizadas
+- Responsive móvil optimizado: sidebar con ancho fluido (85vw), tablas con scroll horizontal, diálogos a pantalla casi completa, tap targets mínimos, safe area iOS
+- Todas las tablas de todos los módulos ahora tienen overflow-x-auto para scroll horizontal en móvil
+- Lint pasa sin errores, verificación end-to-end con Agent Browser exitosa

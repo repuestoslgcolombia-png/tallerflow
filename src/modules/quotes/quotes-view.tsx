@@ -219,6 +219,7 @@ export function QuotesView() {
               </Button>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -288,6 +289,7 @@ export function QuotesView() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -521,6 +523,7 @@ function QuoteDetailDialog({
               </div>
             </div>
 
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -557,6 +560,7 @@ function QuoteDetailDialog({
                 )}
               </TableBody>
             </Table>
+            </div>
 
             <div className="ml-auto w-full max-w-xs space-y-1 text-sm">
               <div className="flex justify-between">

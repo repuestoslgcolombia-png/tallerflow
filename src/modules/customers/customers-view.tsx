@@ -449,6 +449,7 @@ export function CustomersView() {
               }
             />
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -564,6 +565,7 @@ export function CustomersView() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

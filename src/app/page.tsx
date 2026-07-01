@@ -24,7 +24,7 @@ export default function HomePage() {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
             {currentView === 'dashboard' && <DashboardView />}
             {currentView === 'customers' && <CustomersView />}
             {currentView === 'customer-detail' && <CustomerDetailView />}
@@ -40,12 +40,12 @@ export default function HomePage() {
         </div>
       </div>
 
-      <footer className="mt-auto border-t bg-background px-4 py-3 lg:px-6">
+      <footer className="safe-bottom mt-auto border-t bg-background px-4 py-3 lg:px-6">
         <div className="flex flex-col items-center justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
           <p>
             <span className="font-medium text-foreground">TallerFlow</span> · Sistema de gestión de talleres
           </p>
-          <p>v1.1 MVP · © {new Date().getFullYear()}</p>
+          <p>v1.2 · © {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

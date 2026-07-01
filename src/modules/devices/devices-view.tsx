@@ -575,6 +575,7 @@ export function DevicesView() {
               }
             />
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -690,6 +691,7 @@ export function DevicesView() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

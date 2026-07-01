@@ -1,10 +1,11 @@
 'use client'
 
-import { Menu, Search, Bell, Plus } from 'lucide-react'
+import { Menu, Search, Bell, Plus, Sun, Moon } from 'lucide-react'
 import { useAppStore, type View } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ThemeToggle } from '@/components/theme'
 
 const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Resumen operativo del taller' },
@@ -25,42 +26,50 @@ export function Header() {
   const info = VIEW_TITLES[currentView]
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:gap-3 sm:px-4 lg:px-6">
       <Button
         variant="ghost"
         size="icon"
-        className="lg:hidden"
+        className="shrink-0 lg:hidden"
         onClick={toggleSidebar}
         aria-label="Abrir menú"
       >
         <Menu className="size-5" />
       </Button>
 
-      <div className="flex flex-col">
-        <h1 className="text-base font-semibold leading-tight sm:text-lg">{info.title}</h1>
-        <p className="hidden text-xs text-muted-foreground sm:block">{info.subtitle}</p>
+      <div className="min-w-0 flex-1 flex-col">
+        <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{info.title}</h1>
+        <p className="hidden truncate text-xs text-muted-foreground sm:block">{info.subtitle}</p>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {/* Búsqueda: solo visible en pantallas medianas+ */}
         <div className="relative hidden md:block">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar..."
-            className="h-9 w-56 pl-9 lg:w-64"
+            className="h-9 w-40 pl-9 lg:w-64"
           />
         </div>
+
+        <ThemeToggle />
 
         <Button variant="ghost" size="icon" className="relative" aria-label="Notificaciones">
           <Bell className="size-5" />
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-rose-500" />
         </Button>
 
-        <Button size="sm" className="gap-1.5" onClick={() => navigate('work-orders')}>
+        <Button
+          size="sm"
+          className="shrink-0 gap-1.5"
+          onClick={() => navigate('work-orders')}
+          aria-label="Nueva orden"
+        >
           <Plus className="size-4" />
           <span className="hidden sm:inline">Nueva Orden</span>
         </Button>
 
-        <Avatar className="size-9 border">
+        <Avatar className="hidden size-9 border sm:flex">
           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
             CM
           </AvatarFallback>

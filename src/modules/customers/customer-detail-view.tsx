@@ -426,6 +426,7 @@ export function CustomerDetailView() {
                   }
                 />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -483,6 +484,7 @@ export function CustomerDetailView() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -518,6 +520,7 @@ export function CustomerDetailView() {
                   }
                 />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -566,6 +569,7 @@ export function CustomerDetailView() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -588,6 +592,7 @@ export function CustomerDetailView() {
                   description="Las facturas se generan al entregar órdenes de trabajo."
                 />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -618,6 +623,7 @@ export function CustomerDetailView() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

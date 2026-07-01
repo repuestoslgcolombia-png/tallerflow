@@ -261,6 +261,7 @@ export function WorkOrdersView() {
               </Button>
             </div>
           ) : (
+           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -343,6 +344,7 @@ export function WorkOrdersView() {
                 ))}
               </TableBody>
             </Table>
+           </div>
           )}
         </CardContent>
       </Card>
