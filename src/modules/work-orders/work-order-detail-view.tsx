@@ -1,0 +1,1472 @@
+'use client'
+
+import * as React from 'react'
+import { toast } from 'sonner'
+import {
+  ArrowLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+  Trash2,
+  FileText,
+  Send,
+  Copy,
+  Check,
+  X,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  MessageSquare,
+  UserCog,
+  Laptop,
+  Smartphone,
+  Cpu,
+  Monitor,
+  Tablet,
+  Printer,
+  Clock,
+  Calendar,
+  User as UserIcon,
+  Wrench,
+  DollarSign,
+  Link as LinkIcon,
+  Package,
+  History,
+  AlertTriangle,
+} from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Progress } from '@/components/ui/progress'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
+import { StatusBadge, PriorityBadge, QuoteStatusBadge } from '@/components/tallerflow/badges'
+import { useAppStore } from '@/store/app-store'
+import {
+  useWorkOrder,
+  useWorkOrderMutations,
+  useUsers,
+  useQuoteMutations,
+} from '@/lib/hooks/api'
+import {
+  WORK_ORDER_STATUS,
+  PRIORITY,
+  DEVICE_TYPES,
+  QUOTE_STATUS,
+  getNextStatuses,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  timeAgo,
+  fullName,
+  type WorkOrderStatusKey,
+  type PriorityKey,
+} from '@/lib/constants'
+import { cn } from '@/lib/utils'
+
+// ============== Device type icon helper ==============
+const DEVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Laptop,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Printer,
+  Cpu,
+}
+
+function DeviceTypeIcon({ type, className }: { type: string; className?: string }) {
+  const conf = (DEVICE_TYPES as any)[type] || DEVICE_TYPES.other
+  const Icon = DEVICE_ICONS[conf.icon] || Cpu
+  return <Icon className={className} />
+}
+
+// ============== Timeline icon helper ==============
+function TimelineIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'status_change':
+      return <CheckCircle2 className="size-3.5 text-emerald-500" />
+    case 'note':
+      return <MessageSquare className="size-3.5 text-sky-500" />
+    case 'assignment':
+      return <UserCog className="size-3.5 text-violet-500" />
+    case 'diagnosis_update':
+      return <FileText className="size-3.5 text-amber-500" />
+    default:
+      return <CheckCircle2 className="size-3.5 text-muted-foreground" />
+  }
+}
+
+// ============== Main Detail View ==============
+export function WorkOrderDetailView() {
+  const { navigate, selectedWorkOrderId } = useAppStore()
+  const { data, isLoading, isError } = useWorkOrder(selectedWorkOrderId)
+  const { patch, remove, update } = useWorkOrderMutations()
+  const { update: updateQuote } = useQuoteMutations()
+
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
+  const [assignTechOpen, setAssignTechOpen] = React.useState(false)
+  const [diagnosisOpen, setDiagnosisOpen] = React.useState(false)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
+  const [viewQuote, setViewQuote] = React.useState<any | null>(null)
+
+  const order: any = data
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" className="gap-1" onClick={() => navigate('work-orders')}>
+          <ArrowLeft className="size-4" /> Volver a Órdenes
+        </Button>
+        <Skeleton className="h-20 w-full" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 w-full" />
+            ))}
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError || !order) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" className="gap-1" onClick={() => navigate('work-orders')}>
+          <ArrowLeft className="size-4" /> Volver a Órdenes
+        </Button>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+            <AlertTriangle className="size-8 text-rose-500" />
+            <p className="text-sm text-muted-foreground">
+              No se pudo cargar la orden. Puede que haya sido eliminada.
+            </p>
+            <Button onClick={() => navigate('work-orders')} variant="outline">
+              Volver a Órdenes
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const statusConf = WORK_ORDER_STATUS[order.status as WorkOrderStatusKey]
+  const nextStatuses = getNextStatuses(order.status as WorkOrderStatusKey)
+  const canDelete = ['received', 'cancelled'].includes(order.status)
+  const balance = (order.totalAmount || 0) - (order.totalPaid || 0)
+  const stepProgress = statusConf?.step != null && statusConf.step > 0
+    ? Math.min(100, Math.round(((statusConf.step) / 6) * 100))
+    : 0
+
+  const changeStatus = (newStatus: WorkOrderStatusKey) => {
+    patch.mutate(
+      { id: order.id, data: { action: 'change_status', status: newStatus } },
+      { onSuccess: () => toast.success(`Estado cambiado a "${WORK_ORDER_STATUS[newStatus].label}"`) }
+    )
+  }
+
+  const copyApprovalLink = (q: any) => {
+    const url = `${window.location.origin}/?quote=${q.id}&token=${q.approvalToken}`
+    navigator.clipboard.writeText(url)
+    toast.success('Link copiado al portapapeles')
+  }
+
+  const sendQuote = (q: any) => {
+    updateQuote.mutate(
+      { id: q.id, data: { action: 'send' } }
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Back button */}
+      <Button variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => navigate('work-orders')}>
+        <ArrowLeft className="size-4" /> Volver a Órdenes
+      </Button>
+
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h1 className="font-mono text-2xl font-semibold tracking-tight">{order.code}</h1>
+            <StatusBadge status={order.status} />
+            <PriorityBadge priority={order.priority} />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Creada {timeAgo(order.createdAt)} · Recibida {formatDateTime(order.receivedAt)}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Change status dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                Cambiar Estado
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Cambiar a…</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {nextStatuses.length === 0 ? (
+                <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  No hay estados siguientes disponibles
+                </div>
+              ) : (
+                nextStatuses.map((s) => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={() => changeStatus(s)}
+                    disabled={patch.isPending}
+                  >
+                    <span className={cn('size-1.5 rounded-full', WORK_ORDER_STATUS[s].dot)} />
+                    {WORK_ORDER_STATUS[s].label}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setCreateQuoteOpen(true)}
+          >
+            <FileText className="size-3.5" />
+            Crear Cotización
+          </Button>
+
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-rose-600 hover:text-rose-700"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Eliminar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Main grid */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* LEFT COLUMN */}
+        <div className="space-y-4 lg:col-span-2">
+          {/* Información de la Orden */}
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Información de la Orden</CardTitle>
+                <CardDescription>Detalles del problema y diagnóstico</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
+                <Pencil className="size-3.5" />
+                Editar
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Problema reportado
+                </p>
+                <p className="text-sm whitespace-pre-wrap">{order.reportedIssue}</p>
+              </div>
+
+              {order.diagnosisText && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Diagnóstico
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap">{order.diagnosisText}</p>
+                </div>
+              )}
+
+              {order.internalNotes && (
+                <div className="rounded-md bg-amber-50 p-3 dark:bg-amber-950/20">
+                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    Notas internas
+                  </p>
+                  <p className="mt-1 text-sm whitespace-pre-wrap text-amber-900 dark:text-amber-200">
+                    {order.internalNotes}
+                  </p>
+                </div>
+              )}
+
+              <Separator />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <DateField icon={<Calendar className="size-3.5" />} label="Recibida" value={formatDate(order.receivedAt)} />
+                <DateField
+                  icon={<Clock className="size-3.5" />}
+                  label="Estimada"
+                  value={order.estimatedDoneAt ? formatDate(order.estimatedDoneAt) : '—'}
+                />
+                <DateField
+                  icon={<Check className="size-3.5" />}
+                  label="Entregada"
+                  value={order.deliveredAt ? formatDate(order.deliveredAt) : '—'}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cliente y Equipo */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Cliente y Equipo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Cliente */}
+                <button
+                  className="group space-y-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/40"
+                  onClick={() => navigate('customer-detail', { customerId: order.customer?.id })}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-medium text-emerald-700">
+                      {(order.customer?.firstName || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {fullName(order.customer?.firstName, order.customer?.lastName)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Ver detalle</p>
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" />
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    {order.customer?.phone && (
+                      <p className="flex items-center gap-1.5 text-muted-foreground">
+                        <UserIcon className="size-3" /> {order.customer.phone}
+                      </p>
+                    )}
+                    {order.customer?.email && (
+                      <p className="flex items-center gap-1.5 text-muted-foreground">
+                        <MessageSquare className="size-3" /> {order.customer.email}
+                      </p>
+                    )}
+                    {order.customer?.documentId && (
+                      <p className="flex items-center gap-1.5 text-muted-foreground">
+                        <FileText className="size-3" /> {order.customer.documentId}
+                      </p>
+                    )}
+                  </div>
+                </button>
+
+                {/* Equipo */}
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-9 items-center justify-center rounded-md bg-muted">
+                      <DeviceTypeIcon type={order.device?.type} className="size-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {DEVICE_TYPES[order.device?.type as keyof typeof DEVICE_TYPES]?.label || 'Equipo'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[order.device?.brand, order.device?.model].filter(Boolean).join(' ') || 'Sin modelo'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    {order.device?.serial && (
+                      <p className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="font-mono">S/N: {order.device.serial}</span>
+                      </p>
+                    )}
+                    {order.device?.accessories && (
+                      <p className="text-muted-foreground">
+                        <span className="font-medium">Accesorios:</span> {order.device.accessories}
+                      </p>
+                    )}
+                    {order.device?.notes && (
+                      <p className="text-muted-foreground">
+                        <span className="font-medium">Notas:</span> {order.device.notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Timeline */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="size-4" />
+                Línea de Tiempo
+              </CardTitle>
+              <CardDescription>Eventos y cambios registrados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!order.timeline || order.timeline.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No hay eventos registrados.
+                </p>
+              ) : (
+                <div className="relative">
+                  {/* Vertical line */}
+                  <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+                  <ul className="space-y-5">
+                    {[...order.timeline].reverse().map((ev: any) => (
+                      <li key={ev.id} className="relative pl-8">
+                        <div className="absolute left-0 top-0.5 flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted">
+                          <TimelineIcon type={ev.eventType} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{ev.title}</p>
+                            {ev.toStatus && (
+                              <StatusBadge status={ev.toStatus} className="py-0" />
+                            )}
+                          </div>
+                          {ev.description && (
+                            <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                              {ev.description}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground">
+                            {ev.createdBy && <span>{ev.createdBy} · </span>}
+                            {timeAgo(ev.createdAt)}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Cotizaciones */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Cotizaciones</CardTitle>
+                <CardDescription>
+                  {order.quotes?.length || 0} cotización(es) para esta orden
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
+                <Plus className="size-3.5" /> Nueva
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {!order.quotes || order.quotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                    <FileText className="size-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Sin cotizaciones</p>
+                    <p className="text-xs text-muted-foreground">
+                      Crea una para enviarla al cliente.
+                    </p>
+                  </div>
+                  <Button size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
+                    <Plus className="size-4" /> Crear Cotización
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {order.quotes.map((q: any) => (
+                    <div
+                      key={q.id}
+                      className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 items-center justify-center rounded-md bg-muted">
+                          <FileText className="size-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-mono text-sm font-medium">{q.code}</p>
+                            <QuoteStatusBadge status={q.status} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {q.items?.length || 0} ítem(s) · {formatCurrency(q.total || 0)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button variant="ghost" size="sm" className="gap-1" onClick={() => setViewQuote(q)}>
+                          <Eye className="size-3.5" /> Ver
+                        </Button>
+                        {q.status === 'draft' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => sendQuote(q)}
+                          >
+                            <Send className="size-3.5" /> Enviar
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => copyApprovalLink(q)}
+                        >
+                          <LinkIcon className="size-3.5" /> Link
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="space-y-4">
+          {/* Estado Actual */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Estado Actual</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <StatusBadge status={order.status} className="text-sm" />
+              {statusConf?.step != null && statusConf.step >= 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Paso {statusConf.step} de 6</span>
+                    <span className="font-medium tabular-nums">{stepProgress}%</span>
+                  </div>
+                  <Progress value={stepProgress} className="h-1.5" />
+                  <p className="text-xs text-muted-foreground">{statusConf.description}</p>
+                </div>
+              )}
+              <Separator />
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Avanzar estado
+                </p>
+                {nextStatuses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin transiciones disponibles.</p>
+                ) : (
+                  <div className="grid gap-1.5">
+                    {nextStatuses.map((s) => (
+                      <Button
+                        key={s}
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => changeStatus(s)}
+                        disabled={patch.isPending}
+                      >
+                        <span className={cn('size-1.5 rounded-full', WORK_ORDER_STATUS[s].dot)} />
+                        {WORK_ORDER_STATUS[s].label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Técnico Asignado */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Técnico Asignado</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {order.technician ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-violet-100 text-sm font-medium text-violet-700">
+                    {(order.technician.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{order.technician.name}</p>
+                    {order.technician.email && (
+                      <p className="text-xs text-muted-foreground">{order.technician.email}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-muted">
+                    <Wrench className="size-4" />
+                  </div>
+                  <p className="text-sm">Sin asignar</p>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={() => setAssignTechOpen(true)}
+              >
+                <UserCog className="size-3.5" />
+                {order.technician ? 'Cambiar técnico' : 'Asignar técnico'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Resumen Financiero */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <DollarSign className="size-4" />
+                Resumen Financiero
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Total</span>
+                <span className="font-medium tabular-nums">{formatCurrency(order.totalAmount || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Pagado</span>
+                <span className="font-medium tabular-nums text-emerald-600">
+                  {formatCurrency(order.totalPaid || 0)}
+                </span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Saldo</span>
+                <span
+                  className={cn(
+                    'font-semibold tabular-nums',
+                    balance > 0 ? 'text-rose-600' : 'text-emerald-600'
+                  )}
+                >
+                  {formatCurrency(balance)}
+                </span>
+              </div>
+              {order.totalAmount > 0 && (
+                <div className="pt-1">
+                  {balance <= 0 ? (
+                    <Badge className="bg-emerald-100 text-emerald-700">Pagada</Badge>
+                  ) : order.totalPaid > 0 ? (
+                    <Badge className="bg-sky-100 text-sky-700">Pago parcial</Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-700">Pendiente de pago</Badge>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Diagnóstico */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="size-4" />
+                Diagnóstico
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {order.diagnosis ? (
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs font-medium uppercase text-muted-foreground">Hallazgos</p>
+                    <p className="whitespace-pre-wrap">{order.diagnosis.findings}</p>
+                  </div>
+                  {order.diagnosis.rootCause && (
+                    <div>
+                      <p className="text-xs font-medium uppercase text-muted-foreground">Causa raíz</p>
+                      <p className="whitespace-pre-wrap">{order.diagnosis.rootCause}</p>
+                    </div>
+                  )}
+                  {order.diagnosis.recommendation && (
+                    <div>
+                      <p className="text-xs font-medium uppercase text-muted-foreground">Recomendación</p>
+                      <p className="whitespace-pre-wrap">{order.diagnosis.recommendation}</p>
+                    </div>
+                  )}
+                  {(order.diagnosis.laborHours > 0 || order.diagnosis.laborCost > 0) && (
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>Horas: <strong className="text-foreground">{order.diagnosis.laborHours}h</strong></span>
+                      <span>Mano de obra: <strong className="text-foreground">{formatCurrency(order.diagnosis.laborCost)}</strong></span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Sin diagnóstico.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => setDiagnosisOpen(true)}
+                  >
+                    <Plus className="size-3.5" /> Agregar diagnóstico
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Repuestos Utilizados */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Package className="size-4" />
+                Repuestos Utilizados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!order.partsUsed || order.partsUsed.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No se han registrado salidas de repuestos.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {order.partsUsed.map((m: any) => (
+                    <li
+                      key={m.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium">{m.part?.name || 'Repuesto'}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{m.part?.sku}</p>
+                      </div>
+                      <Badge variant="outline" className="bg-rose-50 text-rose-700">
+                        -{m.quantity}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <EditOrderDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        order={order}
+      />
+      <CreateQuoteDialog
+        open={createQuoteOpen}
+        onOpenChange={setCreateQuoteOpen}
+        workOrderId={order.id}
+      />
+      <AssignTechDialog
+        open={assignTechOpen}
+        onOpenChange={setAssignTechOpen}
+        order={order}
+      />
+      <DiagnosisDialog
+        open={diagnosisOpen}
+        onOpenChange={setDiagnosisOpen}
+        order={order}
+      />
+      <ViewQuoteDialog
+        quote={viewQuote}
+        onOpenChange={(v) => !v && setViewQuote(null)}
+      />
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar orden {order.code}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la orden,
+              su timeline, cotizaciones y movimientos asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={() => {
+                remove.mutate(order.id, {
+                  onSuccess: () => navigate('work-orders'),
+                })
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+// ============== Sub-components ==============
+
+function DateField({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <div className="space-y-0.5">
+      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+        {icon} {label}
+      </p>
+      <p className="text-sm font-medium">{value}</p>
+    </div>
+  )
+}
+
+// ============== Edit Dialog ==============
+function EditOrderDialog({
+  open,
+  onOpenChange,
+  order,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  order: any
+}) {
+  const { update } = useWorkOrderMutations()
+  const { data: users } = useUsers()
+
+  const [reportedIssue, setReportedIssue] = React.useState('')
+  const [internalNotes, setInternalNotes] = React.useState('')
+  const [priority, setPriority] = React.useState<PriorityKey>('normal')
+  const [estimatedDoneAt, setEstimatedDoneAt] = React.useState('')
+  const [technicianId, setTechnicianId] = React.useState('')
+
+  React.useEffect(() => {
+    if (open && order) {
+      setReportedIssue(order.reportedIssue || '')
+      setInternalNotes(order.internalNotes || '')
+      setPriority(order.priority || 'normal')
+      setTechnicianId(order.technicianId || '')
+      setEstimatedDoneAt(
+        order.estimatedDoneAt ? order.estimatedDoneAt.split('T')[0].slice(0, 10) : ''
+      )
+    }
+  }, [open, order])
+
+  const technicians: any[] = (users || []).filter(
+    (u: any) => u.role === 'technician' || u.role === 'admin'
+  )
+
+  const handleSave = () => {
+    const data: any = {
+      reportedIssue: reportedIssue.trim(),
+      internalNotes: internalNotes.trim() || null,
+      priority,
+      technicianId: technicianId || null,
+      estimatedDoneAt: estimatedDoneAt
+        ? new Date(estimatedDoneAt).toISOString()
+        : null,
+    }
+    update.mutate(
+      { id: order.id, data },
+      { onSuccess: () => onOpenChange(false) }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Orden</DialogTitle>
+          <DialogDescription>Modifica la información de la orden.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Problema reportado</Label>
+            <Textarea
+              value={reportedIssue}
+              onChange={(e) => setReportedIssue(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Notas internas</Label>
+            <Textarea
+              value={internalNotes}
+              onChange={(e) => setInternalNotes(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Prioridad</Label>
+              <Select value={priority} onValueChange={(v) => setPriority(v as PriorityKey)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PRIORITY) as PriorityKey[]).map((k) => (
+                    <SelectItem key={k} value={k}>{PRIORITY[k].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Técnico</Label>
+              <Select value={technicianId} onValueChange={setTechnicianId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sin asignar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {technicians.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Fecha estimada</Label>
+            <Input
+              type="date"
+              value={estimatedDoneAt}
+              onChange={(e) => setEstimatedDoneAt(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={update.isPending} className="gap-2">
+            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Assign Technician Dialog ==============
+function AssignTechDialog({
+  open,
+  onOpenChange,
+  order,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  order: any
+}) {
+  const { patch } = useWorkOrderMutations()
+  const { data: users } = useUsers()
+  const [techId, setTechId] = React.useState('')
+
+  React.useEffect(() => {
+    if (open && order) setTechId(order.technicianId || '')
+  }, [open, order])
+
+  const technicians: any[] = (users || []).filter(
+    (u: any) => u.role === 'technician' || u.role === 'admin'
+  )
+
+  const handleSave = () => {
+    patch.mutate(
+      { id: order.id, data: { action: 'assign_technician', technicianId: techId } },
+      { onSuccess: () => onOpenChange(false) }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Asignar Técnico</DialogTitle>
+          <DialogDescription>Selecciona el técnico responsable.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>Técnico</Label>
+          <Select value={techId} onValueChange={setTechId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Sin asignar" />
+            </SelectTrigger>
+            <SelectContent>
+              {technicians.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={!techId || patch.isPending} className="gap-2">
+            {patch.isPending && <Loader2 className="size-4 animate-spin" />}
+            Asignar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Diagnosis Dialog ==============
+function DiagnosisDialog({
+  open,
+  onOpenChange,
+  order,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  order: any
+}) {
+  const { update } = useWorkOrderMutations()
+  const [text, setText] = React.useState('')
+
+  React.useEffect(() => {
+    if (open && order) setText(order.diagnosisText || '')
+  }, [open, order])
+
+  const handleSave = () => {
+    update.mutate(
+      { id: order.id, data: { diagnosisText: text.trim() || null } },
+      { onSuccess: () => onOpenChange(false) }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Agregar Diagnóstico</DialogTitle>
+          <DialogDescription>
+            Registra el diagnóstico técnico. Se guardará en el campo de texto de la orden.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>Diagnóstico</Label>
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            placeholder="Describe los hallazgos, causa raíz y recomendación…"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={update.isPending} className="gap-2">
+            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Create Quote Dialog ==============
+interface QuoteItemDraft {
+  itemType: string
+  description: string
+  quantity: string
+  unitPrice: string
+}
+
+function CreateQuoteDialog({
+  open,
+  onOpenChange,
+  workOrderId,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  workOrderId: string
+}) {
+  const { create } = useQuoteMutations()
+  const [items, setItems] = React.useState<QuoteItemDraft[]>([
+    { itemType: 'labor', description: '', quantity: '1', unitPrice: '0' },
+  ])
+  const [notes, setNotes] = React.useState('')
+  const [sendImmediately, setSendImmediately] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open) {
+      setItems([{ itemType: 'labor', description: '', quantity: '1', unitPrice: '0' }])
+      setNotes('')
+      setSendImmediately(false)
+    }
+  }, [open])
+
+  const TAX_RATE = 0.19
+
+  const subtotal = items.reduce(
+    (acc, it) => acc + (parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice) || 0),
+    0
+  )
+  const tax = subtotal * TAX_RATE
+  const total = subtotal + tax
+
+  const updateItem = (idx: number, patch: Partial<QuoteItemDraft>) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+  const addItem = () =>
+    setItems((prev) => [
+      ...prev,
+      { itemType: 'labor', description: '', quantity: '1', unitPrice: '0' },
+    ])
+  const removeItem = (idx: number) =>
+    setItems((prev) => prev.filter((_, i) => i !== idx))
+
+  const canSubmit = items.some(
+    (it) => it.description.trim() && (parseFloat(it.quantity) || 0) > 0
+  )
+
+  const handleSubmit = () => {
+    const cleanItems = items
+      .filter((it) => it.description.trim())
+      .map((it) => ({
+        itemType: it.itemType,
+        description: it.description.trim(),
+        quantity: parseFloat(it.quantity) || 1,
+        unitPrice: parseFloat(it.unitPrice) || 0,
+      }))
+
+    create.mutate(
+      {
+        workOrderId,
+        items: cleanItems,
+        notes: notes.trim() || undefined,
+        sendImmediately,
+      },
+      { onSuccess: () => onOpenChange(false) }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Crear Cotización</DialogTitle>
+          <DialogDescription>
+            Define los ítems (repuestos, mano de obra, otros). IVA 19% aplicado.
+          </DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[50vh] pr-4">
+          <div className="space-y-3">
+            {items.map((it, idx) => {
+              const lineTotal = (parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice) || 0)
+              return (
+                <div
+                  key={idx}
+                  className="rounded-lg border p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Ítem #{idx + 1}
+                    </span>
+                    {items.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 text-rose-500"
+                        onClick={() => removeItem(idx)}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs">Tipo</Label>
+                      <Select
+                        value={it.itemType}
+                        onValueChange={(v) => updateItem(idx, { itemType: v })}
+                      >
+                        <SelectTrigger className="w-full h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="part">Repuesto</SelectItem>
+                          <SelectItem value="labor">Mano de obra</SelectItem>
+                          <SelectItem value="other">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-9">
+                      <Label className="text-xs">Descripción</Label>
+                      <Input
+                        className="h-8"
+                        value={it.description}
+                        onChange={(e) => updateItem(idx, { description: e.target.value })}
+                        placeholder="Describe el ítem…"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs">Cantidad</Label>
+                      <Input
+                        type="number"
+                        className="h-8"
+                        value={it.quantity}
+                        onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs">Precio unit.</Label>
+                      <Input
+                        type="number"
+                        className="h-8"
+                        value={it.unitPrice}
+                        onChange={(e) => updateItem(idx, { unitPrice: e.target.value })}
+                        min="0"
+                        step="100"
+                      />
+                    </div>
+                    <div className="sm:col-span-5">
+                      <Label className="text-xs">Total</Label>
+                      <div className="flex h-8 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium tabular-nums">
+                        {formatCurrency(lineTotal)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={addItem}>
+              <Plus className="size-4" /> Agregar ítem
+            </Button>
+          </div>
+        </ScrollArea>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Notas (opcional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Condiciones, garantía, etc."
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendImmediately}
+              onChange={(e) => setSendImmediately(e.target.checked)}
+              className="size-4 rounded border-input"
+            />
+            Enviar inmediatamente al cliente
+          </label>
+
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">IVA (19%)</span>
+              <span className="tabular-nums">{formatCurrency(tax)}</span>
+            </div>
+            <Separator className="my-1" />
+            <div className="flex justify-between font-semibold">
+              <span>Total</span>
+              <span className="tabular-nums">{formatCurrency(total)}</span>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit || create.isPending}
+            className="gap-2"
+          >
+            {create.isPending && <Loader2 className="size-4 animate-spin" />}
+            {sendImmediately ? 'Crear y Enviar' : 'Crear Cotización'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== View Quote Dialog ==============
+function ViewQuoteDialog({
+  quote,
+  onOpenChange,
+}: {
+  quote: any | null
+  onOpenChange: (v: boolean) => void
+}) {
+  if (!quote) return null
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/?quote=${quote.id}&token=${quote.approvalToken}`
+    navigator.clipboard.writeText(url)
+    toast.success('Link copiado al portapapeles')
+  }
+
+  return (
+    <Dialog open={!!quote} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="font-mono">{quote.code}</DialogTitle>
+            <QuoteStatusBadge status={quote.status} />
+          </div>
+          <DialogDescription>
+            Cotización creada {timeAgo(quote.createdAt)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[60vh] pr-2">
+          <div className="space-y-4">
+            <div className="rounded-md border p-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Cliente</p>
+                  <p className="font-medium">
+                    {fullName(quote.workOrder?.customer?.firstName, quote.workOrder?.customer?.lastName)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Equipo</p>
+                  <p className="font-medium">
+                    {[quote.workOrder?.device?.brand, quote.workOrder?.device?.model].filter(Boolean).join(' ') || '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead className="text-right">Cant.</TableHead>
+                  <TableHead className="text-right">Precio</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(quote.items || []).map((it: any) => (
+                  <TableRow key={it.id}>
+                    <TableCell>
+                      <p className="text-sm">{it.description}</p>
+                      <p className="text-xs text-muted-foreground">{it.itemType}</p>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(it.unitPrice)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{formatCurrency(it.total)}</TableCell>
+                  </TableRow>
+                ))}
+                {(!quote.items || quote.items.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                      Sin ítems
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            <div className="ml-auto w-full max-w-xs space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="tabular-nums">{formatCurrency(quote.subtotal || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IVA</span>
+                <span className="tabular-nums">{formatCurrency(quote.tax || 0)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">{formatCurrency(quote.total || 0)}</span>
+              </div>
+            </div>
+
+            {quote.notes && (
+              <div className="rounded-md bg-muted/30 p-3 text-sm">
+                <p className="text-xs font-medium text-muted-foreground">Notas</p>
+                <p className="whitespace-pre-wrap">{quote.notes}</p>
+              </div>
+            )}
+
+            {quote.validUntil && (
+              <p className="text-xs text-muted-foreground">
+                Válida hasta: {formatDate(quote.validUntil)}
+              </p>
+            )}
+            {quote.approvedBy && (
+              <p className="text-xs text-emerald-600">
+                Aprobada por: {quote.approvedBy}
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={copyLink}>
+            <LinkIcon className="size-3.5" /> Copiar link aprobación
+          </Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

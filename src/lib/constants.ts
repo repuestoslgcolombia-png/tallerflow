@@ -1,0 +1,183 @@
+// ============== CONSTANTES DEL DOMINIO TALLERFLOW ==============
+
+export const WORK_ORDER_STATUS = {
+  received: {
+    label: 'Recibida',
+    color: 'bg-slate-100 text-slate-700 border-slate-200',
+    dot: 'bg-slate-500',
+    description: 'Equipo ingresado en recepción',
+    step: 0,
+  },
+  diagnosing: {
+    label: 'En Diagnóstico',
+    color: 'bg-amber-100 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500',
+    description: 'Técnico evaluando el equipo',
+    step: 1,
+  },
+  quoted: {
+    label: 'Cotizada',
+    color: 'bg-sky-100 text-sky-700 border-sky-200',
+    dot: 'bg-sky-500',
+    description: 'Cotización enviada al cliente',
+    step: 2,
+  },
+  approved: {
+    label: 'Aprobada',
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
+    dot: 'bg-violet-500',
+    description: 'Cliente aprobó la cotización',
+    step: 3,
+  },
+  in_progress: {
+    label: 'En Reparación',
+    color: 'bg-orange-100 text-orange-700 border-orange-200',
+    dot: 'bg-orange-500',
+    description: 'Reparación en proceso',
+    step: 4,
+  },
+  ready: {
+    label: 'Lista',
+    color: 'bg-teal-100 text-teal-700 border-teal-200',
+    dot: 'bg-teal-500',
+    description: 'Equipo listo para entrega',
+    step: 5,
+  },
+  delivered: {
+    label: 'Entregada',
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+    description: 'Equipo entregado al cliente',
+    step: 6,
+  },
+  cancelled: {
+    label: 'Cancelada',
+    color: 'bg-rose-100 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
+    description: 'Orden cancelada',
+    step: -1,
+  },
+} as const
+
+export type WorkOrderStatusKey = keyof typeof WORK_ORDER_STATUS
+
+export const PRIORITY = {
+  low: { label: 'Baja', color: 'bg-slate-100 text-slate-600 border-slate-200', icon: 'ArrowDown' },
+  normal: { label: 'Normal', color: 'bg-sky-100 text-sky-700 border-sky-200', icon: 'Minus' },
+  high: { label: 'Alta', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: 'ArrowUp' },
+  urgent: { label: 'Urgente', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'AlertCircle' },
+} as const
+
+export type PriorityKey = keyof typeof PRIORITY
+
+export const DEVICE_TYPES = {
+  laptop: { label: 'Laptop', icon: 'Laptop' },
+  desktop: { label: 'Computador', icon: 'Monitor' },
+  phone: { label: 'Celular', icon: 'Smartphone' },
+  tablet: { label: 'Tablet', icon: 'Tablet' },
+  printer: { label: 'Impresora', icon: 'Printer' },
+  other: { label: 'Otro', icon: 'Cpu' },
+} as const
+
+export type DeviceTypeKey = keyof typeof DEVICE_TYPES
+
+export const QUOTE_STATUS = {
+  draft: { label: 'Borrador', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  sent: { label: 'Enviada', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  approved: { label: 'Aprobada', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  rejected: { label: 'Rechazada', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+  expired: { label: 'Vencida', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+} as const
+
+export const INVOICE_STATUS = {
+  pending: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  paid: { label: 'Pagada', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  partial: { label: 'Pago Parcial', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  cancelled: { label: 'Anulada', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+} as const
+
+export const USER_ROLES = {
+  admin: { label: 'Administrador', color: 'bg-violet-100 text-violet-700' },
+  technician: { label: 'Técnico', color: 'bg-sky-100 text-sky-700' },
+  receptionist: { label: 'Recepción', color: 'bg-emerald-100 text-emerald-700' },
+} as const
+
+export const MOVEMENT_TYPES = {
+  in: { label: 'Entrada', color: 'bg-emerald-100 text-emerald-700', sign: '+' },
+  out: { label: 'Salida', color: 'bg-rose-100 text-rose-700', sign: '-' },
+  adjustment: { label: 'Ajuste', color: 'bg-amber-100 text-amber-700', sign: '=' },
+} as const
+
+// ============== FLUJO DE ESTADOS ==============
+
+export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {
+  received: ['diagnosing', 'cancelled'],
+  diagnosing: ['quoted', 'in_progress', 'cancelled'],
+  quoted: ['approved', 'rejected' as WorkOrderStatusKey, 'cancelled'],
+  approved: ['in_progress', 'cancelled'],
+  in_progress: ['ready', 'cancelled'],
+  ready: ['delivered', 'in_progress'],
+  delivered: [],
+  cancelled: [],
+}
+
+export function getNextStatuses(current: WorkOrderStatusKey): WorkOrderStatusKey[] {
+  return STATUS_FLOW[current] || []
+}
+
+// ============== HELPERS ==============
+
+export function formatCurrency(amount: number, symbol = '$'): string {
+  return `${symbol}${new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount || 0)}`
+}
+
+export function formatDateTime(date: Date | string): string {
+  const d = new Date(date)
+  return d.toLocaleString('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export function formatDate(date: Date | string): string {
+  const d = new Date(date)
+  return d.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+export function timeAgo(date: Date | string): string {
+  const d = new Date(date)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return 'hace un momento'
+  if (minutes < 60) return `hace ${minutes} min`
+  if (hours < 24) return `hace ${hours} h`
+  if (days < 30) return `hace ${days} d`
+  return formatDate(d)
+}
+
+export function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+export function fullName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName}`.trim()
+}

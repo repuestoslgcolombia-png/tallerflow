@@ -1,0 +1,99 @@
+import { NextRequest } from 'next/server'
+import { db } from '@/lib/db'
+import { ok, badRequest, serverError, notFound } from '@/lib/api'
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const part = await db.part.findUnique({
+      where: { id },
+      include: {
+        movements: {
+          include: { workOrder: true },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        _count: { select: { quoteItems: true } },
+      },
+    })
+    if (!part) return notFound('Repuesto no encontrado')
+    return ok(part)
+  } catch (e) {
+    return serverError('Error al obtener repuesto', e)
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const body = await req.json()
+
+    const existing = await db.part.findUnique({ where: { id } })
+    if (!existing) return notFound('Repuesto no encontrado')
+
+    if (body.action === 'adjust_stock') {
+      // Ajuste de inventario
+      const adjustment = Number(body.quantity)
+      const newStock = existing.stock + adjustment
+      if (newStock < 0) {
+        return badRequest('Stock resultante no puede ser negativo')
+      }
+
+      const result = await db.$transaction(async (tx) => {
+        const updated = await tx.part.update({
+          where: { id },
+          data: { stock: newStock },
+        })
+        await tx.inventoryMovement.create({
+          data: {
+            partId: id,
+            movementType: body.movementType || 'adjustment',
+            quantity: Math.abs(adjustment),
+            reason: body.reason || 'Ajuste manual',
+            unitCost: existing.unitCost,
+            workOrderId: body.workOrderId || null,
+            createdBy: body.createdBy || 'Sistema',
+          },
+        })
+        return updated
+      })
+      return ok(result)
+    }
+
+    // Actualización normal
+    const part = await db.part.update({
+      where: { id },
+      data: {
+        name: body.name || undefined,
+        description: body.description !== undefined ? body.description : undefined,
+        category: body.category !== undefined ? body.category : undefined,
+        unit: body.unit || undefined,
+        minStock: body.minStock !== undefined ? Number(body.minStock) : undefined,
+        unitCost: body.unitCost !== undefined ? Number(body.unitCost) : undefined,
+        unitPrice: body.unitPrice !== undefined ? Number(body.unitPrice) : undefined,
+        location: body.location !== undefined ? body.location : undefined,
+        active: body.active !== undefined ? body.active : undefined,
+      },
+    })
+    return ok(part)
+  } catch (e) {
+    return serverError('Error al actualizar repuesto', e)
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const existing = await db.part.findUnique({ where: { id } })
+    if (!existing) return notFound('Repuesto no encontrado')
+
+    // Soft delete: marcar como inactivo en lugar de borrar
+    const part = await db.part.update({
+      where: { id },
+      data: { active: false },
+    })
+    return ok(part)
+  } catch (e) {
+    return serverError('Error al desactivar repuesto', e)
+  }
+}

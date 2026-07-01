@@ -1,0 +1,284 @@
+// TallerFlow - Sistema de Gestión de Talleres
+// Prisma schema with domain entities
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============== USUARIOS Y TÉCNICOS ==============
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("admin") // admin | technician | receptionist
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workOrders WorkOrder[] @relation("AssignedTechnician")
+  diagnoses  Diagnosis[] @relation("DiagnosisAuthor")
+  auditLogs  AuditLog[]
+}
+
+// ============== CLIENTES ==============
+
+model Customer {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  documentId  String? // Cédula/RUT/DNI
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  devices    Device[]
+  workOrders WorkOrder[]
+  invoices   Invoice[]
+
+  @@index([lastName])
+}
+
+// ============== EQUIPOS / DISPOSITIVOS ==============
+
+model Device {
+  id          String   @id @default(cuid())
+  customerId  String
+  type        String // laptop | desktop | phone | printer | other
+  brand       String?
+  model       String?
+  serial      String?
+  accessories String? // accesorios entregados
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  @@index([customerId])
+}
+
+// ============== ÓRDENES DE TRABAJO ==============
+
+model WorkOrder {
+  id              String   @id @default(cuid())
+  code            String   @unique // OT-2024-001
+  customerId      String
+  deviceId        String
+  technicianId    String?
+  status          String   @default("received") // received | diagnosing | quoted | approved | in_progress | ready | delivered | cancelled
+  priority        String   @default("normal") // low | normal | high | urgent
+  reportedIssue   String // problema reportado por el cliente
+  diagnosisText   String?
+  internalNotes   String?
+  receivedAt      DateTime @default(now())
+  estimatedDoneAt DateTime?
+  deliveredAt     DateTime?
+  totalAmount     Float    @default(0)
+  totalPaid       Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  device      Device      @relation(fields: [deviceId], references: [id])
+  technician  User?       @relation("AssignedTechnician", fields: [technicianId], references: [id])
+  timeline    WorkOrderEvent[]
+  quotes      Quote[]
+  invoice     Invoice?
+  partsUsed   InventoryMovement[]
+  diagnosis   Diagnosis?
+
+  @@index([customerId])
+  @@index([deviceId])
+  @@index([technicianId])
+  @@index([status])
+}
+
+model WorkOrderEvent {
+  id          String   @id @default(cuid())
+  workOrderId String
+  eventType   String // status_change | note | assignment | diagnosis_update
+  fromStatus  String?
+  toStatus    String?
+  title       String
+  description String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+}
+
+// ============== DIAGNÓSTICO Y COTIZACIÓN ==============
+
+model Diagnosis {
+  id           String   @id @default(cuid())
+  workOrderId  String   @unique
+  authorId     String
+  findings     String // hallazgos técnicos
+  rootCause    String? // causa raíz
+  recommendation String? // recomendación
+  laborHours   Float    @default(0)
+  laborCost    Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  author    User      @relation("DiagnosisAuthor", fields: [authorId], references: [id])
+}
+
+model Quote {
+  id           String   @id @default(cuid())
+  workOrderId  String
+  code         String   @unique // COT-2024-001
+  status       String   @default("draft") // draft | sent | approved | rejected | expired
+  approvalToken String  @unique
+  notes        String?
+  validUntil   DateTime?
+  subtotal     Float    @default(0)
+  tax          Float    @default(0)
+  total        Float    @default(0)
+  approvedAt   DateTime?
+  approvedBy   String? // nombre de quien aprueba
+  rejectionReason String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrder WorkOrder   @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  items     QuoteItem[]
+
+  @@index([workOrderId])
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  itemType    String // part | labor | other
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float    @default(0)
+  total       Float    @default(0)
+  partId      String?
+  createdAt   DateTime @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  part  Part?  @relation(fields: [partId], references: [id])
+
+  @@index([quoteId])
+}
+
+// ============== INVENTARIO ==============
+
+model Part {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  category    String? // RAM | SSD | Pantalla | Batería | Cable | Otro
+  unit        String   @default("unidad") // unidad | metro | gramo
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  unitCost    Float    @default(0)
+  unitPrice   Float    @default(0)
+  location    String? // ubicación física
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movements        InventoryMovement[]
+  quoteItems       QuoteItem[]
+
+  @@index([category])
+  @@index([name])
+}
+
+model InventoryMovement {
+  id           String   @id @default(cuid())
+  partId       String
+  workOrderId  String?
+  movementType String // in | out | adjustment
+  quantity     Int
+  reason       String?
+  unitCost     Float    @default(0)
+  createdAt    DateTime @default(now())
+  createdBy    String?
+
+  part      Part      @relation(fields: [partId], references: [id])
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
+
+  @@index([partId])
+  @@index([workOrderId])
+}
+
+// ============== FACTURACIÓN ==============
+
+model Invoice {
+  id           String   @id @default(cuid())
+  code         String   @unique // FAC-2024-001
+  workOrderId  String   @unique
+  customerId   String
+  subtotal     Float    @default(0)
+  tax          Float    @default(0)
+  total        Float    @default(0)
+  paid         Float    @default(0)
+  paymentMethod String? // cash | card | transfer
+  status       String   @default("pending") // pending | paid | partial | cancelled
+  issuedAt     DateTime @default(now())
+  paidAt       DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+// ============== AUDITORÍA ==============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String // create | update | delete | status_change
+  entity      String // WorkOrder | Customer | Device | ...
+  entityId    String
+  description String?
+  metadata    String? // JSON serializado
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+}
+
+// ============== CONFIGURACIÓN DEL TALLER ==============
+
+model WorkshopSetting {
+  id            String   @id @default("default")
+  name          String   @default("TallerFlow Demo")
+  phone         String?
+  email         String?
+  address       String?
+  taxRate       Float    @default(0) // porcentaje de impuesto
+  currency      String   @default("COP")
+  currencySymbol String  @default("$")
+  logoUrl       String?
+  counterWorkOrder Int   @default(0)
+  counterQuote  Int      @default(0)
+  counterInvoice Int     @default(0)
+  updatedAt     DateTime @updatedAt
+}
