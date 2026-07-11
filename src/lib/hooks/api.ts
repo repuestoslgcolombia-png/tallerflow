@@ -917,3 +917,16 @@ export function useSendInvoiceWhatsApp() {
     onError: (e: Error) => toast.error(e.message),
   })
 }
+
+// ============== NOTIFICACIONES ==============
+export function useNotifications() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications')
+      if (!res.ok) throw new Error('Error al cargar notificaciones')
+      return res.json()
+    },
+    refetchInterval: 60 * 1000, // refrescar cada minuto
+  })
+}

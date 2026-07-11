@@ -361,3 +361,55 @@ Stage Summary:
 - Form de create/edit con 4 secciones organizadas, campo de gas condicional según categoría, preview de margen en vivo
 - Adjust stock dialog mejorado con auto-sugerencia de tipo y preview color-coded
 - Lint pasa limpio, dev server compila sin errores
+
+---
+Task ID: 8
+Agent: orchestrator (main)
+Task: Panel de notificaciones funcional en la campana + mejoras UX
+
+Work Log:
+- Creé API /api/notifications que consolida notificaciones de 8 fuentes:
+  1. Recordatorios vencidos (alta prioridad)
+  2. Recordatorios de hoy (media)
+  3. Stock agotado (alta)
+  4. Stock bajo (media)
+  5. Cotizaciones por aprobar (media/alta según días)
+  6. Facturas pendientes de pago (media/alta según días)
+  7. Órdenes listas para entrega (media/alta según días)
+  8. Órdenes urgentes en proceso (alta)
+  9. Recordatorios próximos en 7 días (baja)
+- Cada notificación tiene: id, type, priority (high/medium/low), icon, color, title, description, actionLabel, actionView (navegación), actionViewId (para detalle), timestamp
+- Ordenadas por prioridad y timestamp. Stats agrupadas por tipo.
+- Creé hook useNotifications con refetchInterval de 60s (auto-refresh cada minuto)
+- Creé componente NotificationBell (src/components/tallerflow/notification-bell.tsx):
+  - Badge dinámico con conteo de no leídas (hasta 99+)
+  - Ping animado cuando hay notificaciones de alta prioridad
+  - Popover con: header (título + contador + "Marcar leídas"), stats summary (4 pills con conteo por tipo, clickeables para navegar), lista scrollable de notificaciones con: icono coloreado, título, descripción, timestamp, botón de acción, botón descartar (X), borde izquierdo coloreado por prioridad
+  - Estado vacío: "¡Todo al día!" con icono verde
+  - Skeletons mientras carga
+  - Footer con botón configuración + "Actualizado cada 60s"
+- Actualicé header.tsx con mejoras UX:
+  - Reemplacé botón Bell estático por NotificationBell
+  - Añadí paleta de comandos (Ctrl+K / Cmd+K) para navegación rápida
+  - Botón de búsqueda con kbd "⌘K" visible en desktop
+  - Icono de búsqueda en móvil
+  - Dialog de búsqueda con: input con autofocus, lista de 10 módulos filtrable, navegación con Enter, cierre con ESC
+  - Atajo de teclado global Ctrl+K para abrir/cerrar paleta
+- Verificación con Agent Browser:
+  - Badge muestra "14 sin leer" ✓
+  - Panel abre al hacer clic ✓
+  - Stats summary muestra conteos (6 recordatorios, 5 stock, 1 cotiz, 2 órdenes) ✓
+  - Lista muestra 14 notificaciones ordenadas por prioridad ✓
+  - Clic en notificación navega al módulo correcto (URGENTE → detalle de orden) ✓
+  - "Marcar leídas" descarta todas → estado "¡Todo al día!" ✓
+  - Ctrl+K abre paleta de comandos ✓
+  - Búsqueda filtra módulos correctamente ✓
+  - Clic en resultado navega al módulo ✓
+  - Sin errores de consola ✓
+
+Stage Summary:
+- Campana de notificaciones completamente funcional con 8 tipos de alertas consolidadas
+- Panel popover con stats, lista priorizada, acciones de navegación y descartar
+- Auto-refresh cada 60s, badge dinámico con ping animado para alta prioridad
+- Paleta de comandos (Ctrl+K) para navegación rápida entre 10 módulos
+- Lint pasa sin errores, verificación end-to-end exitosa
