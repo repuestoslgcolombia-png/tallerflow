@@ -1,0 +1,915 @@
+     1→'use client'
+     2→
+     3→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     4→import { toast } from 'sonner'
+     5→
+     6→// ============== CLIENTES ==============
+     7→export function useCustomers(search = '') {
+     8→  return useQuery({
+     9→    queryKey: ['customers', search],
+    10→    queryFn: async () => {
+    11→      const res = await fetch(`/api/customers?search=${encodeURIComponent(search)}`)
+    12→      if (!res.ok) throw new Error('Error al cargar clientes')
+    13→      return res.json()
+    14→    },
+    15→  })
+    16→}
+    17→
+    18→export function useCustomer(id: string | null) {
+    19→  return useQuery({
+    20→    queryKey: ['customer', id],
+    21→    queryFn: async () => {
+    22→      const res = await fetch(`/api/customers/${id}`)
+    23→      if (!res.ok) throw new Error('Error al cargar cliente')
+    24→      return res.json()
+    25→    },
+    26→    enabled: !!id,
+    27→  })
+    28→}
+    29→
+    30→export function useCustomerMutations() {
+    31→  const qc = useQueryClient()
+    32→  const create = useMutation({
+    33→    mutationFn: async (data: any) => {
+    34→      const res = await fetch('/api/customers', {
+    35→        method: 'POST',
+    36→        headers: { 'Content-Type': 'application/json' },
+    37→        body: JSON.stringify(data),
+    38→      })
+    39→      if (!res.ok) {
+    40→        const err = await res.json()
+    41→        throw new Error(err.error || 'Error al crear cliente')
+    42→      }
+    43→      return res.json()
+    44→    },
+    45→    onSuccess: () => {
+    46→      qc.invalidateQueries({ queryKey: ['customers'] })
+    47→      toast.success('Cliente creado exitosamente')
+    48→    },
+    49→    onError: (e: Error) => toast.error(e.message),
+    50→  })
+    51→  const update = useMutation({
+    52→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    53→      const res = await fetch(`/api/customers/${id}`, {
+    54→        method: 'PUT',
+    55→        headers: { 'Content-Type': 'application/json' },
+    56→        body: JSON.stringify(data),
+    57→      })
+    58→      if (!res.ok) {
+    59→        const err = await res.json()
+    60→        throw new Error(err.error || 'Error al actualizar')
+    61→      }
+    62→      return res.json()
+    63→    },
+    64→    onSuccess: () => {
+    65→      qc.invalidateQueries({ queryKey: ['customers'] })
+    66→      qc.invalidateQueries({ queryKey: ['customer'] })
+    67→      toast.success('Cliente actualizado')
+    68→    },
+    69→    onError: (e: Error) => toast.error(e.message),
+    70→  })
+    71→  const remove = useMutation({
+    72→    mutationFn: async (id: string) => {
+    73→      const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' })
+    74→      if (!res.ok) {
+    75→        const err = await res.json()
+    76→        throw new Error(err.error || 'Error al eliminar')
+    77→      }
+    78→      return res.json()
+    79→    },
+    80→    onSuccess: () => {
+    81→      qc.invalidateQueries({ queryKey: ['customers'] })
+    82→      toast.success('Cliente eliminado')
+    83→    },
+    84→    onError: (e: Error) => toast.error(e.message),
+    85→  })
+    86→  return { create, update, remove }
+    87→}
+    88→
+    89→// ============== EQUIPOS ==============
+    90→export function useDevices(params: { customerId?: string; search?: string } = {}) {
+    91→  const query = new URLSearchParams()
+    92→  if (params.customerId) query.set('customerId', params.customerId)
+    93→  if (params.search) query.set('search', params.search)
+    94→  return useQuery({
+    95→    queryKey: ['devices', params],
+    96→    queryFn: async () => {
+    97→      const res = await fetch(`/api/devices?${query.toString()}`)
+    98→      if (!res.ok) throw new Error('Error al cargar equipos')
+    99→      return res.json()
+   100→    },
+   101→  })
+   102→}
+   103→
+   104→export function useDeviceMutations() {
+   105→  const qc = useQueryClient()
+   106→  const create = useMutation({
+   107→    mutationFn: async (data: any) => {
+   108→      const res = await fetch('/api/devices', {
+   109→        method: 'POST',
+   110→        headers: { 'Content-Type': 'application/json' },
+   111→        body: JSON.stringify(data),
+   112→      })
+   113→      if (!res.ok) {
+   114→        const err = await res.json()
+   115→        throw new Error(err.error || 'Error al crear equipo')
+   116→      }
+   117→      return res.json()
+   118→    },
+   119→    onSuccess: () => {
+   120→      qc.invalidateQueries({ queryKey: ['devices'] })
+   121→      toast.success('Equipo registrado')
+   122→    },
+   123→    onError: (e: Error) => toast.error(e.message),
+   124→  })
+   125→  const update = useMutation({
+   126→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   127→      const res = await fetch(`/api/devices/${id}`, {
+   128→        method: 'PUT',
+   129→        headers: { 'Content-Type': 'application/json' },
+   130→        body: JSON.stringify(data),
+   131→      })
+   132→      if (!res.ok) {
+   133→        const err = await res.json()
+   134→        throw new Error(err.error || 'Error al actualizar')
+   135→      }
+   136→      return res.json()
+   137→    },
+   138→    onSuccess: () => {
+   139→      qc.invalidateQueries({ queryKey: ['devices'] })
+   140→      toast.success('Equipo actualizado')
+   141→    },
+   142→    onError: (e: Error) => toast.error(e.message),
+   143→  })
+   144→  const remove = useMutation({
+   145→    mutationFn: async (id: string) => {
+   146→      const res = await fetch(`/api/devices/${id}`, { method: 'DELETE' })
+   147→      if (!res.ok) {
+   148→        const err = await res.json()
+   149→        throw new Error(err.error || 'Error al eliminar')
+   150→      }
+   151→      return res.json()
+   152→    },
+   153→    onSuccess: () => {
+   154→      qc.invalidateQueries({ queryKey: ['devices'] })
+   155→      toast.success('Equipo eliminado')
+   156→    },
+   157→    onError: (e: Error) => toast.error(e.message),
+   158→  })
+   159→  return { create, update, remove }
+   160→}
+   161→
+   162→// ============== ÓRDENES DE TRABAJO ==============
+   163→export function useWorkOrders(params: { status?: string; search?: string; customerId?: string; technicianId?: string } = {}) {
+   164→  const query = new URLSearchParams()
+   165→  if (params.status) query.set('status', params.status)
+   166→  if (params.search) query.set('search', params.search)
+   167→  if (params.customerId) query.set('customerId', params.customerId)
+   168→  if (params.technicianId) query.set('technicianId', params.technicianId)
+   169→  return useQuery({
+   170→    queryKey: ['work-orders', params],
+   171→    queryFn: async () => {
+   172→      const res = await fetch(`/api/work-orders?${query.toString()}`)
+   173→      if (!res.ok) throw new Error('Error al cargar órdenes')
+   174→      return res.json()
+   175→    },
+   176→  })
+   177→}
+   178→
+   179→export function useWorkOrder(id: string | null) {
+   180→  return useQuery({
+   181→    queryKey: ['work-order', id],
+   182→    queryFn: async () => {
+   183→      const res = await fetch(`/api/work-orders/${id}`)
+   184→      if (!res.ok) throw new Error('Error al cargar orden')
+   185→      return res.json()
+   186→    },
+   187→    enabled: !!id,
+   188→  })
+   189→}
+   190→
+   191→export function useWorkOrderMutations() {
+   192→  const qc = useQueryClient()
+   193→  const create = useMutation({
+   194→    mutationFn: async (data: any) => {
+   195→      const res = await fetch('/api/work-orders', {
+   196→        method: 'POST',
+   197→        headers: { 'Content-Type': 'application/json' },
+   198→        body: JSON.stringify(data),
+   199→      })
+   200→      if (!res.ok) {
+   201→        const err = await res.json()
+   202→        throw new Error(err.error || 'Error al crear orden')
+   203→      }
+   204→      return res.json()
+   205→    },
+   206→    onSuccess: (data) => {
+   207→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   208→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   209→      toast.success(`Orden ${data.code} creada`)
+   210→    },
+   211→    onError: (e: Error) => toast.error(e.message),
+   212→  })
+   213→  const update = useMutation({
+   214→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   215→      const res = await fetch(`/api/work-orders/${id}`, {
+   216→        method: 'PUT',
+   217→        headers: { 'Content-Type': 'application/json' },
+   218→        body: JSON.stringify(data),
+   219→      })
+   220→      if (!res.ok) {
+   221→        const err = await res.json()
+   222→        throw new Error(err.error || 'Error al actualizar')
+   223→      }
+   224→      return res.json()
+   225→    },
+   226→    onSuccess: () => {
+   227→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   228→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   229→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   230→      toast.success('Orden actualizada')
+   231→    },
+   232→    onError: (e: Error) => toast.error(e.message),
+   233→  })
+   234→  const patch = useMutation({
+   235→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   236→      const res = await fetch(`/api/work-orders/${id}`, {
+   237→        method: 'PATCH',
+   238→        headers: { 'Content-Type': 'application/json' },
+   239→        body: JSON.stringify(data),
+   240→      })
+   241→      if (!res.ok) {
+   242→        const err = await res.json()
+   243→        throw new Error(err.error || 'Error al actualizar')
+   244→      }
+   245→      return res.json()
+   246→    },
+   247→    onSuccess: () => {
+   248→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   249→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   250→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   251→      toast.success('Estado actualizado')
+   252→    },
+   253→    onError: (e: Error) => toast.error(e.message),
+   254→  })
+   255→  const remove = useMutation({
+   256→    mutationFn: async (id: string) => {
+   257→      const res = await fetch(`/api/work-orders/${id}`, { method: 'DELETE' })
+   258→      if (!res.ok) {
+   259→        const err = await res.json()
+   260→        throw new Error(err.error || 'Error al eliminar')
+   261→      }
+   262→      return res.json()
+   263→    },
+   264→    onSuccess: () => {
+   265→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   266→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   267→      toast.success('Orden eliminada')
+   268→    },
+   269→    onError: (e: Error) => toast.error(e.message),
+   270→  })
+   271→  return { create, update, patch, remove }
+   272→}
+   273→
+   274→// ============== COTIZACIONES ==============
+   275→export function useQuotes(params: { workOrderId?: string; status?: string } = {}) {
+   276→  const query = new URLSearchParams()
+   277→  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+   278→  if (params.status) query.set('status', params.status)
+   279→  return useQuery({
+   280→    queryKey: ['quotes', params],
+   281→    queryFn: async () => {
+   282→      const res = await fetch(`/api/quotes?${query.toString()}`)
+   283→      if (!res.ok) throw new Error('Error al cargar cotizaciones')
+   284→      return res.json()
+   285→    },
+   286→  })
+   287→}
+   288→
+   289→export function useQuoteMutations() {
+   290→  const qc = useQueryClient()
+   291→  const create = useMutation({
+   292→    mutationFn: async (data: any) => {
+   293→      const res = await fetch('/api/quotes', {
+   294→        method: 'POST',
+   295→        headers: { 'Content-Type': 'application/json' },
+   296→        body: JSON.stringify(data),
+   297→      })
+   298→      if (!res.ok) {
+   299→        const err = await res.json()
+   300→        throw new Error(err.error || 'Error al crear cotización')
+   301→      }
+   302→      return res.json()
+   303→    },
+   304→    onSuccess: () => {
+   305→      qc.invalidateQueries({ queryKey: ['quotes'] })
+   306→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   307→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   308→      toast.success('Cotización creada')
+   309→    },
+   310→    onError: (e: Error) => toast.error(e.message),
+   311→  })
+   312→  const update = useMutation({
+   313→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   314→      const res = await fetch(`/api/quotes/${id}`, {
+   315→        method: 'PUT',
+   316→        headers: { 'Content-Type': 'application/json' },
+   317→        body: JSON.stringify(data),
+   318→      })
+   319→      if (!res.ok) {
+   320→        const err = await res.json()
+   321→        throw new Error(err.error || 'Error al actualizar')
+   322→      }
+   323→      return res.json()
+   324→    },
+   325→    onSuccess: () => {
+   326→      qc.invalidateQueries({ queryKey: ['quotes'] })
+   327→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   328→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   329→      toast.success('Cotización actualizada')
+   330→    },
+   331→    onError: (e: Error) => toast.error(e.message),
+   332→  })
+   333→  const remove = useMutation({
+   334→    mutationFn: async (id: string) => {
+   335→      const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE' })
+   336→      if (!res.ok) {
+   337→        const err = await res.json()
+   338→        throw new Error(err.error || 'Error al eliminar')
+   339→      }
+   340→      return res.json()
+   341→    },
+   342→    onSuccess: () => {
+   343→      qc.invalidateQueries({ queryKey: ['quotes'] })
+   344→      toast.success('Cotización eliminada')
+   345→    },
+   346→    onError: (e: Error) => toast.error(e.message),
+   347→  })
+   348→  return { create, update, remove }
+   349→}
+   350→
+   351→// ============== REPUESTOS / INVENTARIO ==============
+   352→export function useParts(params: { search?: string; lowStock?: boolean } = {}) {
+   353→  const query = new URLSearchParams()
+   354→  if (params.search) query.set('search', params.search)
+   355→  if (params.lowStock) query.set('lowStock', 'true')
+   356→  return useQuery({
+   357→    queryKey: ['parts', params],
+   358→    queryFn: async () => {
+   359→      const res = await fetch(`/api/parts?${query.toString()}`)
+   360→      if (!res.ok) throw new Error('Error al cargar repuestos')
+   361→      return res.json()
+   362→    },
+   363→  })
+   364→}
+   365→
+   366→export function usePart(id: string | null) {
+   367→  return useQuery({
+   368→    queryKey: ['part', id],
+   369→    queryFn: async () => {
+   370→      const res = await fetch(`/api/parts/${id}`)
+   371→      if (!res.ok) throw new Error('Error al cargar repuesto')
+   372→      return res.json()
+   373→    },
+   374→    enabled: !!id,
+   375→  })
+   376→}
+   377→
+   378→export function usePartMutations() {
+   379→  const qc = useQueryClient()
+   380→  const create = useMutation({
+   381→    mutationFn: async (data: any) => {
+   382→      const res = await fetch('/api/parts', {
+   383→        method: 'POST',
+   384→        headers: { 'Content-Type': 'application/json' },
+   385→        body: JSON.stringify(data),
+   386→      })
+   387→      if (!res.ok) {
+   388→        const err = await res.json()
+   389→        throw new Error(err.error || 'Error al crear repuesto')
+   390→      }
+   391→      return res.json()
+   392→    },
+   393→    onSuccess: () => {
+   394→      qc.invalidateQueries({ queryKey: ['parts'] })
+   395→      toast.success('Repuesto creado')
+   396→    },
+   397→    onError: (e: Error) => toast.error(e.message),
+   398→  })
+   399→  const update = useMutation({
+   400→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   401→      const res = await fetch(`/api/parts/${id}`, {
+   402→        method: 'PUT',
+   403→        headers: { 'Content-Type': 'application/json' },
+   404→        body: JSON.stringify(data),
+   405→      })
+   406→      if (!res.ok) {
+   407→        const err = await res.json()
+   408→        throw new Error(err.error || 'Error al actualizar')
+   409→      }
+   410→      return res.json()
+   411→    },
+   412→    onSuccess: () => {
+   413→      qc.invalidateQueries({ queryKey: ['parts'] })
+   414→      qc.invalidateQueries({ queryKey: ['part'] })
+   415→      toast.success('Repuesto actualizado')
+   416→    },
+   417→    onError: (e: Error) => toast.error(e.message),
+   418→  })
+   419→  return { create, update }
+   420→}
+   421→
+   422→// ============== USUARIOS ==============
+   423→export function useUsers() {
+   424→  return useQuery({
+   425→    queryKey: ['users'],
+   426→    queryFn: async () => {
+   427→      const res = await fetch('/api/users')
+   428→      if (!res.ok) throw new Error('Error al cargar usuarios')
+   429→      return res.json()
+   430→    },
+   431→  })
+   432→}
+   433→
+   434→// ============== DASHBOARD ==============
+   435→export function useDashboard() {
+   436→  return useQuery({
+   437→    queryKey: ['dashboard'],
+   438→    queryFn: async () => {
+   439→      const res = await fetch('/api/dashboard')
+   440→      if (!res.ok) throw new Error('Error al cargar dashboard')
+   441→      return res.json()
+   442→    },
+   443→    refetchInterval: 60 * 1000, // refresh cada minuto
+   444→  })
+   445→}
+   446→
+   447→// ============== SETTINGS ==============
+   448→export function useSettings() {
+   449→  return useQuery({
+   450→    queryKey: ['settings'],
+   451→    queryFn: async () => {
+   452→      const res = await fetch('/api/settings')
+   453→      if (!res.ok) throw new Error('Error al cargar configuración')
+   454→      return res.json()
+   455→    },
+   456→  })
+   457→}
+   458→
+   459→export function useSettingsMutation() {
+   460→  const qc = useQueryClient()
+   461→  return useMutation({
+   462→    mutationFn: async (data: any) => {
+   463→      const res = await fetch('/api/settings', {
+   464→        method: 'PUT',
+   465→        headers: { 'Content-Type': 'application/json' },
+   466→        body: JSON.stringify(data),
+   467→      })
+   468→      if (!res.ok) {
+   469→        const err = await res.json()
+   470→        throw new Error(err.error || 'Error al guardar')
+   471→      }
+   472→      return res.json()
+   473→    },
+   474→    onSuccess: () => {
+   475→      qc.invalidateQueries({ queryKey: ['settings'] })
+   476→      toast.success('Configuración guardada')
+   477→    },
+   478→    onError: (e: Error) => toast.error(e.message),
+   479→  })
+   480→}
+   481→
+   482→// ============== RECORDATORIOS ==============
+   483→export function useReminders(params: {
+   484→  status?: string
+   485→  customerId?: string
+   486→  workOrderId?: string
+   487→  type?: string
+   488→  dueToday?: boolean
+   489→  overdue?: boolean
+   490→} = {}) {
+   491→  const query = new URLSearchParams()
+   492→  if (params.status) query.set('status', params.status)
+   493→  if (params.customerId) query.set('customerId', params.customerId)
+   494→  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+   495→  if (params.type) query.set('type', params.type)
+   496→  if (params.dueToday) query.set('dueToday', 'true')
+   497→  if (params.overdue) query.set('overdue', 'true')
+   498→  return useQuery({
+   499→    queryKey: ['reminders', params],
+   500→    queryFn: async () => {
+   501→      const res = await fetch(`/api/reminders?${query.toString()}`)
+   502→      if (!res.ok) throw new Error('Error al cargar recordatorios')
+   503→      return res.json()
+   504→    },
+   505→  })
+   506→}
+   507→
+   508→export function useReminder(id: string | null) {
+   509→  return useQuery({
+   510→    queryKey: ['reminder', id],
+   511→    queryFn: async () => {
+   512→      const res = await fetch(`/api/reminders/${id}`)
+   513→      if (!res.ok) throw new Error('Error al cargar recordatorio')
+   514→      return res.json()
+   515→    },
+   516→    enabled: !!id,
+   517→  })
+   518→}
+   519→
+   520→export function useReminderMutations() {
+   521→  const qc = useQueryClient()
+   522→  const create = useMutation({
+   523→    mutationFn: async (data: any) => {
+   524→      const res = await fetch('/api/reminders', {
+   525→        method: 'POST',
+   526→        headers: { 'Content-Type': 'application/json' },
+   527→        body: JSON.stringify(data),
+   528→      })
+   529→      if (!res.ok) {
+   530→        const err = await res.json()
+   531→        throw new Error(err.error || 'Error al crear recordatorio')
+   532→      }
+   533→      return res.json()
+   534→    },
+   535→    onSuccess: () => {
+   536→      qc.invalidateQueries({ queryKey: ['reminders'] })
+   537→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   538→      toast.success('Recordatorio creado')
+   539→    },
+   540→    onError: (e: Error) => toast.error(e.message),
+   541→  })
+   542→  const update = useMutation({
+   543→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   544→      const res = await fetch(`/api/reminders/${id}`, {
+   545→        method: 'PUT',
+   546→        headers: { 'Content-Type': 'application/json' },
+   547→        body: JSON.stringify(data),
+   548→      })
+   549→      if (!res.ok) {
+   550→        const err = await res.json()
+   551→        throw new Error(err.error || 'Error al actualizar')
+   552→      }
+   553→      return res.json()
+   554→    },
+   555→    onSuccess: () => {
+   556→      qc.invalidateQueries({ queryKey: ['reminders'] })
+   557→      qc.invalidateQueries({ queryKey: ['reminder'] })
+   558→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   559→      toast.success('Recordatorio actualizado')
+   560→    },
+   561→    onError: (e: Error) => toast.error(e.message),
+   562→  })
+   563→  const remove = useMutation({
+   564→    mutationFn: async (id: string) => {
+   565→      const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' })
+   566→      if (!res.ok) {
+   567→        const err = await res.json()
+   568→        throw new Error(err.error || 'Error al eliminar')
+   569→      }
+   570→      return res.json()
+   571→    },
+   572→    onSuccess: () => {
+   573→      qc.invalidateQueries({ queryKey: ['reminders'] })
+   574→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   575→      toast.success('Recordatorio eliminado')
+   576→    },
+   577→    onError: (e: Error) => toast.error(e.message),
+   578→  })
+   579→  return { create, update, remove }
+   580→}
+   581→
+   582→// ============== FACTURAS ==============
+   583→export function useInvoices(params: {
+   584→  status?: string
+   585→  customerId?: string
+   586→  workOrderId?: string
+   587→  search?: string
+   588→} = {}) {
+   589→  const query = new URLSearchParams()
+   590→  if (params.status) query.set('status', params.status)
+   591→  if (params.customerId) query.set('customerId', params.customerId)
+   592→  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+   593→  if (params.search) query.set('search', params.search)
+   594→  return useQuery({
+   595→    queryKey: ['invoices', params],
+   596→    queryFn: async () => {
+   597→      const res = await fetch(`/api/invoices?${query.toString()}`)
+   598→      if (!res.ok) throw new Error('Error al cargar facturas')
+   599→      return res.json()
+   600→    },
+   601→  })
+   602→}
+   603→
+   604→export function useInvoice(id: string | null) {
+   605→  return useQuery({
+   606→    queryKey: ['invoice', id],
+   607→    queryFn: async () => {
+   608→      const res = await fetch(`/api/invoices/${id}`)
+   609→      if (!res.ok) throw new Error('Error al cargar factura')
+   610→      return res.json()
+   611→    },
+   612→    enabled: !!id,
+   613→  })
+   614→}
+   615→
+   616→export function useInvoiceMutations() {
+   617→  const qc = useQueryClient()
+   618→  const create = useMutation({
+   619→    mutationFn: async (data: any) => {
+   620→      const res = await fetch('/api/invoices', {
+   621→        method: 'POST',
+   622→        headers: { 'Content-Type': 'application/json' },
+   623→        body: JSON.stringify(data),
+   624→      })
+   625→      if (!res.ok) {
+   626→        const err = await res.json()
+   627→        throw new Error(err.error || 'Error al crear factura')
+   628→      }
+   629→      return res.json()
+   630→    },
+   631→    onSuccess: () => {
+   632→      qc.invalidateQueries({ queryKey: ['invoices'] })
+   633→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   634→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   635→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   636→      toast.success('Factura creada exitosamente')
+   637→    },
+   638→    onError: (e: Error) => toast.error(e.message),
+   639→  })
+   640→  const update = useMutation({
+   641→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   642→      const res = await fetch(`/api/invoices/${id}`, {
+   643→        method: 'PUT',
+   644→        headers: { 'Content-Type': 'application/json' },
+   645→        body: JSON.stringify(data),
+   646→      })
+   647→      if (!res.ok) {
+   648→        const err = await res.json()
+   649→        throw new Error(err.error || 'Error al actualizar factura')
+   650→      }
+   651→      return res.json()
+   652→    },
+   653→    onSuccess: () => {
+   654→      qc.invalidateQueries({ queryKey: ['invoices'] })
+   655→      qc.invalidateQueries({ queryKey: ['invoice'] })
+   656→      qc.invalidateQueries({ queryKey: ['work-orders'] })
+   657→      qc.invalidateQueries({ queryKey: ['work-order'] })
+   658→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   659→      toast.success('Factura actualizada')
+   660→    },
+   661→    onError: (e: Error) => toast.error(e.message),
+   662→  })
+   663→  const remove = useMutation({
+   664→    mutationFn: async (id: string) => {
+   665→      const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+   666→      if (!res.ok) {
+   667→        const err = await res.json()
+   668→        throw new Error(err.error || 'Error al eliminar factura')
+   669→      }
+   670→      return res.json()
+   671→    },
+   672→    onSuccess: () => {
+   673→      qc.invalidateQueries({ queryKey: ['invoices'] })
+   674→      toast.success('Factura eliminada')
+   675→    },
+   676→    onError: (e: Error) => toast.error(e.message),
+   677→  })
+   678→  return { create, update, remove }
+   679→}
+   680→
+   681→// ============== WHATSAPP ==============
+   682→export function useWhatsAppTemplates(category?: string) {
+   683→  const query = new URLSearchParams()
+   684→  if (category) query.set('category', category)
+   685→  query.set('active', 'true')
+   686→  return useQuery({
+   687→    queryKey: ['whatsapp-templates', category],
+   688→    queryFn: async () => {
+   689→      const res = await fetch(`/api/whatsapp/templates?${query.toString()}`)
+   690→      if (!res.ok) throw new Error('Error al cargar plantillas')
+   691→      return res.json()
+   692→    },
+   693→  })
+   694→}
+   695→
+   696→export function useWhatsAppTemplateMutations() {
+   697→  const qc = useQueryClient()
+   698→  const create = useMutation({
+   699→    mutationFn: async (data: any) => {
+   700→      const res = await fetch('/api/whatsapp/templates', {
+   701→        method: 'POST',
+   702→        headers: { 'Content-Type': 'application/json' },
+   703→        body: JSON.stringify(data),
+   704→      })
+   705→      if (!res.ok) {
+   706→        const err = await res.json()
+   707→        throw new Error(err.error || 'Error al crear plantilla')
+   708→      }
+   709→      return res.json()
+   710→    },
+   711→    onSuccess: () => {
+   712→      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+   713→      toast.success('Plantilla creada')
+   714→    },
+   715→    onError: (e: Error) => toast.error(e.message),
+   716→  })
+   717→  const update = useMutation({
+   718→    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+   719→      const res = await fetch(`/api/whatsapp/templates/${id}`, {
+   720→        method: 'PUT',
+   721→        headers: { 'Content-Type': 'application/json' },
+   722→        body: JSON.stringify(data),
+   723→      })
+   724→      if (!res.ok) {
+   725→        const err = await res.json()
+   726→        throw new Error(err.error || 'Error al actualizar')
+   727→      }
+   728→      return res.json()
+   729→    },
+   730→    onSuccess: () => {
+   731→      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+   732→      toast.success('Plantilla actualizada')
+   733→    },
+   734→    onError: (e: Error) => toast.error(e.message),
+   735→  })
+   736→  const remove = useMutation({
+   737→    mutationFn: async (id: string) => {
+   738→      const res = await fetch(`/api/whatsapp/templates/${id}`, { method: 'DELETE' })
+   739→      if (!res.ok) {
+   740→        const err = await res.json()
+   741→        throw new Error(err.error || 'Error al eliminar')
+   742→      }
+   743→      return res.json()
+   744→    },
+   745→    onSuccess: () => {
+   746→      qc.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+   747→      toast.success('Plantilla eliminada')
+   748→    },
+   749→    onError: (e: Error) => toast.error(e.message),
+   750→  })
+   751→  return { create, update, remove }
+   752→}
+   753→
+   754→export function useWhatsAppMessages(params: { customerId?: string; workOrderId?: string; limit?: number } = {}) {
+   755→  const query = new URLSearchParams()
+   756→  if (params.customerId) query.set('customerId', params.customerId)
+   757→  if (params.workOrderId) query.set('workOrderId', params.workOrderId)
+   758→  if (params.limit) query.set('limit', String(params.limit))
+   759→  return useQuery({
+   760→    queryKey: ['whatsapp-messages', params],
+   761→    queryFn: async () => {
+   762→      const res = await fetch(`/api/whatsapp/messages?${query.toString()}`)
+   763→      if (!res.ok) throw new Error('Error al cargar mensajes')
+   764→      return res.json()
+   765→    },
+   766→  })
+   767→}
+   768→
+   769→export function useWhatsAppMessageMutations() {
+   770→  const qc = useQueryClient()
+   771→  const create = useMutation({
+   772→    mutationFn: async (data: any) => {
+   773→      const res = await fetch('/api/whatsapp/messages', {
+   774→        method: 'POST',
+   775→        headers: { 'Content-Type': 'application/json' },
+   776→        body: JSON.stringify(data),
+   777→      })
+   778→      if (!res.ok) {
+   779→        const err = await res.json()
+   780→        throw new Error(err.error || 'Error al registrar mensaje')
+   781→      }
+   782→      return res.json()
+   783→    },
+   784→    onSuccess: () => {
+   785→      qc.invalidateQueries({ queryKey: ['whatsapp-messages'] })
+   786→      toast.success('Mensaje registrado')
+   787→    },
+   788→    onError: (e: Error) => toast.error(e.message),
+   789→  })
+   790→  return { create }
+   791→}
+   792→
+   793→export function useWhatsAppRender() {
+   794→  return useMutation({
+   795→    mutationFn: async (data: { templateCode: string; customerId?: string; workOrderId?: string; customVars?: Record<string, string> }) => {
+   796→      const res = await fetch('/api/whatsapp/render', {
+   797→        method: 'POST',
+   798→        headers: { 'Content-Type': 'application/json' },
+   799→        body: JSON.stringify(data),
+   800→      })
+   801→      if (!res.ok) {
+   802→        const err = await res.json()
+   803→        throw new Error(err.error || 'Error al renderizar')
+   804→      }
+   805→      return res.json()
+   806→    },
+   807→  })
+   808→}
+   809→
+   810→// Helper para generar URL de WhatsApp (wa.me)
+   811→export function buildWhatsAppUrl(phone: string, message: string): string {
+   812→  const cleanPhone = phone.replace(/[^0-9]/g, '')
+   813→  const encodedMessage = encodeURIComponent(message)
+   814→  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
+   815→}
+   816→
+   817→// Helper para enviar un mensaje por WhatsApp (abre wa.me) y registrar el envío
+   818→export async function sendWhatsAppMessage(params: {
+   819→  phone: string
+   820→  message: string
+   821→  customerId: string
+   822→  workOrderId?: string
+   823→  reminderId?: string
+   824→  templateId?: string
+   825→  customerName?: string
+   826→}) {
+   827→  const url = buildWhatsAppUrl(params.phone, params.message)
+   828→  if (typeof window !== 'undefined') {
+   829→    window.open(url, '_blank', 'noopener,noreferrer')
+   830→  }
+   831→  try {
+   832→    await fetch('/api/whatsapp/messages', {
+   833→      method: 'POST',
+   834→      headers: { 'Content-Type': 'application/json' },
+   835→      body: JSON.stringify({
+   836→        customerId: params.customerId,
+   837→        workOrderId: params.workOrderId || null,
+   838→        reminderId: params.reminderId || null,
+   839→        templateId: params.templateId || null,
+   840→        toPhone: params.phone,
+   841→        toName: params.customerName,
+   842→        message: params.message,
+   843→        status: 'sent',
+   844→        channel: 'whatsapp',
+   845→        sentBy: 'Usuario',
+   846→      }),
+   847→    })
+   848→  } catch {
+   849→    // best-effort
+   850→  }
+   851→  return url
+   852→}
+   853→
+   854→// ============== WHATSAPP CONNECTION ==============
+   855→export function useWhatsAppConnection() {
+   856→  return useQuery({
+   857→    queryKey: ['whatsapp-connection'],
+   858→    queryFn: async () => {
+   859→      const res = await fetch('/api/whatsapp/connection')
+   860→      if (!res.ok) throw new Error('Error al obtener conexión')
+   861→      return res.json()
+   862→    },
+   863→  })
+   864→}
+   865→
+   866→export function useWhatsAppConnectionMutation() {
+   867→  const qc = useQueryClient()
+   868→  return useMutation({
+   869→    mutationFn: async (data: { action: 'pair' | 'connect' | 'disconnect' | 'update_profile'; phone?: string; displayName?: string; businessName?: string }) => {
+   870→      const res = await fetch('/api/whatsapp/connection', {
+   871→        method: 'POST',
+   872→        headers: { 'Content-Type': 'application/json' },
+   873→        body: JSON.stringify(data),
+   874→      })
+   875→      if (!res.ok) {
+   876→        const err = await res.json()
+   877→        throw new Error(err.error || 'Error en conexión')
+   878→      }
+   879→      return res.json()
+   880→    },
+   881→    onSuccess: () => {
+   882→      qc.invalidateQueries({ queryKey: ['whatsapp-connection'] })
+   883→    },
+   884→    onError: (e: Error) => toast.error(e.message),
+   885→  })
+   886→}
+   887→
+   888→// Enviar factura por WhatsApp
+   889→export function useSendInvoiceWhatsApp() {
+   890→  const qc = useQueryClient()
+   891→  return useMutation({
+   892→    mutationFn: async (invoiceId: string) => {
+   893→      const res = await fetch(`/api/whatsapp/invoices/${invoiceId}`, {
+   894→        method: 'POST',
+   895→        headers: { 'Content-Type': 'application/json' },
+   896→        body: JSON.stringify({}),
+   897→      })
+   898→      if (!res.ok) {
+   899→        const err = await res.json()
+   900→        throw new Error(err.error || 'Error al enviar factura')
+   901→      }
+   902→      return res.json()
+   903→    },
+   904→    onSuccess: (data) => {
+   905→      qc.invalidateQueries({ queryKey: ['whatsapp-messages'] })
+   906→      // Abrir WhatsApp con el mensaje pre-generado
+   907→      if (typeof window !== 'undefined' && data.whatsappUrl) {
+   908→        window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer')
+   909→      }
+   910→      toast.success('Factura enviada por WhatsApp')
+   911→    },
+   912→    onError: (e: Error) => toast.error(e.message),
+   913→  })
+   914→}
+   915→

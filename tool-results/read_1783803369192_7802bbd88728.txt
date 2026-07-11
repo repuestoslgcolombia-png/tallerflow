@@ -1,0 +1,870 @@
+     1→'use client'
+     2→
+     3→import * as React from 'react'
+     4→import { toast } from 'sonner'
+     5→import {
+     6→  Package,
+     7→  Plus,
+     8→  Search,
+     9→  MoreHorizontal,
+    10→  AlertTriangle,
+    11→  TrendingDown,
+    12→  Pencil,
+    13→  Settings,
+    14→  ArrowUp,
+    15→  ArrowDown,
+    16→  Hash,
+    17→  MapPin,
+    18→  DollarSign,
+    19→  Loader2,
+    20→  X,
+    21→  Boxes,
+    22→  Wallet,
+    23→  ShoppingBag,
+    24→} from 'lucide-react'
+    25→
+    26→import { Button } from '@/components/ui/button'
+    27→import { Card, CardContent } from '@/components/ui/card'
+    28→import { Input } from '@/components/ui/input'
+    29→import { Label } from '@/components/ui/label'
+    30→import { Textarea } from '@/components/ui/textarea'
+    31→import { Switch } from '@/components/ui/switch'
+    32→import { Badge } from '@/components/ui/badge'
+    33→import {
+    34→  Select,
+    35→  SelectContent,
+    36→  SelectItem,
+    37→  SelectTrigger,
+    38→  SelectValue,
+    39→} from '@/components/ui/select'
+    40→import {
+    41→  Dialog,
+    42→  DialogContent,
+    43→  DialogDescription,
+    44→  DialogFooter,
+    45→  DialogHeader,
+    46→  DialogTitle,
+    47→} from '@/components/ui/dialog'
+    48→import {
+    49→  DropdownMenu,
+    50→  DropdownMenuContent,
+    51→  DropdownMenuItem,
+    52→  DropdownMenuSeparator,
+    53→  DropdownMenuTrigger,
+    54→} from '@/components/ui/dropdown-menu'
+    55→import { Skeleton } from '@/components/ui/skeleton'
+    56→import { Separator } from '@/components/ui/separator'
+    57→import {
+    58→  Table,
+    59→  TableBody,
+    60→  TableCell,
+    61→  TableHead,
+    62→  TableHeader,
+    63→  TableRow,
+    64→} from '@/components/ui/table'
+    65→
+    66→import { useParts, usePartMutations } from '@/lib/hooks/api'
+    67→import {
+    68→  MOVEMENT_TYPES,
+    69→  formatCurrency,
+    70→} from '@/lib/constants'
+    71→import { cn } from '@/lib/utils'
+    72→
+    73→// ============== Main View ==============
+    74→export function InventoryView() {
+    75→  const [search, setSearch] = React.useState('')
+    76→  const [category, setCategory] = React.useState<string>('all')
+    77→  const [lowStockOnly, setLowStockOnly] = React.useState(false)
+    78→
+    79→  const [createOpen, setCreateOpen] = React.useState(false)
+    80→  const [editPart, setEditPart] = React.useState<any | null>(null)
+    81→  const [adjustPart, setAdjustPart] = React.useState<any | null>(null)
+    82→
+    83→  const { data, isLoading, isError } = useParts({
+    84→    search,
+    85→    lowStock: lowStockOnly,
+    86→  })
+    87→  const parts: any[] = data || []
+    88→
+    89→  // Categories derived from data
+    90→  const categories = React.useMemo(() => {
+    91→    const set = new Set<string>()
+    92→    parts.forEach((p) => {
+    93→      if (p.category) set.add(p.category)
+    94→    })
+    95→    return Array.from(set).sort()
+    96→  }, [parts])
+    97→
+    98→  // Apply category filter client-side
+    99→  const filtered = parts.filter((p) => {
+   100→    if (category !== 'all' && p.category !== category) return false
+   101→    return true
+   102→  })
+   103→
+   104→  // Stats from all parts (no filter)
+   105→  const { data: allData } = useParts({})
+   106→  const allParts: any[] = allData || []
+   107→  const totalParts = allParts.length
+   108→  const lowStockCount = allParts.filter(
+   109→    (p) => p.stock <= (p.minStock || 0)
+   110→  ).length
+   111→  const inventoryValue = allParts.reduce(
+   112→    (acc, p) => acc + (p.stock || 0) * (p.unitCost || 0),
+   113→    0
+   114→  )
+   115→  const potentialSalesValue = allParts.reduce(
+   116→    (acc, p) => acc + (p.stock || 0) * (p.unitPrice || 0),
+   117→    0
+   118→  )
+   119→
+   120→  return (
+   121→    <div className="space-y-4">
+   122→      {/* Header */}
+   123→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   124→        <div>
+   125→          <h1 className="text-2xl font-semibold tracking-tight">Inventario</h1>
+   126→          <p className="text-sm text-muted-foreground">
+   127→            Repuestos y materiales del taller
+   128→          </p>
+   129→        </div>
+   130→        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+   131→          <Plus className="size-4" />
+   132→          Nuevo Repuesto
+   133→        </Button>
+   134→      </div>
+   135→
+   136→      {/* Stats */}
+   137→      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   138→        <StatCard
+   139→          label="Total repuestos"
+   140→          value={String(totalParts)}
+   141→          icon={<Boxes className="size-4" />}
+   142→          tone="slate"
+   143→        />
+   144→        <StatCard
+   145→          label="Stock bajo"
+   146→          value={String(lowStockCount)}
+   147→          icon={<TrendingDown className="size-4" />}
+   148→          tone={lowStockCount > 0 ? 'rose' : 'emerald'}
+   149→        />
+   150→        <StatCard
+   151→          label="Valor inventario"
+   152→          value={formatCurrency(inventoryValue)}
+   153→          icon={<Wallet className="size-4" />}
+   154→          tone="amber"
+   155→        />
+   156→        <StatCard
+   157→          label="Valor venta potencial"
+   158→          value={formatCurrency(potentialSalesValue)}
+   159→          icon={<ShoppingBag className="size-4" />}
+   160→          tone="teal"
+   161→        />
+   162→      </div>
+   163→
+   164→      {/* Toolbar */}
+   165→      <Card>
+   166→        <CardContent className="p-4">
+   167→          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+   168→            <div className="relative flex-1">
+   169→              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   170→              <Input
+   171→                placeholder="Buscar por SKU, nombre, descripción…"
+   172→                value={search}
+   173→                onChange={(e) => setSearch(e.target.value)}
+   174→                className="pl-9"
+   175→              />
+   176→            </div>
+   177→
+   178→            <div className="flex items-center gap-2">
+   179→              <Select value={category} onValueChange={setCategory}>
+   180→                <SelectTrigger className="h-9 w-[160px]">
+   181→                  <SelectValue placeholder="Categoría" />
+   182→                </SelectTrigger>
+   183→                <SelectContent>
+   184→                  <SelectItem value="all">Todas</SelectItem>
+   185→                  {categories.map((c) => (
+   186→                    <SelectItem key={c} value={c}>{c}</SelectItem>
+   187→                  ))}
+   188→                </SelectContent>
+   189→              </Select>
+   190→
+   191→              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium">
+   192→                <Switch
+   193→                  checked={lowStockOnly}
+   194→                  onCheckedChange={setLowStockOnly}
+   195→                />
+   196→                Stock bajo
+   197→              </label>
+   198→            </div>
+   199→          </div>
+   200→        </CardContent>
+   201→      </Card>
+   202→
+   203→      {/* Table */}
+   204→      <Card>
+   205→        <CardContent className="p-0">
+   206→          {isLoading ? (
+   207→            <div className="space-y-2 p-4">
+   208→              {Array.from({ length: 6 }).map((_, i) => (
+   209→                <Skeleton key={i} className="h-14 w-full" />
+   210→              ))}
+   211→            </div>
+   212→          ) : isError ? (
+   213→            <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+   214→              <AlertTriangle className="size-8 text-rose-500" />
+   215→              <p className="text-sm text-muted-foreground">Error al cargar el inventario.</p>
+   216→            </div>
+   217→          ) : filtered.length === 0 ? (
+   218→            <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+   219→              <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+   220→                <Package className="size-6 text-muted-foreground" />
+   221→              </div>
+   222→              <div>
+   223→                <p className="font-medium">No hay repuestos</p>
+   224→                <p className="text-sm text-muted-foreground">
+   225→                  {lowStockOnly
+   226→                    ? 'No hay repuestos con stock bajo.'
+   227→                    : 'Registra tu primer repuesto.'}
+   228→                </p>
+   229→              </div>
+   230→              <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
+   231→                <Plus className="size-4" />
+   232→                Nuevo Repuesto
+   233→              </Button>
+   234→            </div>
+   235→          ) : (
+   236→            <div className="overflow-x-auto">
+   237→            <Table>
+   238→              <TableHeader>
+   239→                <TableRow>
+   240→                  <TableHead className="pl-4">SKU</TableHead>
+   241→                  <TableHead>Nombre</TableHead>
+   242→                  <TableHead>Categoría</TableHead>
+   243→                  <TableHead className="text-center">Stock</TableHead>
+   244→                  <TableHead className="text-center">Mín.</TableHead>
+   245→                  <TableHead className="text-right">Costo</TableHead>
+   246→                  <TableHead className="text-right">Venta</TableHead>
+   247→                  <TableHead>Ubicación</TableHead>
+   248→                  <TableHead className="pr-4 text-right">Acciones</TableHead>
+   249→                </TableRow>
+   250→              </TableHeader>
+   251→              <TableBody>
+   252→                {filtered.map((p) => {
+   253→                  const stock = p.stock || 0
+   254→                  const min = p.minStock || 0
+   255→                  const stockTone =
+   256→                    stock <= 0
+   257→                      ? 'rose'
+   258→                      : stock <= min
+   259→                      ? 'amber'
+   260→                      : 'emerald'
+   261→                  return (
+   262→                    <TableRow key={p.id}>
+   263→                      <TableCell className="pl-4 font-mono text-xs font-medium">
+   264→                        {p.sku}
+   265→                      </TableCell>
+   266→                      <TableCell>
+   267→                        <div className="flex flex-col">
+   268→                          <span className="text-sm font-medium">{p.name}</span>
+   269→                          {p.description && (
+   270→                            <span className="max-w-[220px] truncate text-xs text-muted-foreground">
+   271→                              {p.description}
+   272→                            </span>
+   273→                          )}
+   274→                        </div>
+   275→                      </TableCell>
+   276→                      <TableCell>
+   277→                        {p.category ? (
+   278→                          <Badge variant="outline" className="bg-muted/50">
+   279→                            {p.category}
+   280→                          </Badge>
+   281→                        ) : (
+   282→                          <span className="text-xs text-muted-foreground">—</span>
+   283→                        )}
+   284→                      </TableCell>
+   285→                      <TableCell className="text-center">
+   286→                        <div className="flex items-center justify-center gap-1.5">
+   287→                          <span
+   288→                            className={cn(
+   289→                              'size-1.5 rounded-full',
+   290→                              stockTone === 'rose' && 'bg-rose-500',
+   291→                              stockTone === 'amber' && 'bg-amber-500',
+   292→                              stockTone === 'emerald' && 'bg-emerald-500'
+   293→                            )}
+   294→                          />
+   295→                          <span
+   296→                            className={cn(
+   297→                              'font-medium tabular-nums',
+   298→                              stockTone === 'rose' && 'text-rose-600',
+   299→                              stockTone === 'amber' && 'text-amber-600',
+   300→                              stockTone === 'emerald' && 'text-foreground'
+   301→                            )}
+   302→                          >
+   303→                            {stock}
+   304→                          </span>
+   305→                          <span className="text-xs text-muted-foreground">{p.unit}</span>
+   306→                        </div>
+   307→                      </TableCell>
+   308→                      <TableCell className="text-center tabular-nums text-muted-foreground">
+   309→                        {min}
+   310→                      </TableCell>
+   311→                      <TableCell className="text-right tabular-nums text-muted-foreground">
+   312→                        {formatCurrency(p.unitCost || 0)}
+   313→                      </TableCell>
+   314→                      <TableCell className="text-right tabular-nums font-medium">
+   315→                        {formatCurrency(p.unitPrice || 0)}
+   316→                      </TableCell>
+   317→                      <TableCell>
+   318→                        {p.location ? (
+   319→                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+   320→                            <MapPin className="size-3" /> {p.location}
+   321→                          </span>
+   322→                        ) : (
+   323→                          <span className="text-xs text-muted-foreground">—</span>
+   324→                        )}
+   325→                      </TableCell>
+   326→                      <TableCell className="pr-4 text-right">
+   327→                        <PartActionsMenu
+   328→                          part={p}
+   329→                          onEdit={() => setEditPart(p)}
+   330→                          onAdjust={() => setAdjustPart(p)}
+   331→                        />
+   332→                      </TableCell>
+   333→                    </TableRow>
+   334→                  )
+   335→                })}
+   336→              </TableBody>
+   337→            </Table>
+   338→            </div>
+   339→          )}
+   340→        </CardContent>
+   341→      </Card>
+   342→
+   343→      {/* Dialogs */}
+   344→      <PartFormDialog
+   345→        open={createOpen}
+   346→        onOpenChange={setCreateOpen}
+   347→        mode="create"
+   348→      />
+   349→      <PartFormDialog
+   350→        open={!!editPart}
+   351→        onOpenChange={(v) => !v && setEditPart(null)}
+   352→        mode="edit"
+   353→        part={editPart}
+   354→      />
+   355→      <AdjustStockDialog
+   356→        part={adjustPart}
+   357→        onOpenChange={(v) => !v && setAdjustPart(null)}
+   358→      />
+   359→    </div>
+   360→  )
+   361→}
+   362→
+   363→// ============== Sub-components ==============
+   364→
+   365→function StatCard({
+   366→  label,
+   367→  value,
+   368→  icon,
+   369→  tone,
+   370→}: {
+   371→  label: string
+   372→  value: string
+   373→  icon: React.ReactNode
+   374→  tone: 'slate' | 'rose' | 'emerald' | 'amber' | 'teal'
+   375→}) {
+   376→  const toneClasses = {
+   377→    slate: 'bg-slate-100 text-slate-600',
+   378→    rose: 'bg-rose-100 text-rose-700',
+   379→    emerald: 'bg-emerald-100 text-emerald-700',
+   380→    amber: 'bg-amber-100 text-amber-700',
+   381→    teal: 'bg-teal-100 text-teal-700',
+   382→  }
+   383→  return (
+   384→    <Card>
+   385→      <CardContent className="p-4">
+   386→        <div className="flex items-center justify-between">
+   387→          <div className="min-w-0">
+   388→            <p className="text-xs text-muted-foreground">{label}</p>
+   389→            <p className="truncate text-xl font-semibold tabular-nums">{value}</p>
+   390→          </div>
+   391→          <div className={cn('flex size-8 items-center justify-center rounded-md', toneClasses[tone])}>
+   392→            {icon}
+   393→          </div>
+   394→        </div>
+   395→      </CardContent>
+   396→    </Card>
+   397→  )
+   398→}
+   399→
+   400→function PartActionsMenu({
+   401→  part,
+   402→  onEdit,
+   403→  onAdjust,
+   404→}: {
+   405→  part: any
+   406→  onEdit: () => void
+   407→  onAdjust: () => void
+   408→}) {
+   409→  const { update } = usePartMutations()
+   410→
+   411→  const toggleActive = () => {
+   412→    update.mutate({
+   413→      id: part.id,
+   414→      data: { active: !part.active },
+   415→    })
+   416→  }
+   417→
+   418→  return (
+   419→    <div className="flex justify-end">
+   420→      <DropdownMenu>
+   421→        <DropdownMenuTrigger asChild>
+   422→          <Button variant="ghost" size="icon" className="size-8">
+   423→            <MoreHorizontal className="size-4" />
+   424→          </Button>
+   425→        </DropdownMenuTrigger>
+   426→        <DropdownMenuContent align="end" className="w-44">
+   427→          <DropdownMenuItem onClick={onAdjust}>
+   428→            <Settings className="size-4" /> Ajustar stock
+   429→          </DropdownMenuItem>
+   430→          <DropdownMenuItem onClick={onEdit}>
+   431→            <Pencil className="size-4" /> Editar
+   432→          </DropdownMenuItem>
+   433→          <DropdownMenuSeparator />
+   434→          <DropdownMenuItem onClick={toggleActive} disabled={update.isPending}>
+   435→            {part.active ? (
+   436→              <>
+   437→                <X className="size-4" /> Desactivar
+   438→              </>
+   439→            ) : (
+   440→              <>
+   441→                <Package className="size-4" /> Activar
+   442→              </>
+   443→            )}
+   444→          </DropdownMenuItem>
+   445→        </DropdownMenuContent>
+   446→      </DropdownMenu>
+   447→    </div>
+   448→  )
+   449→}
+   450→
+   451→// ============== Part Form Dialog (create/edit) ==============
+   452→function PartFormDialog({
+   453→  open,
+   454→  onOpenChange,
+   455→  mode,
+   456→  part,
+   457→}: {
+   458→  open: boolean
+   459→  onOpenChange: (v: boolean) => void
+   460→  mode: 'create' | 'edit'
+   461→  part?: any | null
+   462→}) {
+   463→  const { create, update } = usePartMutations()
+   464→
+   465→  const [sku, setSku] = React.useState('')
+   466→  const [name, setName] = React.useState('')
+   467→  const [description, setDescription] = React.useState('')
+   468→  const [category, setCategory] = React.useState('')
+   469→  const [unit, setUnit] = React.useState('unidad')
+   470→  const [stock, setStock] = React.useState('0')
+   471→  const [minStock, setMinStock] = React.useState('0')
+   472→  const [unitCost, setUnitCost] = React.useState('0')
+   473→  const [unitPrice, setUnitPrice] = React.useState('0')
+   474→  const [location, setLocation] = React.useState('')
+   475→
+   476→  React.useEffect(() => {
+   477→    if (open) {
+   478→      if (mode === 'edit' && part) {
+   479→        setSku(part.sku || '')
+   480→        setName(part.name || '')
+   481→        setDescription(part.description || '')
+   482→        setCategory(part.category || '')
+   483→        setUnit(part.unit || 'unidad')
+   484→        setStock(String(part.stock ?? 0))
+   485→        setMinStock(String(part.minStock ?? 0))
+   486→        setUnitCost(String(part.unitCost ?? 0))
+   487→        setUnitPrice(String(part.unitPrice ?? 0))
+   488→        setLocation(part.location || '')
+   489→      } else {
+   490→        setSku('')
+   491→        setName('')
+   492→        setDescription('')
+   493→        setCategory('')
+   494→        setUnit('unidad')
+   495→        setStock('0')
+   496→        setMinStock('0')
+   497→        setUnitCost('0')
+   498→        setUnitPrice('0')
+   499→        setLocation('')
+   500→      }
+   501→    }
+   502→  }, [open, mode, part])
+   503→
+   504→  const canSubmit = sku.trim() && name.trim()
+   505→
+   506→  const handleSubmit = () => {
+   507→    const data: any = {
+   508→      sku: sku.trim(),
+   509→      name: name.trim(),
+   510→      description: description.trim() || undefined,
+   511→      category: category.trim() || undefined,
+   512→      unit: unit || 'unidad',
+   513→      minStock: parseInt(minStock) || 0,
+   514→      unitCost: parseFloat(unitCost) || 0,
+   515→      unitPrice: parseFloat(unitPrice) || 0,
+   516→      location: location.trim() || undefined,
+   517→    }
+   518→    if (mode === 'create') {
+   519→      data.stock = parseInt(stock) || 0
+   520→      create.mutate(data, { onSuccess: () => onOpenChange(false) })
+   521→    } else {
+   522→      update.mutate(
+   523→        { id: part.id, data },
+   524→        { onSuccess: () => onOpenChange(false) }
+   525→      )
+   526→    }
+   527→  }
+   528→
+   529→  const isPending = mode === 'create' ? create.isPending : update.isPending
+   530→
+   531→  return (
+   532→    <Dialog open={open} onOpenChange={onOpenChange}>
+   533→      <DialogContent className="sm:max-w-2xl">
+   534→        <DialogHeader>
+   535→          <DialogTitle>
+   536→            {mode === 'create' ? 'Nuevo Repuesto' : `Editar ${part?.sku}`}
+   537→          </DialogTitle>
+   538→          <DialogDescription>
+   539→            {mode === 'create'
+   540→              ? 'Registra un nuevo repuesto o material en el inventario.'
+   541→              : 'Modifica la información del repuesto.'}
+   542→          </DialogDescription>
+   543→        </DialogHeader>
+   544→
+   545→        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   546→          <div className="space-y-2">
+   547→            <Label>
+   548→              SKU <span className="text-rose-500">*</span>
+   549→            </Label>
+   550→            <div className="relative">
+   551→              <Hash className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   552→              <Input
+   553→                className="pl-9 font-mono"
+   554→                value={sku}
+   555→                onChange={(e) => setSku(e.target.value)}
+   556→                placeholder="Ej: RAM-8GB-DDR4"
+   557→              />
+   558→            </div>
+   559→          </div>
+   560→
+   561→          <div className="space-y-2">
+   562→            <Label>
+   563→              Nombre <span className="text-rose-500">*</span>
+   564→            </Label>
+   565→            <Input
+   566→              value={name}
+   567→              onChange={(e) => setName(e.target.value)}
+   568→              placeholder="Ej: Memoria RAM 8GB DDR4"
+   569→            />
+   570→          </div>
+   571→
+   572→          <div className="space-y-2 sm:col-span-2">
+   573→            <Label>Descripción</Label>
+   574→            <Textarea
+   575→              value={description}
+   576→              onChange={(e) => setDescription(e.target.value)}
+   577→              rows={2}
+   578→              placeholder="Detalles técnicos, marca, compatibilidad…"
+   579→            />
+   580→          </div>
+   581→
+   582→          <div className="space-y-2">
+   583→            <Label>Categoría</Label>
+   584→            <Input
+   585→              value={category}
+   586→              onChange={(e) => setCategory(e.target.value)}
+   587→              placeholder="RAM, SSD, Pantalla, Batería…"
+   588→              list="part-categories"
+   589→            />
+   590→            <datalist id="part-categories">
+   591→              <option value="RAM" />
+   592→              <option value="SSD" />
+   593→              <option value="HDD" />
+   594→              <option value="Pantalla" />
+   595→              <option value="Batería" />
+   596→              <option value="Cable" />
+   597→              <option value="Fuente" />
+   598→              <option value="Otro" />
+   599→            </datalist>
+   600→          </div>
+   601→
+   602→          <div className="space-y-2">
+   603→            <Label>Unidad</Label>
+   604→            <Select value={unit} onValueChange={setUnit}>
+   605→              <SelectTrigger className="w-full">
+   606→                <SelectValue />
+   607→              </SelectTrigger>
+   608→              <SelectContent>
+   609→                <SelectItem value="unidad">unidad</SelectItem>
+   610→                <SelectItem value="metro">metro</SelectItem>
+   611→                <SelectItem value="gramo">gramo</SelectItem>
+   612→                <SelectItem value="litro">litro</SelectItem>
+   613→                <SelectItem value="caja">caja</SelectItem>
+   614→              </SelectContent>
+   615→            </Select>
+   616→          </div>
+   617→
+   618→          <div className="space-y-2">
+   619→            <Label>Stock inicial</Label>
+   620→            <Input
+   621→              type="number"
+   622→              value={stock}
+   623→              onChange={(e) => setStock(e.target.value)}
+   624→              min="0"
+   625→              disabled={mode === 'edit'}
+   626→            />
+   627→            {mode === 'edit' && (
+   628→              <p className="text-xs text-muted-foreground">
+   629→                Usa “Ajustar stock” para modificar.
+   630→              </p>
+   631→            )}
+   632→          </div>
+   633→
+   634→          <div className="space-y-2">
+   635→            <Label>Stock mínimo</Label>
+   636→            <Input
+   637→              type="number"
+   638→              value={minStock}
+   639→              onChange={(e) => setMinStock(e.target.value)}
+   640→              min="0"
+   641→            />
+   642→          </div>
+   643→
+   644→          <div className="space-y-2">
+   645→            <Label>Costo unit.</Label>
+   646→            <div className="relative">
+   647→              <DollarSign className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   648→              <Input
+   649→                type="number"
+   650→                className="pl-9"
+   651→                value={unitCost}
+   652→                onChange={(e) => setUnitCost(e.target.value)}
+   653→                min="0"
+   654→                step="100"
+   655→              />
+   656→            </div>
+   657→          </div>
+   658→
+   659→          <div className="space-y-2">
+   660→            <Label>Precio venta</Label>
+   661→            <div className="relative">
+   662→              <DollarSign className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   663→              <Input
+   664→                type="number"
+   665→                className="pl-9"
+   666→                value={unitPrice}
+   667→                onChange={(e) => setUnitPrice(e.target.value)}
+   668→                min="0"
+   669→                step="100"
+   670→              />
+   671→            </div>
+   672→          </div>
+   673→
+   674→          <div className="space-y-2 sm:col-span-2">
+   675→            <Label>Ubicación</Label>
+   676→            <div className="relative">
+   677→              <MapPin className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   678→              <Input
+   679→                className="pl-9"
+   680→                value={location}
+   681→                onChange={(e) => setLocation(e.target.value)}
+   682→                placeholder="Ej: Estante A-3, Cajón 2"
+   683→              />
+   684→            </div>
+   685→          </div>
+   686→        </div>
+   687→
+   688→        <DialogFooter>
+   689→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+   690→            Cancelar
+   691→          </Button>
+   692→          <Button onClick={handleSubmit} disabled={!canSubmit || isPending} className="gap-2">
+   693→            {isPending && <Loader2 className="size-4 animate-spin" />}
+   694→            {mode === 'create' ? 'Crear Repuesto' : 'Guardar Cambios'}
+   695→          </Button>
+   696→        </DialogFooter>
+   697→      </DialogContent>
+   698→    </Dialog>
+   699→  )
+   700→}
+   701→
+   702→// ============== Adjust Stock Dialog ==============
+   703→function AdjustStockDialog({
+   704→  part,
+   705→  onOpenChange,
+   706→}: {
+   707→  part: any | null
+   708→  onOpenChange: (v: boolean) => void
+   709→}) {
+   710→  const { update } = usePartMutations()
+   711→  const [quantity, setQuantity] = React.useState('')
+   712→  const [movementType, setMovementType] = React.useState<string>('in')
+   713→  const [reason, setReason] = React.useState('')
+   714→
+   715→  React.useEffect(() => {
+   716→    if (part) {
+   717→      setQuantity('')
+   718→      setReason('')
+   719→      // default movement type based on nothing yet — let user enter qty first
+   720→      setMovementType('in')
+   721→    }
+   722→  }, [part])
+   723→
+   724→  // Auto-suggest movement type from sign of quantity
+   725→  React.useEffect(() => {
+   726→    const n = parseInt(quantity)
+   727→    if (!isNaN(n)) {
+   728→      if (n > 0) setMovementType('in')
+   729→      else if (n < 0) setMovementType('out')
+   730→      else setMovementType('adjustment')
+   731→    }
+   732→  }, [quantity])
+   733→
+   734→  if (!part) return null
+   735→
+   736→  const currentStock = part.stock || 0
+   737→  const newStock = currentStock + (parseInt(quantity) || 0)
+   738→  const canSubmit = quantity !== '' && parseInt(quantity) !== 0
+   739→
+   740→  const handleSubmit = () => {
+   741→    update.mutate(
+   742→      {
+   743→        id: part.id,
+   744→        data: {
+   745→          action: 'adjust_stock',
+   746→          quantity: parseInt(quantity),
+   747→          movementType,
+   748→          reason: reason.trim() || undefined,
+   749→        },
+   750→      },
+   751→      { onSuccess: () => onOpenChange(false) }
+   752→    )
+   753→  }
+   754→
+   755→  return (
+   756→    <Dialog open={!!part} onOpenChange={onOpenChange}>
+   757→      <DialogContent>
+   758→        <DialogHeader>
+   759→          <DialogTitle>Ajustar Stock · {part.sku}</DialogTitle>
+   760→          <DialogDescription>
+   761→            {part.name}
+   762→          </DialogDescription>
+   763→        </DialogHeader>
+   764→
+   765→        <div className="space-y-4">
+   766→          {/* Current stock indicator */}
+   767→          <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
+   768→            <div>
+   769→              <p className="text-xs text-muted-foreground">Stock actual</p>
+   770→              <p className="text-2xl font-semibold tabular-nums">{currentStock}</p>
+   771→            </div>
+   772→            <div className="text-right">
+   773→              <p className="text-xs text-muted-foreground">Nuevo stock</p>
+   774→              <p
+   775→                className={cn(
+   776→                  'text-2xl font-semibold tabular-nums',
+   777→                  newStock < 0
+   778→                    ? 'text-rose-600'
+   779→                    : newStock < (part.minStock || 0)
+   780→                    ? 'text-amber-600'
+   781→                    : 'text-emerald-600'
+   782→                )}
+   783→              >
+   784→                {newStock}
+   785→              </p>
+   786→            </div>
+   787→          </div>
+   788→
+   789→          <div className="grid grid-cols-2 gap-3">
+   790→            <div className="space-y-2">
+   791→              <Label>Cantidad (±)</Label>
+   792→              <div className="flex gap-2">
+   793→                <Button
+   794→                  type="button"
+   795→                  variant="outline"
+   796→                  size="icon"
+   797→                  onClick={() => {
+   798→                    const n = parseInt(quantity || '0') - 1
+   799→                    setQuantity(String(n))
+   800→                  }}
+   801→                >
+   802→                  <ArrowDown className="size-4 text-rose-500" />
+   803→                </Button>
+   804→                <Input
+   805→                  type="number"
+   806→                  value={quantity}
+   807→                  onChange={(e) => setQuantity(e.target.value)}
+   808→                  placeholder="0"
+   809→                  className="text-center tabular-nums"
+   810→                />
+   811→                <Button
+   812→                  type="button"
+   813→                  variant="outline"
+   814→                  size="icon"
+   815→                  onClick={() => {
+   816→                    const n = parseInt(quantity || '0') + 1
+   817→                    setQuantity(String(n))
+   818→                  }}
+   819→                >
+   820→                  <ArrowUp className="size-4 text-emerald-500" />
+   821→                </Button>
+   822→              </div>
+   823→            </div>
+   824→
+   825→            <div className="space-y-2">
+   826→              <Label>Tipo de movimiento</Label>
+   827→              <Select value={movementType} onValueChange={setMovementType}>
+   828→                <SelectTrigger className="w-full">
+   829→                  <SelectValue />
+   830→                </SelectTrigger>
+   831→                <SelectContent>
+   832→                  {(Object.keys(MOVEMENT_TYPES) as (keyof typeof MOVEMENT_TYPES)[]).map((k) => (
+   833→                    <SelectItem key={k} value={k}>
+   834→                      {MOVEMENT_TYPES[k].label}
+   835→                    </SelectItem>
+   836→                  ))}
+   837→                </SelectContent>
+   838→              </Select>
+   839→            </div>
+   840→          </div>
+   841→
+   842→          <div className="space-y-2">
+   843→            <Label>Motivo (opcional)</Label>
+   844→            <Textarea
+   845→              value={reason}
+   846→              onChange={(e) => setReason(e.target.value)}
+   847→              rows={2}
+   848→              placeholder="Compra, merma, ajuste de inventario, uso en OT…"
+   849→            />
+   850→          </div>
+   851→        </div>
+   852→
+   853→        <DialogFooter>
+   854→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+   855→            Cancelar
+   856→          </Button>
+   857→          <Button
+   858→            onClick={handleSubmit}
+   859→            disabled={!canSubmit || update.isPending}
+   860→            className="gap-2"
+   861→          >
+   862→            {update.isPending && <Loader2 className="size-4 animate-spin" />}
+   863→            Aplicar Ajuste
+   864→          </Button>
+   865→        </DialogFooter>
+   866→      </DialogContent>
+   867→    </Dialog>
+   868→  )
+   869→}
+   870→

@@ -172,6 +172,77 @@ export const PAYMENT_METHODS = {
   transfer: { label: 'Transferencia', icon: 'Landmark' },
 } as const
 
+// ============== CATEGORÍAS DE REPUESTOS ==============
+
+export const PART_CATEGORIES = {
+  washing_machine: {
+    label: 'Lavadoras',
+    icon: 'WashingMachine',
+    color: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800',
+    description: 'Repuestos para lavadoras automáticas y semiautomáticas',
+  },
+  refrigerator: {
+    label: 'Neveras',
+    icon: 'Refrigerator',
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
+    description: 'Repuestos para neveras y frigoríficos',
+  },
+  freezer: {
+    label: 'Congeladores',
+    icon: 'Snowflake',
+    color: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800',
+    description: 'Repuestos para congeladores horizontales y verticales',
+  },
+  gas_dryer: {
+    label: 'Secadoras a gas',
+    icon: 'Flame',
+    color: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800',
+    description: 'Repuestos para secadoras a gas',
+  },
+  air_conditioner: {
+    label: 'Aires acondicionados',
+    icon: 'Wind',
+    color: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:border-teal-800',
+    description: 'Repuestos para aires acondicionados split y ventana',
+  },
+  tv: {
+    label: 'TVs',
+    icon: 'Tv',
+    color: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800',
+    description: 'Repuestos para televisores LED, LCD y Smart TV',
+  },
+  refrigeration: {
+    label: 'Refrigeración',
+    icon: 'Droplet',
+    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
+    description: 'Gases refrigerantes, aceites y consumibles',
+  },
+  tools: {
+    label: 'Herramientas',
+    icon: 'Wrench',
+    color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700',
+    description: 'Herramientas y consumibles de taller',
+  },
+  other: {
+    label: 'Otros',
+    icon: 'Package',
+    color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800',
+    description: 'Otros repuestos y accesorios',
+  },
+} as const
+
+export type PartCategoryKey = keyof typeof PART_CATEGORIES
+
+// Tipos de gas refrigerante comunes
+export const GAS_TYPES = ['R134a', 'R410A', 'R22', 'R404A', 'R290', 'N/A'] as const
+
+// Marcas comunes de electrodomésticos
+export const APPLIANCE_BRANDS = [
+  'LG', 'Samsung', 'Whirlpool', 'Electrolux', 'Mabe', 'Haceb', 'Midea',
+  'Daewoo', 'Bosch', 'General Electric', 'Kenmore', 'Maytag', 'Frigidaire',
+  'Panasonic', 'Sharp', 'Toshiba', 'Sony', 'Universal', 'Otra',
+] as const
+
 // ============== FLUJO DE ESTADOS ==============
 
 export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {

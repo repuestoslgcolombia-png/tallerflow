@@ -185,26 +185,36 @@ model QuoteItem {
 // ============== INVENTARIO ==============
 
 model Part {
-  id          String   @id @default(cuid())
-  sku         String   @unique
-  name        String
-  description String?
-  category    String? // RAM | SSD | Pantalla | Batería | Cable | Otro
-  unit        String   @default("unidad") // unidad | metro | gramo
-  stock       Int      @default(0)
-  minStock    Int      @default(0)
-  unitCost    Float    @default(0)
-  unitPrice   Float    @default(0)
-  location    String? // ubicación física
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  sku              String   @unique
+  name             String
+  description      String?
+  category         String? // washing_machine | refrigerator | freezer | gas_dryer | air_conditioner | tv | refrigeration | tools | other
+  applianceType    String? // tipo de electrodoméstico compatible (lavadora, nevera, etc.)
+  brand            String? // marca del repuesto (LG, Samsung, Whirlpool, universal)
+  compatibleBrands String? // marcas compatibles (JSON: ["LG","Samsung"])
+  model            String? // modelo específico o "universal"
+  voltage          String? // voltaje (110V, 220V, N/A)
+  powerWatts       String? // potencia en watts (ej: "1500W")
+  gasType          String? // tipo de gas (R134a, R410A, R22, N/A)
+  dimensions       String? // dimensiones físicas
+  warranty         Int?     // meses de garantía
+  unit             String   @default("unidad") // unidad | metro | gramo | litro
+  stock            Int      @default(0)
+  minStock         Int      @default(0)
+  unitCost         Float    @default(0)
+  unitPrice        Float    @default(0)
+  location         String? // ubicación física
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   movements        InventoryMovement[]
   quoteItems       QuoteItem[]
 
   @@index([category])
   @@index([name])
+  @@index([brand])
 }
 
 model InventoryMovement {

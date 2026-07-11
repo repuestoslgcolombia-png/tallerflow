@@ -8,17 +8,23 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const category = searchParams.get('category')
+    const brand = searchParams.get('brand')
+    const applianceType = searchParams.get('applianceType')
     const lowStock = searchParams.get('lowStock') === 'true'
 
     const parts = await db.part.findMany({
       where: {
         ...(category ? { category } : {}),
+        ...(brand ? { brand } : {}),
+        ...(applianceType ? { applianceType } : {}),
         ...(search
           ? {
               OR: [
                 { name: { contains: search } },
                 { sku: { contains: search } },
                 { description: { contains: search } },
+                { brand: { contains: search } },
+                { model: { contains: search } },
               ],
             }
           : {}),
@@ -26,7 +32,10 @@ export async function GET(req: NextRequest) {
       include: {
         _count: { select: { movements: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [
+        { category: 'asc' },
+        { name: 'asc' },
+      ],
     })
 
     // Filtrar por stock bajo si se solicita
@@ -56,6 +65,15 @@ export async function POST(req: NextRequest) {
           name: body.name,
           description: body.description || null,
           category: body.category || null,
+          applianceType: body.applianceType || null,
+          brand: body.brand || null,
+          compatibleBrands: Array.isArray(body.compatibleBrands) ? JSON.stringify(body.compatibleBrands) : (body.compatibleBrands || null),
+          model: body.model || null,
+          voltage: body.voltage || null,
+          powerWatts: body.powerWatts || null,
+          gasType: body.gasType || null,
+          dimensions: body.dimensions || null,
+          warranty: body.warranty !== undefined ? Number(body.warranty) : null,
           unit: body.unit || 'unidad',
           stock: Number(body.stock) || 0,
           minStock: Number(body.minStock) || 0,

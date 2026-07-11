@@ -328,3 +328,36 @@ Stage Summary:
 - 12 plantillas del sistema (2 nuevas: invoice_sent, payment_confirmation)
 - Vista WhatsApp ahora tiene 4 pestañas: Conexión, Enviar, Plantillas, Historial
 - Lint pasa sin errores, verificación end-to-end exitosa
+
+---
+Task ID: 7
+Agent: full-stack-developer (Inventory view rewrite)
+Task: Reescritura completa del módulo de Inventario para mostrar los nuevos datos de repuestos de electrodomésticos con información técnica rica (marca, modelo, voltaje, gas, dimensiones, garantía, marcas compatibles).
+
+Work Log:
+- Leí worklog.md y el archivo actual inventory-view.tsx (869 líneas) para entender el patrón existente y los datos disponibles.
+- Verifiqué que el schema Prisma Part incluye los nuevos campos (brand, model, voltage, powerWatts, gasType, dimensions, warranty, compatibleBrands, applianceType) y que la API route /api/parts ya soporta filtros category/brand/applianceType.
+- Extendí el hook `useParts` en src/lib/hooks/api.ts para aceptar category/brand/applianceType (antes solo search/lowStock) y pasarlos al query string.
+- Reescribí src/modules/inventory/inventory-view.tsx (~1100 líneas) con:
+  - Header con 4 stat cards (Total repuestos, Stock bajo, Valor inventario Σ stock×costo, Valor venta potencial Σ stock×precio).
+  - Filtro horizontal scrollable de píldoras por categoría (Todos + 9 PART_CATEGORIES) con icono + label + count, Switch "Stock bajo" y búsqueda con debounce de 300ms.
+  - Tabla rica con 10 columnas: Repuesto (SKU mono + nombre + marca/modelo), Categoría (badge con icono y color), Especificaciones (badges voltage/potencia/gas solo si presentes), Stock (dot color + número + unidad), Costo, Venta, Margen (calculado + %), Ubicación, Garantía, Acciones (dropdown: Ver detalle, Ajustar stock, Editar, Desactivar). Filas clickeables abren diálogo de detalle.
+  - Detail Dialog (usa usePart(id) con movimientos): header con badge categoría + SKU, descripción, grid 2-col de specs técnicas (Marca, Modelo, Voltaje, Potencia, Tipo de gas, Dimensiones, Garantía, Ubicación), marcas compatibles como badges (parseadas de JSON string), sección inventario (stock actual, mínimo, estado, tipo equipo), sección precios (costo, venta, margen + %, valor inventario), movimientos recientes (últimos 5 con tipo/motivo/cantidad/OT/fecha), botones Cerrar/Ajustar/Editar.
+  - Create/Edit Dialog con 4 secciones: Información básica (SKU*, Nombre*, Descripción, Categoría Select), Compatibilidad (Marca Select, Modelo, Marcas compatibles input separado por coma → JSON string, Tipo electrodoméstico), Especificaciones técnicas (Voltaje, Potencia, Tipo de gas Select solo para categorías de refrigeración, Dimensiones, Garantía meses), Inventario y precios (Stock inicial solo en create, Stock mínimo, Unidad Select, Costo, Precio, Ubicación + preview de margen en vivo).
+  - Adjust Stock Dialog con botones ±, tipo de movimiento auto-sugerido por signo pero editable, motivo textarea, preview de nuevo stock con color coding.
+  - AlertDialog de confirmación para desactivar (soft delete via PUT {active:false}).
+  - Componente CategoryIcon (declarado fuera del render) que mapea string → icono lucide para evitar el lint react-hooks/static-components.
+  - Patrones: 'use client', export function InventoryView, useState para forms, key={id} en Edit y Adjust dialogs, parseCompatibleBrands helper para JSON.
+  - Paleta: usa colores de PART_CATEGORIES (sky, emerald, cyan, orange, teal, violet, amber, slate, rose) — sin indigo/blue.
+  - Responsive: stat grid 2→4 cols, tabla con overflow-x-auto, diálogos sm:max-w-2xl con ScrollArea interno.
+- Lint: inicialmente 1 error (react-hooks/static-components por getCategoryIcon retornando componente) + 1 warning (eslint-disable unused). Corregí convirtiendo getCategoryIcon → componente CategoryIcon y eliminé el eslint-disable. `bun run lint` pasa limpio (0 errors, 0 warnings).
+- Dev.log: verificado que /api/parts responde 200 y la compilación es exitosa sin errores.
+
+Stage Summary:
+- Vista de Inventario completamente reescrita con soporte para el nuevo schema de repuestos de electrodomésticos
+- Hook useParts extendido para soportar filtros category/brand/applianceType (API ya lo soportaba)
+- 10 columnas en la tabla principal con specs técnicas (voltage, potencia, gas) en badges
+- Detail dialog con specs técnicas en grid 2-col, marcas compatibles, precios y movimientos recientes
+- Form de create/edit con 4 secciones organizadas, campo de gas condicional según categoría, preview de margen en vivo
+- Adjust stock dialog mejorado con auto-sugerencia de tipo y preview color-coded
+- Lint pasa limpio, dev server compila sin errores

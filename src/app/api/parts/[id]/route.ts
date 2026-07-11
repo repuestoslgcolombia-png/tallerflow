@@ -67,6 +67,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         name: body.name || undefined,
         description: body.description !== undefined ? body.description : undefined,
         category: body.category !== undefined ? body.category : undefined,
+        applianceType: body.applianceType !== undefined ? body.applianceType : undefined,
+        brand: body.brand !== undefined ? body.brand : undefined,
+        compatibleBrands: body.compatibleBrands !== undefined
+          ? (Array.isArray(body.compatibleBrands) ? JSON.stringify(body.compatibleBrands) : body.compatibleBrands)
+          : undefined,
+        model: body.model !== undefined ? body.model : undefined,
+        voltage: body.voltage !== undefined ? body.voltage : undefined,
+        powerWatts: body.powerWatts !== undefined ? body.powerWatts : undefined,
+        gasType: body.gasType !== undefined ? body.gasType : undefined,
+        dimensions: body.dimensions !== undefined ? body.dimensions : undefined,
+        warranty: body.warranty !== undefined ? Number(body.warranty) : undefined,
         unit: body.unit || undefined,
         minStock: body.minStock !== undefined ? Number(body.minStock) : undefined,
         unitCost: body.unitCost !== undefined ? Number(body.unitCost) : undefined,

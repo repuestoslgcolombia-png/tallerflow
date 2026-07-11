@@ -349,9 +349,14 @@ export function useQuoteMutations() {
 }
 
 // ============== REPUESTOS / INVENTARIO ==============
-export function useParts(params: { search?: string; lowStock?: boolean } = {}) {
+export function useParts(
+  params: { search?: string; category?: string; brand?: string; applianceType?: string; lowStock?: boolean } = {}
+) {
   const query = new URLSearchParams()
   if (params.search) query.set('search', params.search)
+  if (params.category && params.category !== 'all') query.set('category', params.category)
+  if (params.brand) query.set('brand', params.brand)
+  if (params.applianceType) query.set('applianceType', params.applianceType)
   if (params.lowStock) query.set('lowStock', 'true')
   return useQuery({
     queryKey: ['parts', params],
