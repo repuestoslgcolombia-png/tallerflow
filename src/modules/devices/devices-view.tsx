@@ -8,12 +8,13 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Cpu,
-  Laptop,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Printer,
+  Wrench,
+  WashingMachine,
+  Refrigerator,
+  Snowflake,
+  Flame,
+  Wind,
+  Tv,
   Check,
   ChevronsUpDown,
   User,
@@ -100,16 +101,17 @@ import {
 // ============== Device icon helper ==============
 
 const DEVICE_ICON_MAP: Record<string, any> = {
-  laptop: Laptop,
-  desktop: Monitor,
-  phone: Smartphone,
-  tablet: Tablet,
-  printer: Printer,
-  other: Cpu,
+  washing_machine: WashingMachine,
+  refrigerator: Refrigerator,
+  freezer: Snowflake,
+  gas_dryer: Flame,
+  air_conditioner: Wind,
+  tv: Tv,
+  other: Wrench,
 }
 
 function DeviceIcon({ type, className }: { type: string; className?: string }) {
-  const Icon = DEVICE_ICON_MAP[type] || Cpu
+  const Icon = DEVICE_ICON_MAP[type] || Wrench
   return <Icon className={className} />
 }
 
@@ -367,7 +369,7 @@ function DeviceFormDialogInner({
               <SelectContent>
                 {DEVICE_TYPE_KEYS.map((key) => {
                   const conf = (DEVICE_TYPES as Record<string, any>)[key]
-                  const Icon = DEVICE_ICON_MAP[key] || Cpu
+                  const Icon = DEVICE_ICON_MAP[key] || Wrench
                   return (
                     <SelectItem key={key} value={key}>
                       <Icon className="size-4" />
@@ -519,7 +521,7 @@ export function DevicesView() {
               <SelectItem value="all">Todos los tipos</SelectItem>
               {DEVICE_TYPE_KEYS.map((key) => {
                 const conf = (DEVICE_TYPES as Record<string, any>)[key]
-                const Icon = DEVICE_ICON_MAP[key] || Cpu
+                const Icon = DEVICE_ICON_MAP[key] || Wrench
                 return (
                   <SelectItem key={key} value={key}>
                     <Icon className="size-4" />

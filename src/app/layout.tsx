@@ -12,9 +12,9 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "TallerFlow — Gestión de Talleres",
-  description: "Sistema integral de gestión para talleres de reparación de equipos. Clientes, equipos, órdenes de trabajo, cotizaciones e inventario.",
-  keywords: ["taller", "reparación", "gestión", "ERP", "órdenes de trabajo", "cotizaciones", "inventario"],
+  title: "TallerFlow — Gestión de Talleres de Electrodomésticos",
+  description: "Sistema integral de gestión para talleres de reparación de electrodomésticos del hogar: lavadoras, neveras, congeladores, secadoras a gas, aires acondicionados y TVs.",
+  keywords: ["taller", "electrodomésticos", "reparación", "lavadoras", "neveras", "aires acondicionados", "gestión", "ERP", "órdenes de trabajo", "cotizaciones", "inventario"],
   authors: [{ name: "TallerFlow" }],
   icons: {
     icon: "/logo.svg",

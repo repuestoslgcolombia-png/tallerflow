@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeToggle } from '@/components/theme'
 
 const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Resumen operativo del taller' },
+  dashboard: { title: 'Dashboard', subtitle: 'Resumen operativo del taller de electrodomésticos' },
   'work-orders': { title: 'Órdenes de Trabajo', subtitle: 'Gestiona el flujo de reparaciones' },
   'work-order-detail': { title: 'Detalle de Orden', subtitle: 'Información completa de la orden' },
   customers: { title: 'Clientes', subtitle: 'Administra tu cartera de clientes' },

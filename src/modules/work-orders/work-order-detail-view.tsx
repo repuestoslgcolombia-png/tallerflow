@@ -19,12 +19,12 @@ import {
   CheckCircle2,
   MessageSquare,
   UserCog,
-  Laptop,
-  Smartphone,
-  Cpu,
-  Monitor,
-  Tablet,
-  Printer,
+  WashingMachine,
+  Refrigerator,
+  Snowflake,
+  Flame,
+  Wind,
+  Tv,
   Clock,
   Calendar,
   User as UserIcon,
@@ -125,17 +125,18 @@ import { cn } from '@/lib/utils'
 
 // ============== Device type icon helper ==============
 const DEVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  Laptop,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Printer,
-  Cpu,
+  WashingMachine,
+  Refrigerator,
+  Snowflake,
+  Flame,
+  Wind,
+  Tv,
+  Wrench,
 }
 
 function DeviceTypeIcon({ type, className }: { type: string; className?: string }) {
   const conf = (DEVICE_TYPES as any)[type] || DEVICE_TYPES.other
-  const Icon = DEVICE_ICONS[conf.icon] || Cpu
+  const Icon = DEVICE_ICONS[conf.icon] || Wrench
   return <Icon className={className} />
 }
 

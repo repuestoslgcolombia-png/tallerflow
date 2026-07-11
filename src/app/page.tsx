@@ -45,9 +45,9 @@ export default function HomePage() {
       <footer className="safe-bottom mt-auto border-t bg-background px-4 py-3 lg:px-6">
         <div className="flex flex-col items-center justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
           <p>
-            <span className="font-medium text-foreground">TallerFlow</span> · Sistema de gestión de talleres
+            <span className="font-medium text-foreground">TallerFlow</span> · Gestión de talleres de electrodomésticos
           </p>
-          <p>v1.2 · © {new Date().getFullYear()}</p>
+          <p>v1.3 · © {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

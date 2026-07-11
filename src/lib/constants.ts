@@ -71,12 +71,13 @@ export const PRIORITY = {
 export type PriorityKey = keyof typeof PRIORITY
 
 export const DEVICE_TYPES = {
-  laptop: { label: 'Laptop', icon: 'Laptop' },
-  desktop: { label: 'Computador', icon: 'Monitor' },
-  phone: { label: 'Celular', icon: 'Smartphone' },
-  tablet: { label: 'Tablet', icon: 'Tablet' },
-  printer: { label: 'Impresora', icon: 'Printer' },
-  other: { label: 'Otro', icon: 'Cpu' },
+  washing_machine: { label: 'Lavadora', icon: 'WashingMachine' },
+  refrigerator: { label: 'Nevera', icon: 'Refrigerator' },
+  freezer: { label: 'Congelador', icon: 'Snowflake' },
+  gas_dryer: { label: 'Secadora a gas', icon: 'Flame' },
+  air_conditioner: { label: 'Aire acondicionado', icon: 'Wind' },
+  tv: { label: 'TV', icon: 'Tv' },
+  other: { label: 'Otro', icon: 'Wrench' },
 } as const
 
 export type DeviceTypeKey = keyof typeof DEVICE_TYPES

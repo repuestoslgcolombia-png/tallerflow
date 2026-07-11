@@ -13,12 +13,13 @@ import {
   Package,
   ClipboardList,
   Eye,
-  Cpu,
-  Laptop,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Printer,
+  Wrench,
+  WashingMachine,
+  Refrigerator,
+  Snowflake,
+  Flame,
+  Wind,
+  Tv,
   Receipt,
 } from 'lucide-react'
 import { useCustomer } from '@/lib/hooks/api'
@@ -71,16 +72,17 @@ import {
 // ============== Device icon helper ==============
 
 const DEVICE_ICON_MAP: Record<string, any> = {
-  laptop: Laptop,
-  desktop: Monitor,
-  phone: Smartphone,
-  tablet: Tablet,
-  printer: Printer,
-  other: Cpu,
+  washing_machine: WashingMachine,
+  refrigerator: Refrigerator,
+  freezer: Snowflake,
+  gas_dryer: Flame,
+  air_conditioner: Wind,
+  tv: Tv,
+  other: Wrench,
 }
 
 function DeviceIcon({ type, className }: { type: string; className?: string }) {
-  const Icon = DEVICE_ICON_MAP[type] || Cpu
+  const Icon = DEVICE_ICON_MAP[type] || Wrench
   return <Icon className={className} />
 }
 
