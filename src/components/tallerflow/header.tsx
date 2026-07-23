@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 
 const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Resumen operativo del taller de electrodomésticos' },
+  dashboard: { title: 'Flujo Diario', subtitle: 'Agenda, tareas y alertas del día' },
   'work-orders': { title: 'Órdenes de Trabajo', subtitle: 'Gestiona el flujo de reparaciones' },
   'work-order-detail': { title: 'Detalle de Orden', subtitle: 'Información completa de la orden' },
   customers: { title: 'Clientes', subtitle: 'Administra tu cartera de clientes' },
@@ -44,7 +44,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
 
 // Quick navigation items for command palette
 const QUICK_NAV = [
-  { view: 'dashboard' as View, label: 'Dashboard', icon: LayoutDashboard, hint: 'Ir al dashboard' },
+  { view: 'dashboard' as View, label: 'Flujo Diario', icon: LayoutDashboard, hint: 'Agenda y tareas del día' },
   { view: 'work-orders' as View, label: 'Órdenes de Trabajo', icon: ClipboardList, hint: 'Ver todas las órdenes' },
   { view: 'customers' as View, label: 'Clientes', icon: Users, hint: 'Gestión de clientes' },
   { view: 'devices' as View, label: 'Equipos', icon: Laptop, hint: 'Inventario de equipos' },

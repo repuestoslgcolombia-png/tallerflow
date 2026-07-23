@@ -3,6 +3,7 @@
 import { Sidebar } from '@/components/tallerflow/sidebar'
 import { Header } from '@/components/tallerflow/header'
 import { useAppStore } from '@/store/app-store'
+import { DailyAgendaView } from '@/modules/daily-agenda/daily-agenda-view'
 import { DashboardView } from '@/modules/dashboard/dashboard-view'
 import { CustomersView } from '@/modules/customers/customers-view'
 import { CustomerDetailView } from '@/modules/customers/customer-detail-view'
@@ -26,7 +27,7 @@ export default function HomePage() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header />
           <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
-            {currentView === 'dashboard' && <DashboardView />}
+            {(currentView === 'daily-agenda' || currentView === 'dashboard') && <DailyAgendaView />}
             {currentView === 'customers' && <CustomersView />}
             {currentView === 'customer-detail' && <CustomerDetailView />}
             {currentView === 'devices' && <DevicesView />}

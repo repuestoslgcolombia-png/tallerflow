@@ -930,3 +930,92 @@ export function useNotifications() {
     refetchInterval: 60 * 1000, // refrescar cada minuto
   })
 }
+
+// ============== AGENDA DIARIA ==============
+export function useDailyAgenda() {
+  return useQuery({
+    queryKey: ['daily-agenda'],
+    queryFn: async () => {
+      const res = await fetch('/api/daily-agenda')
+      if (!res.ok) throw new Error('Error al cargar agenda diaria')
+      return res.json()
+    },
+    refetchInterval: 60 * 1000,
+  })
+}
+
+// ============== TAREAS DIARIAS ==============
+export function useDailyTasks(params: { date?: string; completed?: string; assigneeId?: string } = {}) {
+  const query = new URLSearchParams()
+  if (params.date) query.set('date', params.date)
+  if (params.completed) query.set('completed', params.completed)
+  if (params.assigneeId) query.set('assigneeId', params.assigneeId)
+  return useQuery({
+    queryKey: ['daily-tasks', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/daily-tasks?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar tareas')
+      return res.json()
+    },
+  })
+}
+
+export function useDailyTaskMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/daily-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear tarea')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['daily-tasks'] })
+      qc.invalidateQueries({ queryKey: ['daily-agenda'] })
+      toast.success('Tarea agregada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const update = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/daily-tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar tarea')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['daily-tasks'] })
+      qc.invalidateQueries({ queryKey: ['daily-agenda'] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/daily-tasks/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al eliminar tarea')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['daily-tasks'] })
+      qc.invalidateQueries({ queryKey: ['daily-agenda'] })
+      toast.success('Tarea eliminada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}

@@ -25,6 +25,7 @@ model User {
   workOrders WorkOrder[] @relation("AssignedTechnician")
   diagnoses  Diagnosis[] @relation("DiagnosisAuthor")
   auditLogs  AuditLog[]
+  dailyTasks DailyTask[]
 }
 
 // ============== CLIENTES ==============
@@ -304,6 +305,31 @@ model Reminder {
   @@index([customerId])
   @@index([workOrderId])
   @@index([status, dueDate])
+}
+
+// ============== TAREAS DIARIAS / CHECKLIST ==============
+
+model DailyTask {
+  id             String    @id @default(cuid())
+  title          String
+  description    String?
+  assigneeId     String?
+  taskDate       DateTime  // día específico (se usa solo la fecha sin hora)
+  priority       String    @default("normal") // low | normal | high
+  isRecurring    Boolean   @default(false)
+  recurringRule  String?   // daily | weekly | monthly | weekday
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
+  completedBy    String?
+  sortOrder      Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignee User? @relation(fields: [assigneeId], references: [id])
+
+  @@index([taskDate])
+  @@index([assigneeId])
+  @@index([isCompleted, taskDate])
 }
 
 // ============== MENSAJES WHATSAPP ==============

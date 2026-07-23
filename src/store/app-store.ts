@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 export type View =
+  | 'daily-agenda'
   | 'dashboard'
   | 'customers'
   | 'customer-detail'

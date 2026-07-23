@@ -26,7 +26,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Vista general', group: 'operation' },
+  { id: 'dashboard', label: 'Flujo Diario', icon: LayoutDashboard, description: 'Agenda y tareas del día', group: 'operation' },
   { id: 'work-orders', label: 'Órdenes', icon: ClipboardList, description: 'Órdenes de trabajo', group: 'operation' },
   { id: 'customers', label: 'Clientes', icon: Users, description: 'Gestión de clientes', group: 'operation' },
   { id: 'devices', label: 'Equipos', icon: Laptop, description: 'Inventario de equipos', group: 'operation' },
