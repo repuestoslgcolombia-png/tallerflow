@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 
+process.env.DATABASE_URL = 'postgresql://neondb_owner:npg_Zt3qk0ulpYfR@ep-broad-flower-ay0fe5d0.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require'
+process.env.DIRECT_URL = 'postgresql://neondb_owner:npg_Zt3qk0ulpYfR@ep-broad-flower-ay0fe5d0.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require'
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   __prismaCacheKey?: string
