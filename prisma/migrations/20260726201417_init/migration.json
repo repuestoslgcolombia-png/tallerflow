@@ -1,0 +1,34 @@
+{
+  "version": "6.2.1",
+  "steps": [
+    {
+      "tag": "CreateMigration",
+      "migration_name": "20260726201417_init"
+    },
+    {
+      "tag": "CreateSchema",
+      "schema_name": "public"
+    }
+  ],
+  "table_names": [
+    "User",
+    "Customer",
+    "Device",
+    "WorkOrder",
+    "WorkOrderEvent",
+    "Diagnosis",
+    "Quote",
+    "QuoteItem",
+    "Part",
+    "InventoryMovement",
+    "Invoice",
+    "InvoiceItem",
+    "Reminder",
+    "DailyTask",
+    "WhatsAppConnection",
+    "WhatsAppTemplate",
+    "WhatsAppMessage",
+    "AuditLog",
+    "WorkshopSetting"
+  ]
+}

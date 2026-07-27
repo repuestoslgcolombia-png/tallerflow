@@ -16,6 +16,12 @@
 - DB: SQLite via Prisma. Schema in `prisma/schema.prisma` (15 models).
 - UI: shadcn/ui New York, Tailwind CSS v4, `@/components/ui/` (already exist).
 
+## Supabase Auth
+- Supabase está configurado solo para autenticación (no reemplaza Prisma/SQLite).
+- Helpers en `src/utils/supabase/`: `server.ts` (createServerClient), `client.ts` (createBrowserClient), `middleware.ts` (request client).
+- `src/middleware.ts` refresca la sesión en cada request. El matcher excluye archivos estáticos.
+- `.env.local` tiene las credenciales (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+
 ## Important Quirks
 - **React strict mode: OFF** (`next.config.ts`). Hooks may be called conditionally without warnings.
 - **TypeScript errors ignored at build** (`ignoreBuildErrors: true`). `noImplicitAny: false`.
