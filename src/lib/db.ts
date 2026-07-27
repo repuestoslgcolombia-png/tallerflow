@@ -1,11 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 
-// Force correct database URL for Supabase pooler
-if (!process.env.DATABASE_URL?.includes('pooler.supabase.com')) {
-  process.env.DATABASE_URL = 'postgresql://postgres:IAKVtsW3RrVb5EZx@aws-0-us-east-1.pooler.supabase.com:6543/postgres'
-  process.env.DIRECT_URL = 'postgresql://postgres:IAKVtsW3RrVb5EZx@aws-0-us-east-1.pooler.supabase.com:6543/postgres'
-}
-
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   __prismaCacheKey?: string
