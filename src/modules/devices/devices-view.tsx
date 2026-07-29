@@ -15,6 +15,9 @@ import {
   Flame,
   Wind,
   Tv,
+  Microwave,
+  CookingPot,
+  Thermometer,
   Check,
   ChevronsUpDown,
   User,
@@ -107,6 +110,10 @@ const DEVICE_ICON_MAP: Record<string, any> = {
   gas_dryer: Flame,
   air_conditioner: Wind,
   tv: Tv,
+  microwave: Microwave,
+  oven: CookingPot,
+  stove: CookingPot,
+  water_heater: Thermometer,
   other: Wrench,
 }
 
@@ -389,7 +396,7 @@ function DeviceFormDialogInner({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, brand: e.target.value }))
                 }
-                placeholder="HP, Apple, Samsung..."
+                placeholder="LG, Samsung, Whirlpool..."
               />
             </div>
             <div className="grid gap-2">
@@ -400,7 +407,7 @@ function DeviceFormDialogInner({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, model: e.target.value }))
                 }
-                placeholder="Pavilion 15, iPhone 13..."
+                placeholder="WA13T, RT29..."
               />
             </div>
           </div>

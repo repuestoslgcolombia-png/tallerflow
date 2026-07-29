@@ -16,6 +16,7 @@ import { InventoryView } from '@/modules/inventory/inventory-view'
 import { RemindersView } from '@/modules/reminders/reminders-view'
 import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
 import { SettingsView } from '@/modules/settings/settings-view'
+import { QuickRegisterView } from '@/modules/quick-register/quick-register-view'
 
 export default function HomePage() {
   const { currentView } = useAppStore()
@@ -28,6 +29,7 @@ export default function HomePage() {
           <Header />
           <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
             {(currentView === 'daily-agenda' || currentView === 'dashboard') && <DailyAgendaView />}
+            {currentView === 'quick-register' && <QuickRegisterView />}
             {currentView === 'customers' && <CustomersView />}
             {currentView === 'customer-detail' && <CustomerDetailView />}
             {currentView === 'devices' && <DevicesView />}

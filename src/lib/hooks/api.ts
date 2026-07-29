@@ -266,9 +266,36 @@ export function useWorkOrderMutations() {
       qc.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Orden eliminada')
     },
+onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}
+
+// ============== CAPTACIÓN RÁPIDA ==============
+export function useQuickRegisterMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/quick-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al registrar')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['customers'] })
+      qc.invalidateQueries({ queryKey: ['devices'] })
+      qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['daily-agenda'] })
+      toast.success('Registro completado exitosamente')
+    },
     onError: (e: Error) => toast.error(e.message),
   })
-  return { create, update, patch, remove }
 }
 
 // ============== COTIZACIONES ==============

@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { StatusBadge, PriorityBadge } from '@/components/tallerflow/badges'
 import {
   Sun, Moon, ListChecks, ClipboardList, Bell, Package, AlertTriangle, Clock, ArrowRight,
-  CheckCircle2, X, Plus, Loader2, AlertCircle, Wrench, User, Laptop, Smartphone,
+  CheckCircle2, X, Plus, Loader2, AlertCircle, Wrench, User,
   Tv, Refrigerator, WashingMachine, Snowflake, Flame, Wind, FlameKindling, Sparkles,
   CalendarDays, MessageSquare, Phone, Mail, Star, ShieldCheck, ShoppingBag,
 } from 'lucide-react'
@@ -23,8 +23,7 @@ import {
 function getDeviceIcon(type: string) {
   const icons: Record<string, any> = {
     washing_machine: WashingMachine, refrigerator: Refrigerator, freezer: Snowflake,
-    gas_dryer: Flame, air_conditioner: Wind, tv: Tv, laptop: Laptop,
-    desktop: Laptop, phone: Smartphone, printer: Laptop, other: Wrench,
+    gas_dryer: Flame, air_conditioner: Wind, tv: Tv, other: Wrench,
   }
   const Icon = icons[type] || Wrench
   return Icon

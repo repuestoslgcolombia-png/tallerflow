@@ -57,7 +57,7 @@ model Customer {
 model Device {
   id          String   @id @default(cuid())
   customerId  String
-  type        String // laptop | desktop | phone | printer | other
+  type        String // washing_machine | refrigerator | freezer | gas_dryer | air_conditioner | tv | microwave | oven | stove | water_heater | other
   brand       String?
   model       String?
   serial      String?
@@ -82,6 +82,8 @@ model WorkOrder {
   technicianId    String?
   status          String   @default("received") // received | diagnosing | quoted | approved | in_progress | ready | delivered | cancelled
   priority        String   @default("normal") // low | normal | high | urgent
+  serviceType     String   @default("revision") // mantenimiento | revision | instalacion
+  scheduledVisitAt DateTime? // fecha y hora de visita técnica
   reportedIssue   String // problema reportado por el cliente
   diagnosisText   String?
   internalNotes   String?

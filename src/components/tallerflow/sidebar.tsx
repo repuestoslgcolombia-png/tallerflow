@@ -13,6 +13,7 @@ import {
   Bell,
   Receipt,
   MessageCircle,
+  UserPlus,
 } from 'lucide-react'
 import { useAppStore, type View } from '@/store/app-store'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { id: 'quick-register', label: 'Captación Rápida', icon: UserPlus, description: 'Registro exprés', group: 'operation' },
   { id: 'dashboard', label: 'Flujo Diario', icon: LayoutDashboard, description: 'Agenda y tareas del día', group: 'operation' },
   { id: 'work-orders', label: 'Órdenes', icon: ClipboardList, description: 'Órdenes de trabajo', group: 'operation' },
   { id: 'customers', label: 'Clientes', icon: Users, description: 'Gestión de clientes', group: 'operation' },

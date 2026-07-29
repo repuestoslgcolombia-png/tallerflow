@@ -77,10 +77,22 @@ export const DEVICE_TYPES = {
   gas_dryer: { label: 'Secadora a gas', icon: 'Flame' },
   air_conditioner: { label: 'Aire acondicionado', icon: 'Wind' },
   tv: { label: 'TV', icon: 'Tv' },
+  microwave: { label: 'Microondas', icon: 'Microwave' },
+  oven: { label: 'Horno', icon: 'CookingPot' },
+  stove: { label: 'Estufa / Cocina', icon: 'CookingPot' },
+  water_heater: { label: 'Calentador de agua', icon: 'Thermometer' },
   other: { label: 'Otro', icon: 'Wrench' },
 } as const
 
 export type DeviceTypeKey = keyof typeof DEVICE_TYPES
+
+export const SERVICE_TYPES = {
+  mantenimiento: { label: 'Mantenimiento Preventivo', color: 'bg-teal-100 text-teal-700 border-teal-200' },
+  revision: { label: 'Revisión', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  instalacion: { label: 'Instalación', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+} as const
+
+export type ServiceTypeKey = keyof typeof SERVICE_TYPES
 
 export const QUOTE_STATUS = {
   draft: { label: 'Borrador', color: 'bg-slate-100 text-slate-700 border-slate-200' },

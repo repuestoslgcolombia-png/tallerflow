@@ -28,7 +28,9 @@ import {
 } from 'lucide-react'
 
 const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
+  'daily-agenda': { title: 'Flujo Diario', subtitle: 'Agenda, tareas y alertas del día' },
   dashboard: { title: 'Flujo Diario', subtitle: 'Agenda, tareas y alertas del día' },
+  'quick-register': { title: 'Captación Rápida', subtitle: 'Registro exprés de cliente y orden de servicio' },
   'work-orders': { title: 'Órdenes de Trabajo', subtitle: 'Gestiona el flujo de reparaciones' },
   'work-order-detail': { title: 'Detalle de Orden', subtitle: 'Información completa de la orden' },
   customers: { title: 'Clientes', subtitle: 'Administra tu cartera de clientes' },
