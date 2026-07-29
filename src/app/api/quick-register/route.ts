@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
     if (!body.deviceType) return badRequest('Tipo de equipo es obligatorio')
     if (!body.reportedIssue) return badRequest('Problema reportado es obligatorio')
 
-    const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
-    const nextNumber = (settings?.counterWorkOrder || 0) + 1
+    body.phone = body.phone.replace(/[\s\-\(\)]/g, '')
+    if (body.phone.length < 7) return badRequest('Teléfono inválido: debe tener al menos 7 dígitos')
+
     const year = new Date().getFullYear()
-    const code = `OT-${year}-${String(nextNumber).padStart(3, '0')}`
 
     let scheduledVisitAt: Date | null = null
     if (body.visitDate && body.visitTime) {
@@ -25,16 +25,26 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await db.$transaction(async (tx) => {
-      const customer = await tx.customer.create({
-        data: {
-          firstName: body.firstName,
-          lastName: body.lastName,
-          documentId: body.documentId || null,
-          phone: body.phone,
-          email: body.email || null,
-          address: body.address,
-        },
+      const updated = await tx.workshopSetting.update({
+        where: { id: 'default' },
+        data: { counterWorkOrder: { increment: 1 } },
       })
+      const nextNumber = updated.counterWorkOrder
+      const code = `OT-${year}-${String(nextNumber).padStart(3, '0')}`
+
+      let customer = await tx.customer.findFirst({ where: { phone: body.phone } })
+      if (!customer) {
+        customer = await tx.customer.create({
+          data: {
+            firstName: body.firstName,
+            lastName: body.lastName,
+            documentId: body.documentId || null,
+            phone: body.phone,
+            email: body.email || null,
+            address: body.address,
+          },
+        })
+      }
 
       const device = await tx.device.create({
         data: {
@@ -43,11 +53,6 @@ export async function POST(req: NextRequest) {
           brand: body.deviceBrand || null,
           model: body.deviceModel || null,
         },
-      })
-
-      await tx.workshopSetting.update({
-        where: { id: 'default' },
-        data: { counterWorkOrder: nextNumber },
       })
 
       const serviceTypeLabel: Record<string, string> = {
@@ -79,6 +84,32 @@ export async function POST(req: NextRequest) {
           customer: true,
           device: true,
           timeline: { orderBy: { createdAt: 'asc' } },
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          action: 'create',
+          entity: 'WorkOrder',
+          entityId: workOrder.id,
+          description: `Registro rápido - ${code} - ${body.firstName} ${body.lastName}`,
+        },
+      })
+
+      const followUpDate = new Date()
+      followUpDate.setDate(followUpDate.getDate() + 7)
+      await tx.reminder.create({
+        data: {
+          customerId: customer.id,
+          workOrderId: workOrder.id,
+          type: 'follow_up',
+          title: `Seguimiento - ${code}`,
+          message: `Hola ${body.firstName}, ¿cómo va el equipo ${body.deviceBrand || ''} ${body.deviceModel || ''} que recibimos? Si tiene alguna duda, estamos para ayudarte.`,
+          dueDate: followUpDate,
+          channel: 'whatsapp',
+          status: 'pending',
+          priority: 'normal',
+          daysAfter: 7,
         },
       })
 

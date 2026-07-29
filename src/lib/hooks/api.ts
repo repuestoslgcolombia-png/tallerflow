@@ -268,7 +268,7 @@ export function useWorkOrderMutations() {
     },
 onError: (e: Error) => toast.error(e.message),
   })
-  return { create, update, remove }
+  return { create, update, patch, remove }
 }
 
 // ============== CAPTACIÓN RÁPIDA ==============
@@ -291,6 +291,7 @@ export function useQuickRegisterMutation() {
       qc.invalidateQueries({ queryKey: ['customers'] })
       qc.invalidateQueries({ queryKey: ['devices'] })
       qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
       qc.invalidateQueries({ queryKey: ['daily-agenda'] })
       toast.success('Registro completado exitosamente')
     },
