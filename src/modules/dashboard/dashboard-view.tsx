@@ -332,7 +332,7 @@ export function DashboardView() {
                         <TypeIcon className="size-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium">{r.title}</p>
+                        <p className="truncate text-xs font-medium">{r?.title ?? ''}</p>
                         {r.customer && (
                           <p className="truncate text-[10px] text-muted-foreground">
                             {fullName(r.customer.firstName, r.customer.lastName)}

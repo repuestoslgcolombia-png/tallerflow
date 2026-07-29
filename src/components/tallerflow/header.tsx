@@ -112,8 +112,8 @@ export function Header() {
         </Button>
 
         <div className="min-w-0 flex-1 flex-col">
-          <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{info.title}</h1>
-          <p className="hidden truncate text-xs text-muted-foreground sm:block">{info.subtitle}</p>
+          <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{info?.title ?? 'TallerFlow'}</h1>
+          <p className="hidden truncate text-xs text-muted-foreground sm:block">{info?.subtitle ?? ''}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

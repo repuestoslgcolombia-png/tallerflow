@@ -242,9 +242,9 @@ export function DailyAgendaView() {
                     ) : (
                       <p
                         className={`text-sm ${task.isCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}
-                        onDoubleClick={() => { setEditingTaskId(task.id); setEditTaskTitle(task.title) }}
+                        onDoubleClick={() => { setEditingTaskId(task.id); setEditTaskTitle(task?.title ?? '') }}
                       >
-                        {task.title}
+                        {task?.title ?? ''}
                       </p>
                     )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -373,7 +373,7 @@ export function DailyAgendaView() {
                       <RemindIcon className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-rose-700 dark:text-rose-400">Vencido</p>
-                        <p className="text-sm">{r.title}</p>
+                        <p className="text-sm">{r?.title ?? ''}</p>
                         <p className="truncate text-xs text-muted-foreground">
                           {r.customer?.firstName} {r.customer?.lastName}
                         </p>
@@ -388,7 +388,7 @@ export function DailyAgendaView() {
                       <RemindIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{r.title}</span>
+                          <span className="text-sm">{r?.title ?? ''}</span>
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">Hoy</Badge>
                         </div>
                         <p className="truncate text-xs text-muted-foreground">

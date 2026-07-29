@@ -510,7 +510,7 @@ export function WorkOrderDetailView() {
                         </div>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{ev.title}</p>
+                            <p className="text-sm font-medium">{ev?.title ?? ''}</p>
                             {ev.toStatus && (
                               <StatusBadge status={ev.toStatus} className="py-0" />
                             )}

@@ -221,7 +221,7 @@ export function NotificationBell() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs font-semibold leading-snug">{n.title}</p>
+                        <p className="text-xs font-semibold leading-snug">{n?.title ?? ''}</p>
                         <button
                           onClick={(e) => handleDismiss(n.id, e)}
                           className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"

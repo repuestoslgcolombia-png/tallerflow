@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -18,6 +19,13 @@ export const metadata: Metadata = {
   authors: [{ name: "TallerFlow" }],
   icons: {
     icon: "/logo.svg",
+    apple: "/icon-192.png",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "TallerFlow",
+    "mobile-web-app-capable": "yes",
   },
   openGraph: {
     title: "TallerFlow",
@@ -47,17 +55,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="TallerFlow" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="mobile-web-app-capable" content="yes" />
-      </head>
       <body
         className={`${geistSans.variable} antialiased bg-background text-foreground`}
       >
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

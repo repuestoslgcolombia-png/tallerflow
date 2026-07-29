@@ -246,7 +246,7 @@ export function RemindersView() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold leading-tight">{reminder.title}</p>
+                        <p className="font-semibold leading-tight">{reminder?.title ?? ''}</p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <button
                             onClick={() => navigate('customer-detail', { customerId: reminder.customerId })}
@@ -672,7 +672,7 @@ function CompleteDialog({ reminder, onClose }: { reminder: any; onClose: () => v
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="rounded-md border bg-muted/30 p-3">
-            <p className="text-sm font-medium">{reminder.title}</p>
+            <p className="text-sm font-medium">{reminder?.title ?? ''}</p>
             <p className="text-xs text-muted-foreground">
               Cliente: {fullName(reminder.customer?.firstName, reminder.customer?.lastName)}
             </p>
@@ -730,7 +730,7 @@ function SnoozeDialog({ reminder, onClose }: { reminder: any; onClose: () => voi
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="rounded-md border bg-muted/30 p-3">
-            <p className="text-sm font-medium">{reminder.title}</p>
+            <p className="text-sm font-medium">{reminder?.title ?? ''}</p>
             <p className="text-xs text-muted-foreground">
               Vence: {formatDateTime(reminder.dueDate)}
             </p>
