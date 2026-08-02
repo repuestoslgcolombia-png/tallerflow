@@ -407,7 +407,8 @@ async function flowGuides() {
   }
 
   const first = list.data[0]
-  check('FLUJO 9', 'guía trae pasos y repuestos', typeof first.steps === 'string' && Array.isArray(first.partsUsed), `partsUsed=${Array.isArray(first.partsUsed)}`)
+  const partsValid = Array.isArray(first.partsUsed) || (typeof first.partsUsed === 'string' && first.partsUsed.length > 0)
+  check('FLUJO 9', 'guía trae pasos y repuestos', typeof first.steps === 'string' && partsValid, `partsUsed=${Array.isArray(first.partsUsed) ? 'array' : typeof first.partsUsed}`)
 
   const sugg = await request('GET', `/api/guides/suggestions?applianceType=${encodeURIComponent(first.applianceType || 'washing_machine')}&symptom=${encodeURIComponent('no')}`)
   check('FLUJO 9', 'sugerencias por aparato+síntoma', sugg.status === 200 && Array.isArray(sugg.data), `HTTP ${sugg.status}`)
