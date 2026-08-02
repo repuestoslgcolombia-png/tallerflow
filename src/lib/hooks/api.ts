@@ -1047,3 +1047,124 @@ export function useDailyTaskMutations() {
   })
   return { create, update, remove }
 }
+
+// ============== BASE DE CONOCIMIENTO (GUÍAS) ==============
+export function useRepairGuides(params: {
+  search?: string
+  applianceType?: string
+  brand?: string
+  status?: string
+} = {}) {
+  const query = new URLSearchParams()
+  if (params.search) query.set('search', params.search)
+  if (params.applianceType && params.applianceType !== 'all') query.set('applianceType', params.applianceType)
+  if (params.brand) query.set('brand', params.brand)
+  if (params.status && params.status !== 'all') query.set('status', params.status)
+  return useQuery({
+    queryKey: ['guides', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/guides?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar guías')
+      return res.json()
+    },
+  })
+}
+
+export function useRepairGuide(id: string | null) {
+  return useQuery({
+    queryKey: ['guide', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/guides/${id}`)
+      if (!res.ok) throw new Error('Error al cargar guía')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
+export function useRepairGuideSuggestions(params: {
+  applianceType?: string
+  brand?: string
+  model?: string
+  symptom?: string
+  enabled?: boolean
+} = {}) {
+  const query = new URLSearchParams()
+  if (params.applianceType) query.set('applianceType', params.applianceType)
+  if (params.brand) query.set('brand', params.brand)
+  if (params.model) query.set('model', params.model)
+  if (params.symptom) query.set('symptom', params.symptom)
+  return useQuery({
+    queryKey: ['guide-suggestions', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/guides/suggestions?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar sugerencias')
+      return res.json()
+    },
+    enabled: !!params.enabled && !!params.applianceType,
+  })
+}
+
+export function useRepairGuideMutations() {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear guía')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['guides'] })
+      qc.invalidateQueries({ queryKey: ['guide'] })
+      qc.invalidateQueries({ queryKey: ['guide-suggestions'] })
+      toast.success('Guía creada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const update = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/guides/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar guía')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['guides'] })
+      qc.invalidateQueries({ queryKey: ['guide'] })
+      qc.invalidateQueries({ queryKey: ['guide-suggestions'] })
+      toast.success('Guía actualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/guides/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al archivar guía')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['guides'] })
+      qc.invalidateQueries({ queryKey: ['guide'] })
+      qc.invalidateQueries({ queryKey: ['guide-suggestions'] })
+      toast.success('Guía archivada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { create, update, remove }
+}

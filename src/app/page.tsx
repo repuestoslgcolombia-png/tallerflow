@@ -13,6 +13,7 @@ import { WorkOrderDetailView } from '@/modules/work-orders/work-order-detail-vie
 import { QuotesView } from '@/modules/quotes/quotes-view'
 import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
+import { GuidesView } from '@/modules/guides/guides-view'
 import { RemindersView } from '@/modules/reminders/reminders-view'
 import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
 import { SettingsView } from '@/modules/settings/settings-view'
@@ -38,6 +39,7 @@ export default function HomePage() {
             {currentView === 'quotes' && <QuotesView />}
             {currentView === 'invoices' && <InvoicesView />}
             {currentView === 'inventory' && <InventoryView />}
+            {currentView === 'guides' && <GuidesView />}
             {currentView === 'reminders' && <RemindersView />}
             {currentView === 'whatsapp' && <WhatsAppView />}
             {currentView === 'settings' && <SettingsView />}

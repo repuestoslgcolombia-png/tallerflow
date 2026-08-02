@@ -25,6 +25,7 @@ import {
   Bell,
   MessageCircle,
   Settings,
+  BookOpen,
 } from 'lucide-react'
 
 const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
@@ -39,6 +40,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   quotes: { title: 'Cotizaciones', subtitle: 'Cotizaciones enviadas y aprobaciones' },
   invoices: { title: 'Facturas', subtitle: 'Facturación y registro de pagos' },
   inventory: { title: 'Inventario', subtitle: 'Control de repuestos y stock' },
+  guides: { title: 'Base de Conocimiento', subtitle: 'Guías de reparación reutilizables' },
   reminders: { title: 'Recordatorios', subtitle: 'Seguimiento post-servicio a clientes' },
   whatsapp: { title: 'WhatsApp', subtitle: 'Mensajería y plantillas de comunicación' },
   settings: { title: 'Configuración', subtitle: 'Ajustes del taller' },
@@ -53,6 +55,7 @@ const QUICK_NAV = [
   { view: 'quotes' as View, label: 'Cotizaciones', icon: FileText, hint: 'Cotizaciones y aprobaciones' },
   { view: 'invoices' as View, label: 'Facturas', icon: Receipt, hint: 'Facturación y pagos' },
   { view: 'inventory' as View, label: 'Repuestos', icon: Package, hint: 'Inventario de repuestos' },
+  { view: 'guides' as View, label: 'Base de Conocimiento', icon: BookOpen, hint: 'Guías de reparación' },
   { view: 'reminders' as View, label: 'Recordatorios', icon: Bell, hint: 'Seguimiento post-servicio' },
   { view: 'whatsapp' as View, label: 'WhatsApp', icon: MessageCircle, hint: 'Mensajería y plantillas' },
   { view: 'settings' as View, label: 'Configuración', icon: Settings, hint: 'Ajustes del taller' },

@@ -36,6 +36,9 @@ import {
   AlertTriangle,
   Receipt,
   FileCheck,
+  BookOpen,
+  Sparkles,
+  BookmarkPlus,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -106,6 +109,8 @@ import {
   useUsers,
   useQuoteMutations,
   useInvoiceMutations,
+  useRepairGuideSuggestions,
+  useRepairGuideMutations,
 } from '@/lib/hooks/api'
 import {
   WORK_ORDER_STATUS,
@@ -167,6 +172,7 @@ export function WorkOrderDetailView() {
   const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
   const [assignTechOpen, setAssignTechOpen] = React.useState(false)
   const [diagnosisOpen, setDiagnosisOpen] = React.useState(false)
+  const [saveGuideOpen, setSaveGuideOpen] = React.useState(false)
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [createInvoiceOpen, setCreateInvoiceOpen] = React.useState(false)
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
@@ -814,6 +820,16 @@ export function WorkOrderDetailView() {
                       <span>Mano de obra: <strong className="text-foreground">{formatCurrency(order.diagnosis.laborCost)}</strong></span>
                     </div>
                   )}
+                  <Separator />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => setSaveGuideOpen(true)}
+                  >
+                    <BookmarkPlus className="size-3.5" />
+                    Guardar como guía
+                  </Button>
                 </div>
               ) : (
                 <>
@@ -830,6 +846,9 @@ export function WorkOrderDetailView() {
               )}
             </CardContent>
           </Card>
+
+          {/* Base de Conocimiento - Sugerencias */}
+          <KnowledgeBaseCard order={order} onCreateGuide={() => setSaveGuideOpen(true)} />
 
           {/* Repuestos Utilizados */}
           <Card>
@@ -886,6 +905,11 @@ export function WorkOrderDetailView() {
       <DiagnosisDialog
         open={diagnosisOpen}
         onOpenChange={setDiagnosisOpen}
+        order={order}
+      />
+      <SaveAsGuideDialog
+        open={saveGuideOpen}
+        onOpenChange={setSaveGuideOpen}
         order={order}
       />
       <ViewQuoteDialog
@@ -1184,6 +1208,275 @@ function DiagnosisDialog({
           <Button onClick={handleSave} disabled={update.isPending} className="gap-2">
             {update.isPending && <Loader2 className="size-4 animate-spin" />}
             Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Base de Conocimiento (sugerencias) ==============
+function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide: () => void }) {
+  const deviceType = order.device?.type || ''
+  const symptom = order.diagnosis?.findings || order.diagnosisText || ''
+  const { data: suggestions = [], isLoading } = useRepairGuideSuggestions({
+    applianceType: deviceType,
+    brand: order.device?.brand,
+    model: order.device?.model,
+    symptom: symptom.slice(0, 200),
+    enabled: !!deviceType,
+  })
+  const { update } = useRepairGuideMutations()
+  const [viewGuide, setViewGuide] = React.useState<any | null>(null)
+
+  const list = (suggestions as any[]).slice(0, 4)
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <BookOpen className="size-4 text-violet-500" />
+          Base de Conocimiento
+        </CardTitle>
+        <CardDescription>
+          Guías relacionadas con este equipo
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!deviceType ? (
+          <p className="text-sm text-muted-foreground">
+            Agrega un equipo a la orden para ver guías sugeridas.
+          </p>
+        ) : isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : list.length === 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Sin guías para este equipo todavía.
+            </p>
+            {order.diagnosis && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={onCreateGuide}
+              >
+                <Sparkles className="size-3.5" />
+                Crear guía desde el diagnóstico
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {list.map((g: any) => {
+              const dt = (DEVICE_TYPES as any)[g.applianceType]
+              return (
+                <div
+                  key={g.id}
+                  className="flex items-start justify-between gap-2 rounded-lg border p-2.5"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="truncate text-sm font-medium">{g.title}</p>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {dt && <span>{dt.label}</span>}
+                      {g.brand && (
+                        <>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span>{g.brand}</span>
+                        </>
+                      )}
+                      {g.estimatedHours > 0 && (
+                        <>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span>{g.estimatedHours}h</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 gap-1"
+                    onClick={() => {
+                      setViewGuide(g)
+                      update.mutate({ id: g.id, data: { action: 'increment_usage' } })
+                    }}
+                  >
+                    <Eye className="size-3.5" /> Ver
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+
+      <KBGuideViewDialog
+        guide={viewGuide}
+        onOpenChange={(v) => !v && setViewGuide(null)}
+      />
+    </Card>
+  )
+}
+
+function KBGuideViewDialog({
+  guide,
+  onOpenChange,
+}: {
+  guide: any
+  onOpenChange: (v: boolean) => void
+}) {
+  const open = !!guide
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+        {guide && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="pr-8">{guide.title}</DialogTitle>
+              {guide.summary && (
+                <DialogDescription className="text-sm leading-relaxed">
+                  {guide.summary}
+                </DialogDescription>
+              )}
+            </DialogHeader>
+            <ScrollArea className="flex-1 -mx-6 px-6 max-h-[55vh]">
+              <div className="space-y-4 pb-2">
+                {guide.symptoms && (
+                  <div>
+                    <p className="text-xs font-medium uppercase text-muted-foreground">Síntomas</p>
+                    <p className="text-sm">{guide.symptoms}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Procedimiento</p>
+                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm leading-relaxed">
+                    {guide.steps}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cerrar
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Guardar como guía ==============
+function SaveAsGuideDialog({
+  open,
+  onOpenChange,
+  order,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  order: any
+}) {
+  const { create } = useRepairGuideMutations()
+  const [title, setTitle] = React.useState('')
+  const [symptoms, setSymptoms] = React.useState('')
+  const [steps, setSteps] = React.useState('')
+
+  const deviceType = order.device?.type || 'other'
+  const dt = (DEVICE_TYPES as any)[deviceType]
+
+  React.useEffect(() => {
+    if (open && order) {
+      const diag = order.diagnosis
+      const base = diag
+        ? [diag.findings, diag.rootCause, diag.recommendation].filter(Boolean).join('\n\n')
+        : order.diagnosisText || ''
+      const brand = order.device?.brand ? ` ${order.device.brand}` : ''
+      setTitle(`Reparación${brand} ${dt?.label || 'equipo'}`.trim())
+      setSymptoms(diag?.findings || '')
+      setSteps(base)
+    }
+  }, [open, order, dt?.label])
+
+  const handleSubmit = () => {
+    if (!title.trim() || !steps.trim()) {
+      toast.error('Título y procedimiento son obligatorios')
+      return
+    }
+    create.mutate(
+      {
+        title: title.trim(),
+        summary: null,
+        applianceType: deviceType,
+        brand: order.device?.brand || null,
+        model: order.device?.model || null,
+        symptoms: symptoms
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        steps: steps.trim(),
+        difficulty: 'media',
+        estimatedHours: order.diagnosis?.laborHours || 1,
+        partsUsed: (order.partsUsed || []).map((m: any) => ({
+          partId: m.partId,
+          name: m.part?.name || 'Repuesto',
+          qty: m.quantity,
+        })),
+        status: 'draft',
+        sourceWorkOrderId: order.id,
+      },
+      { onSuccess: () => onOpenChange(false) }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BookOpen className="size-5" />
+            Guardar como guía
+          </DialogTitle>
+          <DialogDescription>
+            Crea una guía de reparación reutilizable a partir del diagnóstico de esta orden. Se
+            guardará como borrador para que la revises antes de publicarla.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3">
+          <div className="space-y-1.5">
+            <Label>Título</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Síntomas (separados por coma)</Label>
+            <Input
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              placeholder="no desagua, hace ruido, no enciende"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Procedimiento</Label>
+            <Textarea
+              value={steps}
+              onChange={(e) => setSteps(e.target.value)}
+              rows={8}
+              placeholder="1. Desconectar el equipo.\n2. …"
+            />
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={create.isPending} className="gap-2">
+            {create.isPending && <Loader2 className="size-4 animate-spin" />}
+            <BookmarkPlus className="size-4" />
+            Guardar guía
           </Button>
         </DialogFooter>
       </DialogContent>

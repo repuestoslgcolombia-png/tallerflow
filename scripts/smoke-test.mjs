@@ -42,6 +42,7 @@ const state = {
   reminderId: null,
   techId: null,
   taxRate: 0,
+  guideId: null,
 }
 
 const results = []
@@ -394,6 +395,52 @@ async function flowReminders() {
 }
 
 // ============================================================================
+// FLUJO 9 - Base de conocimiento (guías de reparación)
+// ============================================================================
+async function flowGuides() {
+  console.log('\n== FLUJO 9: Base de conocimiento (guías) ==')
+
+  const list = await request('GET', '/api/guides')
+  check('FLUJO 9', 'listado de guías', list.status === 200 && Array.isArray(list.data), `HTTP ${list.status}`)
+  if (!Array.isArray(list.data) || list.data.length === 0) {
+    return fail('FLUJO 9', 'hay guías sembradas', 'no hay guías activas en el listado')
+  }
+
+  const first = list.data[0]
+  check('FLUJO 9', 'guía trae pasos y repuestos', typeof first.steps === 'string' && Array.isArray(first.partsUsed), `partsUsed=${Array.isArray(first.partsUsed)}`)
+
+  const sugg = await request('GET', `/api/guides/suggestions?applianceType=${encodeURIComponent(first.applianceType || 'washing_machine')}&symptom=${encodeURIComponent('no')}`)
+  check('FLUJO 9', 'sugerencias por aparato+síntoma', sugg.status === 200 && Array.isArray(sugg.data), `HTTP ${sugg.status}`)
+
+  const created = await request('POST', '/api/guides', {
+    title: `Guía de prueba ${tag}`,
+    summary: 'Guía temporal creada por el flujo de prueba.',
+    applianceType: 'washing_machine',
+    brand: 'TestBrand',
+    model: 'TestModel',
+    symptoms: ['síntoma de prueba'],
+    steps: '1. Paso de prueba\n2. Paso de prueba',
+    difficulty: 'media',
+    estimatedHours: 1,
+    partsUsed: [{ name: 'Repuesto de prueba', qty: 1 }],
+    status: 'draft',
+    usageCount: 0,
+  })
+  if ((created.status === 200 || created.status === 201) && created.data?.id) {
+    state.guideId = created.data.id
+    check('FLUJO 9', 'guía creada (borrador)', true, `HTTP ${created.status}`)
+  } else {
+    return fail('FLUJO 9', 'guía creada (borrador)', `HTTP ${created.status} - ${created.error || JSON.stringify(created.data)}`)
+  }
+
+  const pub = await request('PUT', `/api/guides/${state.guideId}`, { action: 'publish' })
+  check('FLUJO 9', 'guía publicada', pub.status === 200 && pub.data?.status === 'active', `HTTP ${pub.status} status=${pub.data?.status}`)
+
+  const usage = await request('PUT', `/api/guides/${state.guideId}`, { action: 'increment_usage' })
+  check('FLUJO 9', 'contador de uso incrementa', usage.status === 200 && Number(usage.data?.usageCount) >= 1, `usageCount=${usage.data?.usageCount}`)
+}
+
+// ============================================================================
 // FLUJO 8 - Limpieza automatica
 // ============================================================================
 async function flowCleanup() {
@@ -442,6 +489,11 @@ async function flowCleanup() {
     await clean('desactivar repuesto', () => request('DELETE', `/api/parts/${state.partId}`))
   }
 
+  // Guía de prueba
+  if (state.guideId) {
+    await clean('eliminar guía de prueba', () => request('DELETE', `/api/guides/${state.guideId}`))
+  }
+
   if (state.customerId) {
     await clean('borrar cliente', () => request('DELETE', `/api/customers/${state.customerId}`))
   }
@@ -474,6 +526,7 @@ try {
   await flowInventory()
   await flowDailyTasks()
   await flowReminders()
+  await flowGuides()
   if (!KEEP) await flowCleanup()
   else console.log('\n== FLUJO 8: omitido (--keep) ==')
 } catch (e) {

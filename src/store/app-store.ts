@@ -12,6 +12,7 @@ export type View =
   | 'quotes'
   | 'invoices'
   | 'inventory'
+  | 'guides'
   | 'reminders'
   | 'whatsapp'
   | 'settings'

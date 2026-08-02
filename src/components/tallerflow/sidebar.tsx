@@ -14,6 +14,7 @@ import {
   Receipt,
   MessageCircle,
   UserPlus,
+  BookOpen,
 } from 'lucide-react'
 import { useAppStore, type View } from '@/store/app-store'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'reminders', label: 'Recordatorios', icon: Bell, description: 'Seguimiento post-servicio', group: 'operation' },
   { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'Mensajería y plantillas', group: 'operation' },
   { id: 'inventory', label: 'Inventario', icon: Package, description: 'Repuestos y stock', group: 'admin' },
+  { id: 'guides', label: 'Base de Conocimiento', icon: BookOpen, description: 'Guías de reparación', group: 'admin' },
   { id: 'settings', label: 'Configuración', icon: Settings, description: 'Ajustes del taller', group: 'admin' },
 ]
 

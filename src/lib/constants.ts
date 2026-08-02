@@ -184,6 +184,48 @@ export const PAYMENT_METHODS = {
   transfer: { label: 'Transferencia', icon: 'Landmark' },
 } as const
 
+// ============== BASE DE CONOCIMIENTO (GUÍAS) ==============
+
+export const REPAIR_GUIDE_STATUS = {
+  draft: {
+    label: 'Borrador',
+    color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-950/40 dark:text-slate-400 dark:border-slate-800',
+    dot: 'bg-slate-500',
+    description: 'En preparación, aún no publicada',
+  },
+  active: {
+    label: 'Activa',
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
+    dot: 'bg-emerald-500',
+    description: 'Publicada y disponible en sugerencias',
+  },
+  retired: {
+    label: 'Archivada',
+    color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800',
+    dot: 'bg-rose-500',
+    description: 'Desactivada, no aparece en sugerencias',
+  },
+} as const
+
+export type RepairGuideStatusKey = keyof typeof REPAIR_GUIDE_STATUS
+
+export const GUIDE_DIFFICULTY = {
+  facil: {
+    label: 'Fácil',
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800',
+  },
+  media: {
+    label: 'Media',
+    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
+  },
+  compleja: {
+    label: 'Compleja',
+    color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800',
+  },
+} as const
+
+export type GuideDifficultyKey = keyof typeof GUIDE_DIFFICULTY
+
 // ============== CATEGORÍAS DE REPUESTOS ==============
 
 export const PART_CATEGORIES = {

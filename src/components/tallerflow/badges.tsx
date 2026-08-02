@@ -9,6 +9,8 @@ import {
   INVOICE_STATUS,
   USER_ROLES,
   REMINDER_STATUS,
+  REPAIR_GUIDE_STATUS,
+  GUIDE_DIFFICULTY,
   type WorkOrderStatusKey,
   type PriorityKey,
 } from '@/lib/constants'
@@ -71,6 +73,27 @@ export function RoleBadge({ role, className }: { role: string; className?: strin
   if (!conf) return <Badge variant="outline" className={className}>{role}</Badge>
   return (
     <Badge variant="secondary" className={cn('font-medium', conf.color, className)}>
+      {conf.label}
+    </Badge>
+  )
+}
+
+export function GuideStatusBadge({ status, className }: { status: string; className?: string }) {
+  const conf = (REPAIR_GUIDE_STATUS as any)[status]
+  if (!conf) return <Badge variant="outline" className={className}>{status}</Badge>
+  return (
+    <Badge variant="outline" className={cn('gap-1.5 border font-medium', conf.color, className)}>
+      <span className={cn('size-1.5 rounded-full', conf.dot)} />
+      {conf.label}
+    </Badge>
+  )
+}
+
+export function GuideDifficultyBadge({ difficulty, className }: { difficulty: string; className?: string }) {
+  const conf = (GUIDE_DIFFICULTY as any)[difficulty]
+  if (!conf) return <Badge variant="outline" className={className}>{difficulty}</Badge>
+  return (
+    <Badge variant="outline" className={cn('border font-medium', conf.color, className)}>
       {conf.label}
     </Badge>
   )
