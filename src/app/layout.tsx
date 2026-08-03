@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers";
 import { ThemeProvider } from "@/components/theme";
+import { AssistantWidget } from "@/modules/assistant/assistant-widget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +75,7 @@ export default function RootLayout({
             {children}
             <Toaster />
             <SonnerToaster position="top-right" richColors closeButton />
+            <AssistantWidget />
           </QueryProvider>
         </ThemeProvider>
       </body>

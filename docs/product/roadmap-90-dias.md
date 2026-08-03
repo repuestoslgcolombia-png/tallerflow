@@ -65,3 +65,42 @@
 - [ ] PWA / app móvil
 
 **Meta de la fase:** versión "Pro" validada y lista para replicar en otros talleres.
+
+---
+
+## Hermes (Asistente IA) — Roadmap paralelo (Sprint 2–3)
+
+**Objetivo:** Evolucionar el asistente IA de un widget stateless a un sistema con memoria persistente, facts reutilizables, y búsqueda semántica.
+
+### Sprint 2 — L0: Persistencia con Redis (1–2 días) 🔲 PRÓXIMO
+
+**Contexto:** Hermes v1 funciona (chat, tools, actions), pero los pendientes y conversaciones se pierden al reiniciar. Redis trae persistencia sin complejidad de DB adicional.
+
+- [ ] Setup Redis en `.env.local` (local + producción en Neon)
+- [ ] Migrar `globalThis.__hermesPendingStore` → Redis key-value con EXPIRE (TTL 1h)
+- [ ] Implementar L0 logging: cada message, delta, action → Redis Stream (NDJSON)
+- [ ] Recuperación de conversaciones: listar últimas 48h desde Stream
+- [ ] UI para ver historial de conversaciones en el widget
+- [ ] Tests: persistencia, recovery, TTL expiry
+
+**Meta:** conversaciones auditables + debug/compliance sin perder datos entre restarts.
+
+### Sprint 3 — L1: Fact Extraction + Semantic Search (3–4 días) 🔲 FUTURO
+
+**Contexto:** Con L0 grabando crudo, ahora podemos extraer "facts" reutilizables (átomos). Worker async procesa streams → dedup + embedding + tabla en Prisma.
+
+- [ ] Definir schema `AIFactAtom` en Prisma (embedding, original_text, source_conversation_id, created_at)
+- [ ] Worker async: consume Redis L0 Stream → LLM extrae facts → dedup (semántico) → insert `AIFactAtom`
+- [ ] Embedding: usar OpenAI/Groq embeddings API para cada fact
+- [ ] Search UI: "He hablado con Carlos antes?" → vector search en `AIFactAtom`
+- [ ] Deduplication logic: mismo fact, distintos wordings → merge con confidence score
+- [ ] Tests: extraction, dedup, search accuracy
+
+**Meta:** reutilización de conocimiento entre sesiones; "¿Qué dijiste sobre la garantía?" busca automáticamente hechos previos.
+
+### Futuro — L2/L3: Scenarios & ACL (diferir si no hay urgencia) 🔲 BACKLOG
+
+- [ ] L2: Scene segmentation (agrupar facts por contexto: diagnóstico, presupuesto, delivery)
+- [ ] L3: Core knowledge (ground truth, merged facts entre multiple escenas)
+- [ ] ACL: aislar conversaciones + facts por usuario/sesión
+- [ ] Versionado de skills (system prompts + tool signatures + breaking changes tracking)
