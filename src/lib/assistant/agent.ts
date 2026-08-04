@@ -1,6 +1,7 @@
 import { streamText, isStepCount, type CoreMessage } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { assistantTools, proponerAccion } from './tools'
+import { logL0 } from '@/lib/redis'
 
 export function getModel() {
   const provider = (process.env.AI_PROVIDER || 'openrouter').toLowerCase()
@@ -64,12 +65,21 @@ export async function chatStreamResponse(messages: CoreMessage[]): Promise<Respo
   })
 
   const encoder = new TextEncoder()
+  const sessionId = `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+  const log = (type: 'text' | 'pending' | 'error' | 'done', content?: unknown) => {
+    // Fire-and-forget: L0 logging must never break the stream
+    logL0({ type, timestamp: Date.now(), sessionId, content }).catch((e) => {
+      console.error('[assistant/agent] logL0 failed', e)
+    })
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         for await (const part of result.fullStream) {
           if (part.type === 'text-delta') {
             if (part.text) {
+              log('text', part.text)
               controller.enqueue(encoder.encode(JSON.stringify({ type: 'text', delta: part.text }) + '\n'))
             }
           } else if (part.type === 'tool-result' && part.toolName === 'proponerAccion') {
@@ -80,6 +90,7 @@ export async function chatStreamResponse(messages: CoreMessage[]): Promise<Respo
               resumen?: string
             }
             if (r?.pendingId) {
+              log('pending', { pendingId: r.pendingId, action: r.action, entity: r.entity, resumen: r.resumen })
               controller.enqueue(
                 encoder.encode(
                   JSON.stringify({
@@ -93,14 +104,17 @@ export async function chatStreamResponse(messages: CoreMessage[]): Promise<Respo
               )
             }
           } else if (part.type === 'error') {
+            log('error', 'Ocurrió un error procesando tu solicitud.')
             controller.enqueue(
               encoder.encode(JSON.stringify({ type: 'error', error: 'Ocurrió un error procesando tu solicitud.' }) + '\n')
             )
           }
         }
+        log('done', { text: 'stream completed' })
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'done' }) + '\n'))
       } catch (e) {
         console.error('[assistant/agent] streaming error', e)
+        log('error', 'Error inesperado en el asistente.')
         controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', error: 'Error inesperado en el asistente.' }) + '\n'))
       } finally {
         controller.close()

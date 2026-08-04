@@ -9,13 +9,20 @@ export function getRedisClient(): Redis {
     if (!redisUrl) {
       throw new Error("REDIS_URL env var not set");
     }
-    redisClient = new Redis(redisUrl, {
-      enableTLSForSentinelMode: false,
-      tls: redisUrl.includes("upstash.io") ? {} : undefined,
-      enableOfflineQueue: false,
-      maxRetriesPerRequest: null,
+    const parsed = new URL(redisUrl);
+    redisClient = new Redis({
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 6379,
+      username: parsed.username || undefined,
+      password: parsed.password || undefined,
+      tls:
+        parsed.protocol === "rediss:" || redisUrl.includes("upstash.io")
+          ? {}
+          : undefined,
+      connectTimeout: 30000,
       retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
+        const delay = Math.min(times * 50, 5000);
+        if (times > 10) return null; // Stop retrying after 10 attempts
         return delay;
       },
     });
