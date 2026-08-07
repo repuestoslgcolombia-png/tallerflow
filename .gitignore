@@ -53,3 +53,7 @@ server.log
 # Skills directory
 /skills/
 .vercel
+
+# skills de terceros (instalados localmente, no versionar)
+.agents/
+skills-lock.json
