@@ -413,3 +413,77 @@ Stage Summary:
 - Auto-refresh cada 60s, badge dinámico con ping animado para alta prioridad
 - Paleta de comandos (Ctrl+K) para navegación rápida entre 10 módulos
 - Lint pasa sin errores, verificación end-to-end exitosa
+
+---
+Task ID: 9
+Agent: orchestrator (main)
+Task: Asistente virtual "Hermes" con LLM (OpenRouter/Groq) + widget flotante global
+
+Work Log:
+- Instalé SDKs: `ai@7.0.48`, `@ai-sdk/openai@4.0.27`, `zod@4.3.5` (zod ya estaba como dependencia del proyecto).
+- Configuré env vars en `.env.local`: `AI_PROVIDER=openrouter`, `AI_API_KEY=sk-or-v1-...`, `AI_MODEL=deepseek/deepseek-chat`, `AI_GROQ_API_KEY=gsk_...` (Groq como proveedor alternativo).
+- Creé `src/lib/assistant/tools.ts`: 12 tools de lectura (estadoDelTaller, buscarClientes, verDetalleCliente, buscarEquipos, verDetalleEquipo, buscarOrdenes, verDetalleOrden, listarTecnicos, buscarRepuestos, buscarCotizaciones, buscarFacturas, consultarReminder) + `proponerAccion` (tool de escritura única) + enum `WRITE_ACTIONS` (11 acciones).
+- Creé `src/lib/assistant/executor.ts`: `executeAction(action, args)` con las 11 acciones de escritura (registroRapido, crearCliente, crearEquipo, crearOrdenServicio, actualizarEstadoOrden, asignarTecnico, crearRecordatorio, crearCotizacion, crearFactura, registrarPago, crearTareaDiaria). Cada una valida campos obligatorios con mensajes en español (`requireFields`) y devuelve `{ ok, message, data }`.
+- Creé `src/lib/assistant/pending.ts`: `PendingAction` con TTL de 1 hora y store en `globalThis` (`__hermesPendingStore` + `__hermesPendingSeq`). En Next dev cada route handler se bundlea aparte y un Map a nivel módulo NO se comparte entre `/chat` y `/confirm` (daba 404 al confirmar). El store global resuelve ese problema.
+- Creé `src/lib/assistant/agent.ts`:
+  - `getModel()`: OpenRouter por defecto (`deepseek/deepseek-chat`), Groq si `AI_PROVIDER=groq`.
+  - `buildSystemPrompt()`: 12 reglas. La regla clave (5): reúne los datos obligatorios ANTES de proponer escritura; si falta algo, pregunta y espera.
+  - `chatStreamResponse()`: usa `streamText` con `stopWhen: isStepCount(10)` y emite NDJSON `{type:'text'|'pending'|'error'|'done'}`.
+- Creé rutas API:
+  - `src/app/api/assistant/chat/route.ts`: POST streaming NDJSON (`runtime='nodejs'`, `dynamic='force-dynamic'`), GET health `{ok, name:'Hermes - Asistente de TallerFlow', status:'ready'}`.
+  - `src/app/api/assistant/confirm/route.ts`: consume PendingAction → `executeAction` → `{ok, message, data}`.
+- Creé `src/modules/assistant/assistant-widget.tsx`: widget flotante (botón botón-derecha), chat con markdown, chips de inicio, tarjeta amber "Confirmar/Cancelar" para acciones pendientes, resultado verde con `buildLink` → `navigate`, botones stop/mic/eraser.
+- Monté `<AssistantWidget />` en `src/app/layout.tsx` (línea 78, dentro de QueryProvider).
+
+Fixes de compatibilidad con `ai` v7 (importantes):
+- `maxSteps` NO existe en v7 → reemplazado por `stopWhen: isStepCount(10)`.
+- Los parts del stream en v7 usan `part.text` (no `textDelta`) y `part.output` (no `part.result`).
+- `zodSchema()` de `ai` rompe en runtime con `z.record`/`z.any()` de zod v4 (`TypeError: undefined is not an object (evaluating 'schema._zod')` en `zod/v4/core/to-json-schema.js`) → `tools.ts` usa `jsonSchema()` con JSON Schema plano (sin zod): `const s = (schema: any) => jsonSchema(schema)`.
+- El mojibake (`acci�n`, `Mar�a`) visto en consola es solo artefacto de PowerShell; los archivos tienen UTF-8 correcto (verificado por bytes `C3 B3` = `ó`).
+
+Verificación end-to-end (HTTP real contra dev server en 3001):
+- `GET /api/assistant/chat` → 200 `{"ok":true,"name":"Hermes - Asistente de TallerFlow","status":"ready"}` ✓
+- POST "¿Cómo está el taller hoy?" → 135 líneas NDJSON, tool `estadoDelTaller` ejecutada con datos reales (órdenes por estado, 7 repuestos stock bajo, COT-2024-003 pendiente, 1 recordatorio hoy) ✓
+- POST "¿Cuántos clientes hay?" → stream de 47 parts text (wire format `{type:'text', delta:...}`; el widget parsea `delta` en assistant-widget.tsx L50/L113) ✓
+- POST "Crea un recordatorio follow_up para Carlos Vega" → Hermes preguntó el teléfono (regla 5, no propuso incompleto) ✓
+- Con teléfono 3005551234 → detectó que ya existía recordatorio de la OT-2026-019 y preguntó antes de duplicar ✓
+- "Crea uno adicional de mantenimiento" → `proponerAccion` → `pendingId: pa_mscmnuq2_0`, action crearRecordatorio, resumen "programado en 90 días" ✓
+- `POST /api/assistant/confirm {pendingId}` → 200 `{ok:true, message:"Recordatorio **Mantenimiento programado** creado para Carlos Vega (vence 31/10/2026)", data:{reminderId: cmscmo6o100014olkuwk06d4c}}` ✓
+- Recordatorio verificado en `GET /api/reminders` (type: maintenance, title: Mantenimiento programado, status: pending, customerId correcto) ✓
+- `bun run lint` → EXIT 0 (0 errores) ✓
+- `bun run build` → EXIT 0, compila con `/api/assistant/chat` y `/api/assistant/confirm` incluidas ✓
+
+Stage Summary:
+- Asistente "Hermes" completo y funcional: chat con LLM via OpenRouter (deepseek/deepseek-chat), streaming NDJSON, 12 tools de lectura + 11 acciones de escritura con confirmación obligatoria del usuario.
+- Widget flotante global montado en el root layout, disponible en todas las vistas.
+- Las acciones de escritura NUNCA se ejecutan solas: siempre pasan por `proponerAccion` → store pending (TTL 1h) → botón Confirmar en el panel → `executeAction`.
+- Lint y build pasan sin errores; verificación end-to-end exitosa con la DB real.
+
+### Limitaciones v1 (conocidas, diferidas)
+- ⚠️ **Pendientes EFÍMEROS**: `globalThis.__hermesPendingStore` no persiste entre restarts. Solución en Fase 1: Redis + L0 raw recording (JSON Lines por stream).
+- ⚠️ **Sin memoria multi-sesión**: cada conversación comienza de cero. No hay reutilización de facts entre sesiones. Solución en Fase 2: L1 extraction (átomos desnormalizados, dedup, búsqueda semántica).
+- ⚠️ **Single-user**: no hay aislamiento de datos por usuario/sesión. OK para v1 (tú usas solo), pero requerirá ACL en Fase 3.
+- ⚠️ **Sin auditoría formal**: solo logs NDJSON en streaming. No hay tabla de auditoría en Prisma. Diferir si no es urgencia legal.
+
+### Roadmap Hermes 90 días
+**Fase 1 (Sprint 2, 1–2 días):** Redis + L0 async recording
+- Persistencia efímera: cada chat → Redis Stream (TTL 48h)
+- Conversaciones completas auditables (debugging, compliance)
+- Infraestructura lista para L1
+
+**Fase 2 (Sprint 3, 3–4 días):** L1 extraction + fact deduplication
+- Worker async: procesar L0 streams → extrae "facts" (átomos desnormalizados)
+- Tabla `AIFactAtom` en Prisma (embedding, original text, source conversation)
+- Search semántica: "¿Has hablado con Carlos?" → buscar en átomos previos
+- Dedup automático (mismo fact, distinto wording)
+
+**Fase 3+ (Futuro, diferir si no hay urgencia):**
+- Scene segmentation (Agrupar facts por "escena" de negocio: diagnóstico, presupuesto, delivery)
+- ACL multi-user (permisos por rol + sesión)
+- Versionado de skills (LLM system prompts + tool signatures)
+
+**Arquitectura inspirada en TencentDB Agent Memory (4 capas):**
+- L0: Raw JSON Lines stream (chat completo, auditoria, recuperación)
+- L1: Atoms desnormalizados (hechos reutilizables, semánticamente indexados)
+- L2: Scenarios (escenas de negocio, con timeline y contexto)
+- L3: Core knowledge (ground truth, merged facts, canónica)

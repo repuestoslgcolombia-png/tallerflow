@@ -453,15 +453,62 @@ export function usePartMutations() {
 }
 
 // ============== USUARIOS ==============
-export function useUsers() {
+export function useUsers(all = false) {
   return useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', all],
     queryFn: async () => {
-      const res = await fetch('/api/users')
+      const res = await fetch(`/api/users${all ? '?all=1' : ''}`)
       if (!res.ok) throw new Error('Error al cargar usuarios')
       return res.json()
     },
   })
+}
+
+export function useUserMutations() {
+  const qc = useQueryClient()
+  const invalidateUsers = () => qc.invalidateQueries({ queryKey: ['users'] })
+
+  const create = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al crear usuario')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      invalidateUsers()
+      toast.success('Técnico agregado al equipo')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const setActive = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar usuario')
+      }
+      return res.json()
+    },
+    onSuccess: (_data, vars) => {
+      invalidateUsers()
+      toast.success(vars.active ? 'Técnico activado' : 'Técnico desactivado')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return { create, setActive }
 }
 
 // ============== DASHBOARD ==============

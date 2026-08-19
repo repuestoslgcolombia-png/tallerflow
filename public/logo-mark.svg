@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28AFEF"/>
+      <stop offset="0.5" stop-color="#0E86CD"/>
+      <stop offset="1" stop-color="#1D80C1"/>
+    </linearGradient>
+    <radialGradient id="tileGlow" cx="0.5" cy="0.18" r="0.9">
+      <stop offset="0" stop-color="#1B2A3A" stop-opacity="0.9"/>
+      <stop offset="0.55" stop-color="#0A0A0B" stop-opacity="1"/>
+      <stop offset="1" stop-color="#050506" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Tile -->
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="url(#tileGlow)"/>
+  <rect x="10.5" y="10.5" width="491" height="491" rx="109" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="5"/>
+
+  <!-- Bolts de flujo (rayo estilizado) -->
+  <g>
+    <path d="M298 84 L156 292 H238 L206 428 L356 220 H276 L318 84 Z"
+          fill="url(#boltGrad)"
+          stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="8" stroke-linejoin="round"/>
+    <!-- Detalle brillo -->
+    <path d="M254 150 L184 258 L228 258 L200 360 L276 252 L232 252 L268 150 Z"
+          fill="#FFFFFF" fill-opacity="0.18"/>
+  </g>
+</svg>

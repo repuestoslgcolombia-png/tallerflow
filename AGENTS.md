@@ -44,3 +44,34 @@
 - **Module views** go in `src/modules/<module>/<module>-view.tsx` as named exports.
 - **Daily Agenda + DailyTask:** Schema has `DailyTask` model (id, title, taskDate, isCompleted, assigneeId, priority, sortOrder). API at `/api/daily-agenda` (GET aggregated today data) and `/api/daily-tasks` (CRUD). Hooks: `useDailyAgenda()`, `useDailyTaskMutations()`. The landing page defaults to `daily-agenda` view. After creating/modifying daily tasks, invalidate `['daily-agenda']` and `['daily-tasks']` query keys.
 - **Prisma client caching:** `src/lib/db.ts` caches PrismaClient in global scope and auto-busts cache when schema changes (checks `@prisma/client` mtime + model existence). No manual `prisma generate` needed after `db:push`.
+
+## Assistant IA (Hermes)
+- **Qué es:** widget flotante global (`<AssistantWidget />` mounted in `src/app/layout.tsx`) que chatea con un LLM para gestionar el taller (leer + escribir) en español.
+- **Env vars (`.env.local`):** `AI_PROVIDER=openrouter` (o `groq`), `AI_API_KEY` (OpenRouter), `AI_MODEL=deepseek/deepseek-chat`, `AI_GROQ_API_KEY`. Model resolution in `src/lib/assistant/agent.ts` → `getModel()`.
+- **Endpoints:** `POST /api/assistant/chat` (streaming NDJSON; GET = health check `{name:'Hermes - Asistente de TallerFlow', status:'ready'}`) and `POST /api/assistant/confirm` (ejecuta la acción pendiente confirmada).
+- **Wire format NDJSON:** `{type:'text', delta}` (streaming), `{type:'pending', pendingId, action, entity, resumen}` (acción de escritura esperando confirmación), `{type:'error'}`, `{type:'done'}`.
+- **Flujo de escritura (NUNCA ejecuta solo):** tool `proponerAccion` registra la acción en el store de pendientes → el widget muestra tarjeta amber Confirmar/Cancelar → `POST /confirm` consume el `PendingAction` → `executeAction()` (11 acciones en `src/lib/assistant/executor.ts`).
+- **Store de pendientes:** vive en `globalThis` (`__hermesPendingStore`, TTL 1h) en `src/lib/assistant/pending.ts`. NO usar un Map a nivel módulo — en Next dev cada route handler se bundlea aparte y no se comparte entre `/chat` y `/confirm`.
+- **Tools:** 12 de lectura + `proponerAccion`, todas con `jsonSchema()` plano (NUNCA `zodSchema()` de `ai` — rompe con zod v4: `TypeError: schema._zod`). `WRITE_ACTIONS` enum en `tools.ts`.
+- **`ai` v7 caveats:** usar `stopWhen: isStepCount(10)` (no `maxSteps`), `part.text` (no `textDelta`), `part.output` (no `part.result`).
+- **Datos obligatorios antes de proponer (regla 5 del system prompt):** registroRapido → firstName, lastName, phone, address, deviceType, reportedIssue; crearCliente → firstName, lastName; crearEquipo → customerId o phone, type; crearOrdenServicio → customerId o phone, reportedIssue; crearRecordatorio → customerId o phone, type; crearCotizacion → workOrderId o code; crearFactura → workOrderId o code; registrarPago → invoiceId o code + amount; crearTareaDiaria → title.
+- **Actualizar con cuidado:** `next build` detiene y requiere re-lanzar el dev server (EPERM sobre `query_engine-windows.dll.node`). Detener con `Stop-Process` antes de build.
+
+### Limitaciones v1 conocidas (Hermes)
+- ⚠️ **Pendientes EFÍMEROS**: almacenados en `globalThis`, no persisten entre restarts.
+- ⚠️ **Sin memoria multi-sesión**: cada chat comienza de cero; sin facts reutilizables.
+- ⚠️ **Single-user**: OK para MVP (solo tú), pero requerirá ACL + isolación en producción.
+- ⚠️ **Sin auditoría formal**: solo logs NDJSON en streaming, sin tabla de auditoría en Prisma.
+
+### Roadmap Hermes (90 días)
+| Fase | Sprint | Duración | Descripción |
+|------|--------|----------|-------------|
+| **L0: Redis + Raw Recording** | Sprint 2 | 1–2 días | Persistencia en Redis Streams (TTL 48h), auditoría completa de conversaciones. |
+| **L1: Fact Extraction + Dedup** | Sprint 3 | 3–4 días | Worker async extrae "átomos" (facts reutilizables), tabla `AIFactAtom` en Prisma, búsqueda semántica. |
+| **L2/L3+: Scene Segmentation & ACL** | Futuro | — | Agrupar facts por escena (diagnóstico, presupuesto, etc.), multi-user ACL, versionado de skills. |
+
+**Arquitectura de 4 capas (inspirada en TencentDB Agent Memory):**
+- **L0**: JSON Lines stream (chat raw, TTL, recuperación)
+- **L1**: Atoms desnormalizados (facts, embedding, searchable)
+- **L2**: Scenarios (escenas de negocio, timeline, contexto)
+- **L3**: Core knowledge (ground truth, merged, canónica)

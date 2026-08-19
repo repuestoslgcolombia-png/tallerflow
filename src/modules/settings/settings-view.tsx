@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon } from 'lucide-react'
-import { useSettings, useSettingsMutation } from '@/lib/hooks/api'
+import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon, Users, Plus, Loader2, UserRound } from 'lucide-react'
+import { useSettings, useSettingsMutation, useUsers, useUserMutations } from '@/lib/hooks/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 
 interface SettingsForm {
   name: string
@@ -26,17 +29,187 @@ interface SettingsForm {
 export function SettingsView() {
   const { data: settings, isLoading } = useSettings()
 
-  if (isLoading || !settings) {
-    return (
-      <div className="max-w-3xl space-y-4">
-        <Skeleton className="h-32" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-32" />
-      </div>
+  return (
+    <>
+      <TeamSection />
+      {isLoading || !settings ? (
+        <div className="mx-auto max-w-3xl space-y-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-32" />
+        </div>
+      ) : (
+        <SettingsForm settings={settings} key={settings.id} />
+      )}
+    </>
+  )
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  technician: 'Técnico',
+  receptionist: 'Recepcionista',
+  admin: 'Admin',
+}
+
+const ROLE_CLASSES: Record<string, string> = {
+  technician: 'border-sky-300 bg-sky-50 text-sky-700',
+  receptionist: 'border-violet-300 bg-violet-50 text-violet-700',
+  admin: 'border-amber-300 bg-amber-50 text-amber-700',
+}
+
+function initials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function TeamSection() {
+  const { data: users, isLoading } = useUsers(true)
+  const { create, setActive } = useUserMutations()
+
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState('technician')
+
+  const team: any[] = users || []
+  const canSubmit = name.trim() && phone.trim()
+
+  const handleAdd = () => {
+    if (!canSubmit) return
+    create.mutate(
+      { name: name.trim(), phone: phone.trim(), role },
+      {
+        onSuccess: () => {
+          setName('')
+          setPhone('')
+          setRole('technician')
+        },
+      }
     )
   }
 
-  return <SettingsForm settings={settings} key={settings.id} />
+  return (
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Equipo de trabajo</h2>
+          <p className="text-sm text-muted-foreground">Gestiona los técnicos y personal del taller</p>
+        </div>
+      </div>
+
+      {/* Agregar miembro */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="flex size-7 items-center justify-center rounded-md bg-violet-100 text-violet-600">
+              <UserRound className="size-4" />
+            </div>
+            Agregar técnico
+          </CardTitle>
+          <CardDescription>Los técnicos aparecerán al asignar órdenes de trabajo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-12">
+            <div className="space-y-1.5 sm:col-span-5">
+              <Label htmlFor="team-name">Nombre *</Label>
+              <Input
+                id="team-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Juan Pérez"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-4">
+              <Label htmlFor="team-phone" className="flex items-center gap-1.5">
+                <Phone className="size-3.5 text-muted-foreground" /> WhatsApp *
+              </Label>
+              <Input
+                id="team-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+57 300 123 4567"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-3">
+              <Label>Rol</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="technician">Técnico</SelectItem>
+                  <SelectItem value="receptionist">Recepcionista</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleAdd} disabled={!canSubmit || create.isPending} className="gap-1.5">
+              {create.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              {create.isPending ? 'Agregando...' : 'Agregar técnico'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista del equipo */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="flex size-7 items-center justify-center rounded-md bg-emerald-100 text-emerald-600">
+              <Users className="size-4" />
+            </div>
+            Miembros del equipo
+          </CardTitle>
+          <CardDescription>
+            {team.length} {team.length === 1 ? 'miembro' : 'miembros'} · el switch activa/desactiva
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {isLoading && <Skeleton className="h-10" />}
+          {!isLoading && team.length === 0 && (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Aún no hay miembros. Agrega el primer técnico.
+            </p>
+          )}
+          {team.map((u) => (
+            <div
+              key={u.id}
+              className="flex items-center justify-between gap-3 rounded-lg border p-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="size-9">
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {initials(u.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className={`truncate text-sm font-medium ${!u.active ? 'text-muted-foreground' : ''}`}>
+                    {u.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{u.phone || 'Sin teléfono'}</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="outline" className={ROLE_CLASSES[u.role] || ''}>
+                  {ROLE_LABELS[u.role] || u.role}
+                </Badge>
+                <Switch
+                  checked={u.active}
+                  onCheckedChange={(v) => setActive.mutate({ id: u.id, active: v })}
+                  aria-label={`Activar ${u.name}`}
+                />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 function SettingsForm({ settings }: { settings: any }) {

@@ -12,7 +12,7 @@ import {
   X,
   Bell,
   Receipt,
-  MessageCircle,
+MessageCircle,
   UserPlus,
   BookOpen,
 } from 'lucide-react'
@@ -65,9 +65,13 @@ export function Sidebar() {
         {/* Header del sidebar */}
         <div className="flex h-16 items-center justify-between border-b px-5">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <Wrench className="size-5" />
-            </div>
+            <img
+              src="/logo-mark.svg"
+              alt="Logo TallerFlow"
+              width={36}
+              height={36}
+              className="size-9 shrink-0 rounded-lg"
+            />
             <div className="flex flex-col">
               <span className="text-base font-bold leading-tight">TallerFlow</span>
               <span className="text-[11px] text-muted-foreground leading-tight">Gestión de talleres</span>
