@@ -14,24 +14,54 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "TallerFlow — Gestión de Talleres de Electrodomésticos",
-  description: "Sistema integral de gestión para talleres de reparación de electrodomésticos del hogar: lavadoras, neveras, congeladores, secadoras a gas, aires acondicionados y TVs.",
-  keywords: ["taller", "electrodomésticos", "reparación", "lavadoras", "neveras", "aires acondicionados", "gestión", "ERP", "órdenes de trabajo", "cotizaciones", "inventario"],
+  title: {
+    default: 'TallerFlow — Gestión de Talleres de Electrodomésticos',
+    template: '%s · TallerFlow',
+  },
+  description: "Sistema integral de gestión para talleres de reparación de electrodomésticos del hogar: lavadoras, neveras, congeladores, secadoras a gas, aires acondicionados y TVs. Órdenes de trabajo, cotizaciones, inventario y WhatsApp en un solo lugar.",
+  keywords: ["TallerFlow", "taller", "electrodomésticos", "reparación", "lavadoras", "neveras", "aires acondicionados", "gestión", "ERP", "órdenes de trabajo", "cotizaciones", "inventario", "facturación", "WhatsApp"],
   authors: [{ name: "TallerFlow" }],
+  creator: "TallerFlow",
+  applicationName: "TallerFlow",
   icons: {
-    icon: "/logo.svg",
-    apple: "/icon-192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/logo-mark.svg", sizes: "any", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": "TallerFlow",
     "mobile-web-app-capable": "yes",
+    "theme-color": "#0E86CD",
   },
   openGraph: {
-    title: "TallerFlow",
-    description: "Gestión moderna para talleres de reparación",
+    title: "TallerFlow — Gestión de Talleres de Electrodomésticos",
+    description: "Del papel y WhatsApp al control total: órdenes claras, clientes informados y un negocio que escala.",
     type: "website",
+    locale: "es_CO",
+    siteName: "TallerFlow",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "TallerFlow — Gestión de talleres de electrodomésticos",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TallerFlow — Gestión de Talleres de Electrodomésticos",
+    description: "Del papel y WhatsApp al control total: órdenes claras, clientes informados y un negocio que escala.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

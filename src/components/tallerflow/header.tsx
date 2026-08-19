@@ -114,6 +114,14 @@ export function Header() {
           <Menu className="size-5" />
         </Button>
 
+        <img
+          src="/logo-mark.svg"
+          alt="Logo TallerFlow"
+          width={28}
+          height={28}
+          className="size-7 shrink-0 rounded-md lg:hidden"
+        />
+
         <div className="min-w-0 flex-1 flex-col">
           <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{info?.title ?? 'TallerFlow'}</h1>
           <p className="hidden truncate text-xs text-muted-foreground sm:block">{info?.subtitle ?? ''}</p>

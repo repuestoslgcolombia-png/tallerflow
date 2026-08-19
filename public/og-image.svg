@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1D80C1"/>
+      <stop offset="0.5" stop-color="#0E86CD"/>
+      <stop offset="1" stop-color="#28AFEF"/>
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28AFEF"/>
+      <stop offset="0.5" stop-color="#0E86CD"/>
+      <stop offset="1" stop-color="#1D80C1"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Tile logo -->
+  <g transform="translate(120 85)">
+    <rect x="0" y="0" width="460" height="460" rx="100" fill="#0A0A0B"/>
+    <rect x="4" y="4" width="452" height="452" rx="96" fill="none" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="6"/>
+    <path d="M268 60 L140 262 H214 L185 400 L320 205 H248 L286 60 Z"
+          fill="url(#boltGrad)"
+          stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="7" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="640" y="330" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="96" font-weight="700" fill="#FFFFFF">TallerFlow</text>
+  <text x="642" y="400" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="34" font-weight="400" fill="#FFFFFF" fill-opacity="0.9">Gestión de talleres de electrodomésticos</text>
+</svg>
