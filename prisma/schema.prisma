@@ -407,7 +407,7 @@ model WhatsAppTemplate {
 
 model WhatsAppMessage {
   id           String   @id @default(cuid())
-  customerId   String
+  customerId   String?
   workOrderId  String?
   reminderId   String? @unique
   templateId   String?
@@ -420,7 +420,7 @@ model WhatsAppMessage {
   sentBy       String?  // usuario que envió
   createdAt    DateTime @default(now())
 
-  customer  Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer  Customer?         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workOrder WorkOrder?        @relation(fields: [workOrderId], references: [id])
   reminder  Reminder?         @relation(fields: [reminderId], references: [id])
   template  WhatsAppTemplate? @relation(fields: [templateId], references: [id])
@@ -445,6 +445,35 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([userId])
+}
+
+// ============== AUTOMATIZACIONES WHATSAPP ==============
+
+model AutomationRule {
+  id           String   @id @default(cuid())
+  trigger      String   @unique // order_received | quote_sent | quote_approved | order_ready | order_delivered | payment_received
+  enabled      Boolean  @default(true)
+  templateCode String   // código de la plantilla de WhatsApp a usar
+  delayMinutes Int      @default(0) // minutos de espera antes de enviar (0 = inmediato)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AutomationLog {
+  id          String   @id @default(cuid())
+  ruleId      String?
+  workOrderId String?
+  customerId  String?
+  trigger     String   // qué evento lo disparó
+  phone       String   // número al que se envió
+  message     String   // mensaje enviado
+  status      String   @default("sent") // sent | failed | skipped
+  error       String?  // mensaje de error si falló
+  sentAt      DateTime @default(now())
+
+  @@index([workOrderId])
+  @@index([customerId])
+  @@index([sentAt])
 }
 
 // ============== CONFIGURACIÓN DEL TALLER ==============

@@ -23,7 +23,12 @@ import {
   DollarSign,
   MessageCircle,
   Send,
+  Pencil,
+  Save,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useInvoices, useInvoiceMutations, useWorkOrders, useSettings, useSendInvoiceWhatsApp } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
 import {
@@ -62,6 +67,7 @@ export function InvoicesView() {
   const [createOpen, setCreateOpen] = useState(false)
   const [viewing, setViewing] = useState<any | null>(null)
   const [paying, setPaying] = useState<any | null>(null)
+  const [editing, setEditing] = useState<any | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [markPaidId, setMarkPaidId] = useState<string | null>(null)
@@ -237,6 +243,9 @@ export function InvoicesView() {
                               <DropdownMenuItem onClick={() => setViewing(inv)}>
                                 <Eye className="mr-2 size-4" /> Ver detalle
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditing(inv)}>
+                                <Pencil className="mr-2 size-4" /> Editar factura
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => sendWhatsApp.mutate(inv.id)}
                                 disabled={sendWhatsApp.isPending}
@@ -297,12 +306,17 @@ export function InvoicesView() {
 
       {/* View Dialog */}
       {viewing && (
-        <InvoiceDetailDialog invoice={viewing} onClose={() => setViewing(null)} onPay={() => { setPaying(viewing); setViewing(null) }} />
+        <InvoiceDetailDialog invoice={viewing} onClose={() => setViewing(null)} onPay={() => { setPaying(viewing); setViewing(null) }} onEdit={() => { setEditing(viewing); setViewing(null) }} />
       )}
 
       {/* Payment Dialog */}
       {paying && (
         <PaymentDialog invoice={paying} onClose={() => setPaying(null)} />
+      )}
+
+      {/* Edit Dialog */}
+      {editing && (
+        <EditInvoiceDialog invoice={editing} onClose={() => setEditing(null)} />
       )}
 
       {/* Delete confirm */}
@@ -633,7 +647,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 // ============== Invoice Detail Dialog ==============
-function InvoiceDetailDialog({ invoice, onClose, onPay }: { invoice: any; onClose: () => void; onPay: () => void }) {
+function InvoiceDetailDialog({ invoice, onClose, onPay, onEdit }: { invoice: any; onClose: () => void; onPay: () => void; onEdit: () => void }) {
   const { data: settings } = useSettings()
   const { navigate } = useAppStore()
   const sendWhatsApp = useSendInvoiceWhatsApp()
@@ -779,6 +793,13 @@ function InvoiceDetailDialog({ invoice, onClose, onPay }: { invoice: any; onClos
         <DialogFooter className="flex-wrap gap-2">
           <Button
             variant="outline"
+            onClick={onEdit}
+            className="gap-1.5"
+          >
+            <Pencil className="size-4" /> Editar
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => sendWhatsApp.mutate(invoice.id)}
             disabled={sendWhatsApp.isPending}
             className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
@@ -885,6 +906,237 @@ function PaymentDialog({ invoice, onClose }: { invoice: any; onClose: () => void
             <Button type="submit" disabled={update.isPending} className="gap-1.5">
               <Check className="size-4" />
               {update.isPending ? 'Registrando...' : 'Confirmar pago'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Edit Invoice Dialog ==============
+function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => void }) {
+  const { update } = useInvoiceMutations()
+  const { data: settings } = useSettings()
+  const taxRate = settings?.taxRate || 19
+  const symbol = settings?.currencySymbol || '$'
+
+  // Estado de items
+  const [items, setItems] = useState<any[]>(
+    invoice.items?.map((it: any) => ({
+      description: it.description,
+      quantity: String(it.quantity),
+      unitPrice: String(it.unitPrice),
+    })) || [{ description: '', quantity: '1', unitPrice: '0' }]
+  )
+
+  // Estado de campos generales
+  const [notes, setNotes] = useState(invoice.notes || '')
+  const [paymentMethod, setPaymentMethod] = useState(invoice.paymentMethod || 'cash')
+  const [status, setStatus] = useState(invoice.status || 'pending')
+
+  // Cálculos
+  const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
+  const taxAmount = subtotal * (taxRate / 100)
+  const total = subtotal + taxAmount
+
+  const updateItem = (idx: number, field: string, value: string) => {
+    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
+  }
+  const addItem = () => setItems((prev) => [...prev, { description: '', quantity: '1', unitPrice: '0' }])
+  const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx))
+
+  const valid = items.length > 0 && items.every((it) => it.description.trim() !== '')
+  const isPaid = invoice.status === 'paid'
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!valid) return
+
+    const itemsData = items.map((it) => ({
+      itemType: 'other',
+      description: it.description,
+      quantity: Number(it.quantity) || 1,
+      unitPrice: Number(it.unitPrice) || 0,
+    }))
+
+    update.mutate({
+      id: invoice.id,
+      data: {
+        action: 'update_items',
+        items: itemsData,
+        notes: notes || null,
+        paymentMethod,
+        status,
+      },
+    }, {
+      onSuccess: () => {
+        toast.success('Factura actualizada correctamente')
+        onClose()
+      },
+    })
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[640px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="size-5 text-primary" />
+            Editar Factura {invoice.code}
+          </DialogTitle>
+          <DialogDescription>
+            Corrige los items, totales, notas o método de pago de esta factura.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isPaid && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+            <p className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <strong>Atención:</strong> Esta factura ya está marcada como pagada.
+                Si cambias los items o totales, el saldo puede verse afectado.
+                Considera anular y crear una nueva si el cambio es significativo.
+              </span>
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {/* Items */}
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label>Items de la factura</Label>
+              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addItem}>
+                <Plus className="size-3.5" /> Agregar
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {items.map((it, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 rounded-md border bg-muted/20 p-2">
+                  <Input
+                    className="col-span-12 sm:col-span-6"
+                    placeholder="Descripción"
+                    value={it.description}
+                    onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                  />
+                  <Input
+                    className="col-span-4 sm:col-span-2"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Cant."
+                    value={it.quantity}
+                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                  />
+                  <Input
+                    className="col-span-6 sm:col-span-3"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio"
+                    value={it.unitPrice}
+                    onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
+                  />
+                  <div className="col-span-1 flex items-center justify-center">
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-rose-500 hover:text-rose-600"
+                        onClick={() => removeItem(idx)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Totales */}
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatCurrency(subtotal, symbol)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
+              <span>{formatCurrency(taxAmount, symbol)}</span>
+            </div>
+            <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">
+              <span>Total</span>
+              <span>{formatCurrency(total, symbol)}</span>
+            </div>
+            {invoice.paid > 0 && (
+              <div className="mt-1 flex justify-between text-xs text-emerald-600">
+                <span>Ya pagado</span>
+                <span>{formatCurrency(invoice.paid, symbol)}</span>
+              </div>
+            )}
+            {invoice.paid > 0 && total !== invoice.total && (
+              <div className="mt-1 flex justify-between text-xs font-semibold text-amber-600">
+                <span>Nuevo saldo</span>
+                <span>{formatCurrency(total - invoice.paid, symbol)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Método de pago y estado */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Método de pago</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_METHODS).map(([key, conf]: any) => {
+                    const Icon = PAYMENT_ICON_MAP[key] || DollarSign
+                    return (
+                      <SelectItem key={key} value={key}>
+                        <Icon className="mr-1.5 size-4" />
+                        {conf.label}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Estado</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="partial">Pago parcial</SelectItem>
+                  <SelectItem value="paid">Pagada</SelectItem>
+                  <SelectItem value="cancelled">Anulada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div className="grid gap-2">
+            <Label htmlFor="edit-notes">Notas</Label>
+            <Textarea
+              id="edit-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notas de la factura..."
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button type="submit" disabled={!valid || update.isPending} className="gap-2">
+              {update.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              Guardar cambios
             </Button>
           </DialogFooter>
         </form>
