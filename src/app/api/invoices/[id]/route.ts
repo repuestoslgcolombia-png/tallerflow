@@ -95,6 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // Recalcular totales desde los nuevos items
       const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
       const taxRate = settings?.taxRate || 0
+      const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
 
       let itemsData: any[] = []
       if (body.items && Array.isArray(body.items) && body.items.length > 0) {
@@ -111,7 +112,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       const subtotal = itemsData.reduce((sum, it) => sum + it.total, 0)
-      const taxAmount = subtotal * (taxRate / 100)
+      const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
       const total = subtotal + taxAmount
 
       // Borrar items existentes y recrear

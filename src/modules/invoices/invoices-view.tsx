@@ -47,6 +47,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -417,6 +418,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [paid, setPaid] = useState<string>('0')
   const [paymentMethod, setPaymentMethod] = useState<string>('cash')
   const [notes, setNotes] = useState('')
+  const [applyTax, setApplyTax] = useState<boolean>(true)
 
   // Load work orders that are ready/delivered for invoicing
   const { data: readyOrders } = useWorkOrders({})
@@ -437,7 +439,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
   const taxRate = settings?.taxRate || 0
-  const taxAmount = subtotal * (taxRate / 100)
+  const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
   const paidAmount = Number(paid) || 0
   const balance = total - paidAmount
@@ -467,6 +469,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         paid: paidAmount,
         paymentMethod: paidAmount > 0 ? paymentMethod : null,
         notes: notes || null,
+        applyTax,
       },
       { onSuccess: () => onOpenChange(false) }
     )
@@ -569,14 +572,20 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
           {/* Totals */}
           <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Aplicar impuesto ({taxRate}%)</span>
+              <Switch checked={applyTax} onCheckedChange={setApplyTax} />
+            </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal, settings?.currencySymbol || '$')}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
-              <span>{formatCurrency(taxAmount, settings?.currencySymbol || '$')}</span>
-            </div>
+            {applyTax && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
+                <span>{formatCurrency(taxAmount, settings?.currencySymbol || '$')}</span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">
               <span>Total</span>
               <span>{formatCurrency(total, settings?.currencySymbol || '$')}</span>
@@ -934,10 +943,11 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
   const [notes, setNotes] = useState(invoice.notes || '')
   const [paymentMethod, setPaymentMethod] = useState(invoice.paymentMethod || 'cash')
   const [status, setStatus] = useState(invoice.status || 'pending')
+  const [applyTax, setApplyTax] = useState<boolean>(invoice.tax > 0)
 
   // Cálculos
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
-  const taxAmount = subtotal * (taxRate / 100)
+  const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
 
   const updateItem = (idx: number, field: string, value: string) => {
@@ -968,6 +978,7 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
         notes: notes || null,
         paymentMethod,
         status,
+        applyTax,
       },
     }, {
       onSuccess: () => {
@@ -1059,14 +1070,20 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
 
           {/* Totales */}
           <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Aplicar impuesto ({taxRate}%)</span>
+              <Switch checked={applyTax} onCheckedChange={setApplyTax} />
+            </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal, symbol)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
-              <span>{formatCurrency(taxAmount, symbol)}</span>
-            </div>
+            {applyTax && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
+                <span>{formatCurrency(taxAmount, symbol)}</span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">
               <span>Total</span>
               <span>{formatCurrency(total, symbol)}</span>

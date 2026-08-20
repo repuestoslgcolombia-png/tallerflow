@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
 
     // Calcular totales desde items (o usar datos de la orden)
     const taxRate = settings?.taxRate || 0
+    const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : true
     let itemsData: any[] = []
 
     if (body.items && Array.isArray(body.items) && body.items.length > 0) {
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     const subtotal = itemsData.reduce((sum, it) => sum + it.total, 0)
-    const taxAmount = subtotal * (taxRate / 100)
+    const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
     const total = subtotal + taxAmount
 
     const invoice = await db.$transaction(async (tx) => {
