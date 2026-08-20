@@ -40,6 +40,7 @@ export async function PUT(req: NextRequest) {
         currency: body.currency !== undefined ? body.currency : undefined,
         currencySymbol: body.currencySymbol !== undefined ? body.currencySymbol : undefined,
         logoUrl: body.logoUrl !== undefined ? body.logoUrl : undefined,
+        warrantyPolicy: body.warrantyPolicy !== undefined ? body.warrantyPolicy : undefined,
       },
     })
 

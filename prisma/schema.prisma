@@ -488,6 +488,7 @@ model WorkshopSetting {
   currency      String   @default("COP")
   currencySymbol String  @default("$")
   logoUrl       String?
+  warrantyPolicy String?
   counterWorkOrder Int   @default(0)
   counterQuote  Int      @default(0)
   counterInvoice Int     @default(0)

@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
     const tallerName = settings?.name || 'TallerFlow'
     const symbol = settings?.currencySymbol || '$'
+    const warrantyPolicy = settings?.warrantyPolicy || ''
 
     // Verificar conexión de WhatsApp
     const conn = await db.whatsAppConnection.findUnique({ where: { id: 'default' } })
@@ -83,6 +84,12 @@ Hola *${customerName}*, aquí están los detalles de tu factura:
 
     if (invoice.notes) {
       message += `\n📝 *Notas:* ${invoice.notes}
+`
+    }
+
+    if (warrantyPolicy) {
+      message += `\n📜 *Política de garantías:*
+${warrantyPolicy}
 `
     }
 

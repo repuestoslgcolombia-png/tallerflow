@@ -785,6 +785,13 @@ function InvoiceDetailDialog({ invoice, onClose, onPay, onEdit }: { invoice: any
             </div>
           )}
 
+          {settings?.warrantyPolicy && (
+            <div className="rounded-md border-l-4 border-l-emerald-300 bg-emerald-50 p-3 text-sm dark:bg-emerald-950/20">
+              <p className="text-[11px] font-semibold uppercase text-emerald-700">Política de garantías</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-emerald-900 dark:text-emerald-200">{settings.warrantyPolicy}</p>
+            </div>
+          )}
+
           {invoice.paymentMethod && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Método de pago:</span>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon, Users, Plus, Loader2, UserRound } from 'lucide-react'
+import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon, Users, Plus, Loader2, UserRound, ShieldCheck } from 'lucide-react'
 import { useSettings, useSettingsMutation, useUsers, useUserMutations } from '@/lib/hooks/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ interface SettingsForm {
   currency: string
   currencySymbol: string
   taxRate: number | string
+  warrantyPolicy: string
 }
 
 export function SettingsView() {
@@ -223,6 +224,7 @@ function SettingsForm({ settings }: { settings: any }) {
     currency: settings.currency || 'COP',
     currencySymbol: settings.currencySymbol || '$',
     taxRate: settings.taxRate ?? 0,
+    warrantyPolicy: settings.warrantyPolicy || '',
   })
   const [dirty, setDirty] = useState(false)
 
@@ -249,6 +251,7 @@ function SettingsForm({ settings }: { settings: any }) {
       currency: settings.currency || 'COP',
       currencySymbol: settings.currencySymbol || '$',
       taxRate: settings.taxRate ?? 0,
+      warrantyPolicy: settings.warrantyPolicy || '',
     })
     setDirty(false)
   }
@@ -336,6 +339,19 @@ function SettingsForm({ settings }: { settings: any }) {
                 placeholder="https://..."
               />
               <p className="text-[11px] text-muted-foreground">Se mostrará en documentos PDF generados</p>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="warrantyPolicy" className="flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-muted-foreground" /> Política de garantías
+              </Label>
+              <Textarea
+                id="warrantyPolicy"
+                value={form.warrantyPolicy}
+                onChange={(e) => update('warrantyPolicy', e.target.value)}
+                placeholder="Ej: Todas las reparaciones incluyen 3 meses de garantía sobre mano de obra y repuestos instalados..."
+                rows={3}
+              />
+              <p className="text-[11px] text-muted-foreground">Se imprimirá en todas las facturas y cotizaciones generadas</p>
             </div>
           </div>
         </CardContent>

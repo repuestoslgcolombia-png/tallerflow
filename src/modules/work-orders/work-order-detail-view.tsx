@@ -111,6 +111,7 @@ import {
   useInvoiceMutations,
   useRepairGuideSuggestions,
   useRepairGuideMutations,
+  useSettings,
 } from '@/lib/hooks/api'
 import {
   WORK_ORDER_STATUS,
@@ -1722,6 +1723,7 @@ function ViewQuoteDialog({
   quote: any | null
   onOpenChange: (v: boolean) => void
 }) {
+  const { data: settings } = useSettings()
   if (!quote) return null
 
   const copyLink = () => {
@@ -1813,6 +1815,13 @@ function ViewQuoteDialog({
               <div className="rounded-md bg-muted/30 p-3 text-sm">
                 <p className="text-xs font-medium text-muted-foreground">Notas</p>
                 <p className="whitespace-pre-wrap">{quote.notes}</p>
+              </div>
+            )}
+
+            {settings?.warrantyPolicy && (
+              <div className="rounded-md bg-emerald-50 p-3 text-sm dark:bg-emerald-950/20">
+                <p className="text-xs font-medium text-emerald-700">Política de garantías</p>
+                <p className="mt-0.5 whitespace-pre-wrap text-emerald-900 dark:text-emerald-200">{settings.warrantyPolicy}</p>
               </div>
             )}
 
