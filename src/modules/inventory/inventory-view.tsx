@@ -935,9 +935,9 @@ function PartDetailDialog({
 
   return (
     <Dialog open={!!partId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="grid grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-[92dvh] sm:h-auto sm:max-h-[85vh] sm:max-w-2xl">
         {isLoading || !part ? (
-          <div className="space-y-3 p-6">
+          <div className="space-y-3">
             <Skeleton className="h-7 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-32 w-full" />
@@ -1016,7 +1016,7 @@ function PartDetailContent({
         )}
       </DialogHeader>
 
-      <ScrollArea className="flex-1 -mx-6 px-6 max-h-[60vh]">
+      <ScrollArea className="min-h-0 -mx-6 px-6">
         <div className="space-y-5 pb-2">
           {/* ESPECIFICACIONES TÉCNICAS */}
           <div>
@@ -1199,7 +1199,7 @@ function PartDetailContent({
         </div>
       </ScrollArea>
 
-      <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+      <DialogFooter className="shrink-0 flex flex-col gap-2 sm:flex-row sm:gap-2">
         <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>
           Cerrar
         </Button>
@@ -1355,7 +1355,7 @@ function PartFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
+      <DialogContent className="grid grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-[92dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isEdit ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
@@ -1368,8 +1368,8 @@ function PartFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 -mx-6 px-6 max-h-[65vh]">
+        <form onSubmit={handleSubmit} className="min-h-0 flex flex-col">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
             <div className="space-y-5 pb-2">
               {/* INFORMACIÓN BÁSICA */}
               <FormSection title="Información básica" icon={<Package className="h-4 w-4" />}>
@@ -1605,11 +1605,11 @@ function PartFormDialog({
             </div>
           </ScrollArea>
 
-          <DialogFooter className="mt-4 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="mt-4 shrink-0 border-t pt-4">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
               {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEdit ? 'Guardar cambios' : 'Crear repuesto'}
             </Button>
@@ -1667,7 +1667,7 @@ function AdjustStockDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[92dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
