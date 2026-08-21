@@ -436,7 +436,23 @@ export function InventoryView() {
               hasFilters={!!search || categoryFilter !== 'all' || lowStockOnly}
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* MÓVIL: cards compactas */}
+              <div className="md:hidden divide-y">
+                {(parts as Part[]).map((part) => (
+                  <PartCard
+                    key={part.id}
+                    part={part}
+                    onOpen={() => setDetailPartId(part.id)}
+                    onAdjust={() => setAdjustPart(part)}
+                    onEdit={() => setEditingPart(part)}
+                    onDeactivate={() => setDeactivatePart(part)}
+                  />
+                ))}
+              </div>
+
+              {/* DESKTOP: tabla */}
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -614,7 +630,8 @@ export function InventoryView() {
                   })}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -717,7 +734,9 @@ function StatCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-0.5">
             <p className="text-xs text-muted-foreground truncate">{label}</p>
-            <p className="text-lg sm:text-xl font-bold tracking-tight truncate">{value}</p>
+            <p className="text-base min-[400px]:text-lg sm:text-xl font-bold tracking-tight tabular-nums break-all">
+              {value}
+            </p>
             {subtitle && <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>}
           </div>
           <div className={cn('rounded-md p-1.5 shrink-0', color)}>{icon}</div>
@@ -790,6 +809,111 @@ function EmptyState({ onCreate, hasFilters }: { onCreate: () => void; hasFilters
           Nuevo Repuesto
         </Button>
       )}
+    </div>
+  )
+}
+
+// ============== PART CARD (MÓVIL) ==============
+function PartCard({
+  part,
+  onOpen,
+  onAdjust,
+  onEdit,
+  onDeactivate,
+}: {
+  part: Part
+  onOpen: () => void
+  onAdjust: () => void
+  onEdit: () => void
+  onDeactivate: () => void
+}) {
+  const cat = part.category ? PART_CATEGORIES[part.category as PartCategoryKey] : null
+  const stockBadge = getStockBadge(part.stock, part.minStock)
+  const margin = part.unitPrice - part.unitCost
+  const marginPct = part.unitCost > 0 ? (margin / part.unitCost) * 100 : 0
+
+  return (
+    <div
+      className="flex items-start gap-3 px-4 py-3 active:bg-muted/50 cursor-pointer transition-colors"
+      onClick={onOpen}
+    >
+      {/* Punto de estado de stock */}
+      <span
+        className={cn(
+          'mt-1.5 h-2.5 w-2.5 rounded-full shrink-0',
+          getStockColor(part.stock, part.minStock)
+        )}
+      />
+
+      {/* Contenido */}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-medium leading-tight truncate">{part.name}</div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono truncate">
+              <span>{part.sku}</span>
+              {part.brand && <span className="font-sans">· {part.brand}</span>}
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 -mr-2">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={onOpen}>
+                <Eye className="h-4 w-4 mr-2" />
+                Ver detalle
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAdjust}>
+                <Settings className="h-4 w-4 mr-2" />
+                Ajustar stock
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onDeactivate}
+                className="text-rose-600 focus:text-rose-700"
+              >
+                <TrendingDown className="h-4 w-4 mr-2" />
+                Desactivar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {cat && part.category && (
+            <Badge variant="outline" className={cn('gap-1 whitespace-nowrap', cat.color)}>
+              <CategoryIcon category={part.category} className="h-3 w-3" />
+              {cat.label}
+            </Badge>
+          )}
+          <Badge variant="outline" className={cn('text-xs', stockBadge.color)}>
+            {stockBadge.label}
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-sm pt-0.5">
+          <div className="leading-tight min-w-0">
+            <span className="text-xs text-muted-foreground">Stock: </span>
+            <span className="font-medium">{part.stock}</span>{' '}
+            <span className="text-xs text-muted-foreground">{part.unit}</span>
+          </div>
+          <div className="text-right leading-tight shrink-0">
+            <div className="font-medium">{formatCurrency(part.unitPrice)}</div>
+            {margin > 0 && (
+              <div className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                +{marginPct.toFixed(0)}% margen
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -900,7 +1024,7 @@ function PartDetailContent({
               <Settings className="h-4 w-4 text-muted-foreground" />
               Especificaciones técnicas
             </h4>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
               {specs.map((spec) => (
                 <div
                   key={spec.label}
@@ -1031,17 +1155,17 @@ function PartDetailContent({
                   return (
                     <div
                       key={m.id}
-                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm"
+                      className="rounded-md border px-3 py-2 text-sm space-y-1"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className={cn('text-xs', mt.color)}>
+                        <Badge variant="outline" className={cn('text-xs shrink-0', mt.color)}>
                           {mt.label}
                         </Badge>
                         <span className="text-muted-foreground truncate">
                           {m.reason || 'Sin motivo'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center justify-between gap-2">
                         <span
                           className={cn(
                             'font-mono font-medium',
@@ -1055,14 +1179,16 @@ function PartDetailContent({
                           {sign}
                           {m.quantity}
                         </span>
-                        {m.workOrder?.code && (
-                          <Badge variant="secondary" className="text-xs font-mono">
-                            {m.workOrder.code}
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {timeAgo(m.createdAt)}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {m.workOrder?.code && (
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {m.workOrder.code}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {timeAgo(m.createdAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )
@@ -1073,15 +1199,15 @@ function PartDetailContent({
         </div>
       </ScrollArea>
 
-      <DialogFooter className="gap-2 sm:gap-2">
-        <Button variant="outline" onClick={onClose}>
+      <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+        <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>
           Cerrar
         </Button>
-        <Button variant="outline" onClick={onAdjust}>
+        <Button variant="outline" className="w-full sm:w-auto" onClick={onAdjust}>
           <Settings className="h-4 w-4 mr-2" />
           Ajustar stock
         </Button>
-        <Button onClick={onEdit}>
+        <Button className="w-full sm:w-auto" onClick={onEdit}>
           <Pencil className="h-4 w-4 mr-2" />
           Editar
         </Button>
