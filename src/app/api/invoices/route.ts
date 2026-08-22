@@ -107,6 +107,17 @@ export async function POST(req: NextRequest) {
     const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
     const total = subtotal + taxAmount
 
+    // Coherencia: una factura "pagada" siempre registra el pago completo
+    let initialPaid = body.paid !== undefined ? Number(body.paid) : 0
+    let status = body.status || 'pending'
+    if (status === 'paid') initialPaid = total
+    if (initialPaid >= total && total > 0) {
+      initialPaid = total
+      status = 'paid'
+    } else if (initialPaid > 0) {
+      status = 'partial'
+    }
+
     const invoice = await db.$transaction(async (tx) => {
       await tx.workshopSetting.update({
         where: { id: 'default' },
@@ -121,11 +132,11 @@ export async function POST(req: NextRequest) {
           subtotal,
           tax: taxAmount,
           total,
-          paid: body.paid !== undefined ? Number(body.paid) : 0,
+          paid: initialPaid,
           paymentMethod: body.paymentMethod || null,
-          status: body.status || 'pending',
+          status,
           notes: body.notes || null,
-          paidAt: body.status === 'paid' || (body.paid && Number(body.paid) >= total) ? new Date() : null,
+          paidAt: status === 'paid' ? new Date() : null,
           items: { create: itemsData },
         },
         include: {
@@ -140,7 +151,7 @@ export async function POST(req: NextRequest) {
         where: { id: body.workOrderId },
         data: {
           totalAmount: total,
-          totalPaid: Number(body.paid) || 0,
+          totalPaid: initialPaid,
         },
       })
 

@@ -82,20 +82,35 @@ export function InvoicesView() {
   const { data: allInvoices } = useInvoices({})
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const symbol = settings?.currencySymbol || '$'
+  const activeInvoices = (allInvoices || []).filter((i: any) => i.status !== 'cancelled')
   const stats = {
     total: allInvoices?.length || 0,
-    pending: allInvoices?.filter((i: any) => i.status === 'pending').length || 0,
+    pending: allInvoices?.filter((i: any) => i.status === 'pending' || i.status === 'partial').length || 0,
     paid: allInvoices?.filter((i: any) => i.status === 'paid').length || 0,
-    monthRevenue: allInvoices
-      ?.filter((i: any) => i.status === 'paid' && i.paidAt && new Date(i.paidAt) >= startOfMonth)
-      .reduce((sum: number, i: any) => sum + (i.paid || 0), 0) || 0,
+    // Dinero efectivamente recibido este mes (incluye abonos de facturas parciales)
+    monthRevenue:
+      activeInvoices
+        .filter((i: any) => (i.paid || 0) > 0 && i.paidAt && new Date(i.paidAt) >= startOfMonth)
+        .reduce((sum: number, i: any) => sum + (i.paid || 0), 0) || 0,
+    totalBilled: activeInvoices.reduce((sum: number, i: any) => sum + (i.total || 0), 0),
+    totalCollected: activeInvoices.reduce((sum: number, i: any) => sum + (i.paid || 0), 0),
+    outstanding: activeInvoices.reduce(
+      (sum: number, i: any) => sum + Math.max(0, (i.total || 0) - (i.paid || 0)),
+      0
+    ),
   }
 
-  const statCards = [
+  const financeCards = [
+    { label: 'Total Facturado', value: formatCurrency(stats.totalBilled, symbol), icon: Receipt, color: 'bg-slate-100 text-slate-600' },
+    { label: 'Total Cobrado', value: formatCurrency(stats.totalCollected, symbol), icon: Wallet, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Saldo por Cobrar', value: formatCurrency(stats.outstanding, symbol), icon: AlertCircle, color: 'bg-amber-100 text-amber-600', highlight: stats.outstanding > 0 },
+    { label: 'Ingresos del Mes', value: formatCurrency(stats.monthRevenue, symbol), icon: TrendingUp, color: 'bg-violet-100 text-violet-600', hint: 'Incluye abonos' },
+  ]
+  const countCards = [
     { key: 'all', label: 'Total Facturas', value: stats.total, icon: Receipt, color: 'bg-slate-100 text-slate-600' },
     { key: 'pending', label: 'Pendientes', value: stats.pending, icon: Clock, color: 'bg-amber-100 text-amber-600' },
     { key: 'paid', label: 'Pagadas', value: stats.paid, icon: Check, color: 'bg-emerald-100 text-emerald-600' },
-    { key: 'revenue', label: 'Ingresos del Mes', value: formatCurrency(stats.monthRevenue, settings?.currencySymbol || '$'), icon: TrendingUp, color: 'bg-violet-100 text-violet-600' },
   ]
 
   return (
@@ -116,24 +131,46 @@ export function InvoicesView() {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Métricas financieras */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {statCards.map((s) => {
+        {financeCards.map((s) => {
           const Icon = s.icon
-          const clickable = s.key !== 'revenue'
           return (
-            <Card
-              key={s.key}
-              className={cn(clickable && 'cursor-pointer transition-shadow hover:shadow-md')}
-              onClick={() => clickable && setStatusFilter(s.key === 'all' ? 'all' : s.key)}
-            >
+            <Card key={s.label} className={cn(s.highlight && 'border-amber-300 dark:border-amber-700')}>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', s.color)}>
                   <Icon className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xl font-bold leading-tight lg:text-2xl">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="truncate text-lg font-bold leading-tight tabular-nums lg:text-xl">{s.value}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {s.label}
+                    {s.hint && <span className="hidden text-[10px] sm:inline"> · {s.hint}</span>}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Conteos (clic filtra la tabla) */}
+      <div className="grid grid-cols-3 gap-3">
+        {countCards.map((s) => {
+          const Icon = s.icon
+          return (
+            <Card
+              key={s.key}
+              className="cursor-pointer transition-shadow hover:shadow-md"
+              onClick={() => setStatusFilter(s.key === 'all' ? 'all' : s.key)}
+            >
+              <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+                <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg sm:size-10', s.color)}>
+                  <Icon className="size-4 sm:size-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold leading-tight tabular-nums lg:text-2xl">{s.value}</p>
+                  <p className="truncate text-[10px] text-muted-foreground sm:text-xs">{s.label}</p>
                 </div>
               </CardContent>
             </Card>

@@ -128,6 +128,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
       const total = subtotal + taxAmount
 
+      // Ajustar paid/status para mantener coherencia con el nuevo total
+      let nextPaid = existing.paid
+      let nextStatus = body.status || existing.status
+      if (existing.status !== 'cancelled') {
+        if (nextPaid >= total) {
+          nextPaid = total
+          nextStatus = 'paid'
+        } else if (existing.status === 'paid') {
+          // Era pagada y el nuevo total es mayor: queda con saldo
+          nextStatus = 'partial'
+        }
+      }
+
       // Borrar items existentes y recrear
       await db.invoiceItem.deleteMany({ where: { invoiceId: id } })
 
@@ -137,9 +150,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           subtotal,
           tax: taxAmount,
           total,
+          paid: nextPaid,
+          status: nextStatus,
+          paidAt:
+            nextStatus === 'paid' && !existing.paidAt ? new Date() : existing.paidAt,
           notes: body.notes !== undefined ? body.notes : undefined,
           paymentMethod: body.paymentMethod !== undefined ? body.paymentMethod : undefined,
-          status: body.status || undefined,
           items: { create: itemsData },
         },
         include: { customer: true, workOrder: { include: { device: true } }, items: true },
@@ -157,15 +173,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // Actualización normal
+    // Mantener coherencia paid/status cuando se cambia el estado manualmente
+    const nextStatus = body.status || undefined
+    const data: any = {
+      notes: body.notes !== undefined ? body.notes : undefined,
+      paymentMethod: body.paymentMethod !== undefined ? body.paymentMethod : undefined,
+      status: nextStatus,
+    }
+    if (nextStatus === 'paid') {
+      data.paid = existing.total
+      data.paidAt = existing.paidAt || new Date()
+    } else if (nextStatus === 'pending' || nextStatus === 'cancelled') {
+      data.paid = 0
+      data.paidAt = null
+    }
+
     const invoice = await db.invoice.update({
       where: { id },
-      data: {
-        notes: body.notes !== undefined ? body.notes : undefined,
-        paymentMethod: body.paymentMethod !== undefined ? body.paymentMethod : undefined,
-        status: body.status || undefined,
-      },
+      data,
       include: { customer: true, workOrder: { include: { device: true } }, items: true },
     })
+
+    // Sincronizar la orden vinculada
+    if (existing.workOrderId && data.paid !== undefined) {
+      await db.workOrder.update({
+        where: { id: existing.workOrderId },
+        data: { totalPaid: data.paid },
+      })
+    }
     return ok(invoice)
   } catch (e) {
     return serverError('Error al actualizar factura', e)
