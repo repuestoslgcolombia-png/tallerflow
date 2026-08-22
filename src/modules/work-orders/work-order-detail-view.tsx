@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 
 import * as React from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
@@ -15,6 +16,7 @@ import {
   Check,
   X,
   Plus,
+  Minus,
   Loader2,
   CheckCircle2,
   MessageSquare,
@@ -32,6 +34,7 @@ import {
   DollarSign,
   Link as LinkIcon,
   Package,
+  PackageSearch,
   History,
   AlertTriangle,
   Receipt,
@@ -39,6 +42,7 @@ import {
   BookOpen,
   Sparkles,
   BookmarkPlus,
+  Search,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -112,6 +116,8 @@ import {
   useRepairGuideSuggestions,
   useRepairGuideMutations,
   useSettings,
+  useParts,
+  usePartMutations,
 } from '@/lib/hooks/api'
 import {
   WORK_ORDER_STATUS,
@@ -168,6 +174,7 @@ export function WorkOrderDetailView() {
   const { data, isLoading, isError } = useWorkOrder(selectedWorkOrderId)
   const { patch, remove, update } = useWorkOrderMutations()
   const { update: updateQuote } = useQuoteMutations()
+  const { data: settings } = useSettings()
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
@@ -177,6 +184,7 @@ export function WorkOrderDetailView() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [createInvoiceOpen, setCreateInvoiceOpen] = React.useState(false)
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
+  const [addPartOpen, setAddPartOpen] = React.useState(false)
 
   const order: any = data
 
@@ -184,7 +192,7 @@ export function WorkOrderDetailView() {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" className="gap-1" onClick={() => navigate('work-orders')}>
-          <ArrowLeft className="size-4" /> Volver a Órdenes
+          <ArrowLeft className="size-4" /> Volver a Ã“rdenes
         </Button>
         <Skeleton className="h-20 w-full" />
         <div className="grid gap-4 lg:grid-cols-3">
@@ -207,7 +215,7 @@ export function WorkOrderDetailView() {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" className="gap-1" onClick={() => navigate('work-orders')}>
-          <ArrowLeft className="size-4" /> Volver a Órdenes
+          <ArrowLeft className="size-4" /> Volver a Ã“rdenes
         </Button>
         <Card>
           <CardContent className="flex flex-col items-center justify-center gap-3 p-12 text-center">
@@ -216,7 +224,7 @@ export function WorkOrderDetailView() {
               No se pudo cargar la orden. Puede que haya sido eliminada.
             </p>
             <Button onClick={() => navigate('work-orders')} variant="outline">
-              Volver a Órdenes
+              Volver a Ã“rdenes
             </Button>
           </CardContent>
         </Card>
@@ -255,7 +263,7 @@ export function WorkOrderDetailView() {
     <div className="space-y-4">
       {/* Back button */}
       <Button variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => navigate('work-orders')}>
-        <ArrowLeft className="size-4" /> Volver a Órdenes
+        <ArrowLeft className="size-4" /> Volver a Ã“rdenes
       </Button>
 
       {/* Header */}
@@ -267,7 +275,7 @@ export function WorkOrderDetailView() {
             <PriorityBadge priority={order.priority} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Creada {timeAgo(order.createdAt)} · Recibida {formatDateTime(order.receivedAt)}
+            Creada {timeAgo(order.createdAt)} Â· Recibida {formatDateTime(order.receivedAt)}
           </p>
         </div>
 
@@ -281,7 +289,7 @@ export function WorkOrderDetailView() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>Cambiar a…</DropdownMenuLabel>
+              <DropdownMenuLabel>Cambiar aâ€¦</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {nextStatuses.length === 0 ? (
                 <div className="px-2 py-3 text-center text-xs text-muted-foreground">
@@ -309,7 +317,7 @@ export function WorkOrderDetailView() {
             onClick={() => setCreateQuoteOpen(true)}
           >
             <FileText className="size-3.5" />
-            Crear Cotización
+            Crear CotizaciÃ³n
           </Button>
 
           {order.status === 'delivered' && !order.invoice && (
@@ -354,12 +362,12 @@ export function WorkOrderDetailView() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* LEFT COLUMN */}
         <div className="space-y-4 lg:col-span-2">
-          {/* Información de la Orden */}
+          {/* InformaciÃ³n de la Orden */}
           <Card>
             <CardHeader className="flex flex-row items-start justify-between space-y-0">
               <div>
-                <CardTitle className="text-base">Información de la Orden</CardTitle>
-                <CardDescription>Detalles del problema y diagnóstico</CardDescription>
+                <CardTitle className="text-base">InformaciÃ³n de la Orden</CardTitle>
+                <CardDescription>Detalles del problema y diagnÃ³stico</CardDescription>
               </div>
               <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-3.5" />
@@ -377,7 +385,7 @@ export function WorkOrderDetailView() {
               {order.diagnosisText && (
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Diagnóstico
+                    DiagnÃ³stico
                   </p>
                   <p className="text-sm whitespace-pre-wrap">{order.diagnosisText}</p>
                 </div>
@@ -400,12 +408,12 @@ export function WorkOrderDetailView() {
                 <DateField
                   icon={<Clock className="size-3.5" />}
                   label="Estimada"
-                  value={order.estimatedDoneAt ? formatDate(order.estimatedDoneAt) : '—'}
+                  value={order.estimatedDoneAt ? formatDate(order.estimatedDoneAt) : 'â€”'}
                 />
                 <DateField
                   icon={<Check className="size-3.5" />}
                   label="Entregada"
-                  value={order.deliveredAt ? formatDate(order.deliveredAt) : '—'}
+                  value={order.deliveredAt ? formatDate(order.deliveredAt) : 'â€”'}
                 />
               </div>
             </CardContent>
@@ -496,7 +504,7 @@ export function WorkOrderDetailView() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <History className="size-4" />
-                Línea de Tiempo
+                LÃ­nea de Tiempo
               </CardTitle>
               <CardDescription>Eventos y cambios registrados</CardDescription>
             </CardHeader>
@@ -528,7 +536,7 @@ export function WorkOrderDetailView() {
                             </p>
                           )}
                           <p className="text-[11px] text-muted-foreground">
-                            {ev.createdBy && <span>{ev.createdBy} · </span>}
+                            {ev.createdBy && <span>{ev.createdBy} Â· </span>}
                             {timeAgo(ev.createdAt)}
                           </p>
                         </div>
@@ -546,7 +554,7 @@ export function WorkOrderDetailView() {
               <div>
                 <CardTitle className="text-base">Cotizaciones</CardTitle>
                 <CardDescription>
-                  {order.quotes?.length || 0} cotización(es) para esta orden
+                  {order.quotes?.length || 0} cotizaciÃ³n(es) para esta orden
                 </CardDescription>
               </div>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
@@ -566,7 +574,7 @@ export function WorkOrderDetailView() {
                     </p>
                   </div>
                   <Button size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
-                    <Plus className="size-4" /> Crear Cotización
+                    <Plus className="size-4" /> Crear CotizaciÃ³n
                   </Button>
                 </div>
               ) : (
@@ -586,7 +594,7 @@ export function WorkOrderDetailView() {
                             <QuoteStatusBadge status={q.status} />
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {q.items?.length || 0} ítem(s) · {formatCurrency(q.total || 0)}
+                            {q.items?.length || 0} Ã­tem(s) Â· {formatCurrency(q.total || 0)}
                           </p>
                         </div>
                       </div>
@@ -668,10 +676,10 @@ export function WorkOrderDetailView() {
             </CardContent>
           </Card>
 
-          {/* Técnico Asignado */}
+          {/* TÃ©cnico Asignado */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Técnico Asignado</CardTitle>
+              <CardTitle className="text-base">TÃ©cnico Asignado</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {order.technician ? (
@@ -701,7 +709,7 @@ export function WorkOrderDetailView() {
                 onClick={() => setAssignTechOpen(true)}
               >
                 <UserCog className="size-3.5" />
-                {order.technician ? 'Cambiar técnico' : 'Asignar técnico'}
+                {order.technician ? 'Cambiar tÃ©cnico' : 'Asignar tÃ©cnico'}
               </Button>
             </CardContent>
           </Card>
@@ -788,12 +796,12 @@ export function WorkOrderDetailView() {
             </CardContent>
           </Card>
 
-          {/* Diagnóstico */}
+          {/* DiagnÃ³stico */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <FileText className="size-4" />
-                Diagnóstico
+                DiagnÃ³stico
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -805,13 +813,13 @@ export function WorkOrderDetailView() {
                   </div>
                   {order.diagnosis.rootCause && (
                     <div>
-                      <p className="text-xs font-medium uppercase text-muted-foreground">Causa raíz</p>
+                      <p className="text-xs font-medium uppercase text-muted-foreground">Causa raÃ­z</p>
                       <p className="whitespace-pre-wrap">{order.diagnosis.rootCause}</p>
                     </div>
                   )}
                   {order.diagnosis.recommendation && (
                     <div>
-                      <p className="text-xs font-medium uppercase text-muted-foreground">Recomendación</p>
+                      <p className="text-xs font-medium uppercase text-muted-foreground">RecomendaciÃ³n</p>
                       <p className="whitespace-pre-wrap">{order.diagnosis.recommendation}</p>
                     </div>
                   )}
@@ -829,19 +837,19 @@ export function WorkOrderDetailView() {
                     onClick={() => setSaveGuideOpen(true)}
                   >
                     <BookmarkPlus className="size-3.5" />
-                    Guardar como guía
+                    Guardar como guÃ­a
                   </Button>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">Sin diagnóstico.</p>
+                  <p className="text-sm text-muted-foreground">Sin diagnÃ³stico.</p>
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full gap-1.5"
                     onClick={() => setDiagnosisOpen(true)}
                   >
-                    <Plus className="size-3.5" /> Agregar diagnóstico
+                    <Plus className="size-3.5" /> Agregar diagnÃ³stico
                   </Button>
                 </>
               )}
@@ -853,34 +861,63 @@ export function WorkOrderDetailView() {
 
           {/* Repuestos Utilizados */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Package className="size-4" />
-                Repuestos Utilizados
-              </CardTitle>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+              <div className="space-y-1.5">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Package className="size-4" />
+                  Repuestos Utilizados
+                </CardTitle>
+                <CardDescription>
+                  Salidas del inventario vinculadas a esta orden
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1 shrink-0" onClick={() => setAddPartOpen(true)}>
+                <Plus className="size-4" /> Agregar
+              </Button>
             </CardHeader>
             <CardContent>
               {!order.partsUsed || order.partsUsed.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No se han registrado salidas de repuestos.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setAddPartOpen(true)}
+                  className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center transition-colors hover:bg-muted/50"
+                >
+                  <PackageSearch className="size-7 text-muted-foreground" />
+                  <span className="text-sm font-medium">No se han registrado salidas de repuestos</span>
+                  <span className="text-xs text-muted-foreground">Haz clic para tomar repuestos del inventario</span>
+                </button>
               ) : (
-                <ul className="space-y-2">
-                  {order.partsUsed.map((m: any) => (
-                    <li
-                      key={m.id}
-                      className="flex items-center justify-between gap-2 text-sm"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{m.part?.name || 'Repuesto'}</p>
-                        <p className="font-mono text-xs text-muted-foreground">{m.part?.sku}</p>
-                      </div>
-                      <Badge variant="outline" className="bg-rose-50 text-rose-700">
-                        -{m.quantity}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="divide-y">
+                    {order.partsUsed.map((m: any) => {
+                      const subtotal = (m.part?.unitPrice || m.part?.unitCost || 0) * (m.quantity || 0)
+                      return (
+                        <li key={m.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{m.part?.name || 'Repuesto'}</p>
+                            <p className="font-mono text-xs text-muted-foreground">
+                              {m.part?.sku}
+                              {timeAgo(m.createdAt) && ` Â· ${timeAgo(m.createdAt)}`}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                              âˆ’{m.quantity}
+                            </Badge>
+                            {subtotal > 0 && (
+                              <p className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
+                                â‰ˆ {formatCurrency(subtotal, settings?.currencySymbol || '$')}
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    El valor es referencial; la cobranza se gestiona vÃ­a cotizaciÃ³n o factura.
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -913,6 +950,11 @@ export function WorkOrderDetailView() {
         onOpenChange={setSaveGuideOpen}
         order={order}
       />
+      <AddPartDialog
+        open={addPartOpen}
+        onOpenChange={setAddPartOpen}
+        order={order}
+      />
       <ViewQuoteDialog
         quote={viewQuote}
         onOpenChange={(v) => !v && setViewQuote(null)}
@@ -922,9 +964,9 @@ export function WorkOrderDetailView() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar orden {order.code}?</AlertDialogTitle>
+            <AlertDialogTitle>Â¿Eliminar orden {order.code}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente la orden,
+              Esta acciÃ³n no se puede deshacer. Se eliminarÃ¡ permanentemente la orden,
               su timeline, cotizaciones y movimientos asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1033,7 +1075,7 @@ function EditOrderDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar Orden</DialogTitle>
-          <DialogDescription>Modifica la información de la orden.</DialogDescription>
+          <DialogDescription>Modifica la informaciÃ³n de la orden.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -1067,7 +1109,7 @@ function EditOrderDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Técnico</Label>
+              <Label>TÃ©cnico</Label>
               <Select value={technicianId} onValueChange={setTechnicianId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Sin asignar" />
@@ -1134,11 +1176,11 @@ function AssignTechDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Asignar Técnico</DialogTitle>
-          <DialogDescription>Selecciona el técnico responsable.</DialogDescription>
+          <DialogTitle>Asignar TÃ©cnico</DialogTitle>
+          <DialogDescription>Selecciona el tÃ©cnico responsable.</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label>Técnico</Label>
+          <Label>TÃ©cnico</Label>
           <Select value={techId} onValueChange={setTechId}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Sin asignar" />
@@ -1190,18 +1232,18 @@ function DiagnosisDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar Diagnóstico</DialogTitle>
+          <DialogTitle>Agregar DiagnÃ³stico</DialogTitle>
           <DialogDescription>
-            Registra el diagnóstico técnico. Se guardará en el campo de texto de la orden.
+            Registra el diagnÃ³stico tÃ©cnico. Se guardarÃ¡ en el campo de texto de la orden.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label>Diagnóstico</Label>
+          <Label>DiagnÃ³stico</Label>
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={5}
-            placeholder="Describe los hallazgos, causa raíz y recomendación…"
+            placeholder="Describe los hallazgos, causa raÃ­z y recomendaciÃ³nâ€¦"
           />
         </div>
         <DialogFooter>
@@ -1240,13 +1282,13 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
           Base de Conocimiento
         </CardTitle>
         <CardDescription>
-          Guías relacionadas con este equipo
+          GuÃ­as relacionadas con este equipo
         </CardDescription>
       </CardHeader>
       <CardContent>
         {!deviceType ? (
           <p className="text-sm text-muted-foreground">
-            Agrega un equipo a la orden para ver guías sugeridas.
+            Agrega un equipo a la orden para ver guÃ­as sugeridas.
           </p>
         ) : isLoading ? (
           <div className="space-y-2">
@@ -1256,7 +1298,7 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
         ) : list.length === 0 ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Sin guías para este equipo todavía.
+              Sin guÃ­as para este equipo todavÃ­a.
             </p>
             {order.diagnosis && (
               <Button
@@ -1266,7 +1308,7 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
                 onClick={onCreateGuide}
               >
                 <Sparkles className="size-3.5" />
-                Crear guía desde el diagnóstico
+                Crear guÃ­a desde el diagnÃ³stico
               </Button>
             )}
           </div>
@@ -1285,13 +1327,13 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
                       {dt && <span>{dt.label}</span>}
                       {g.brand && (
                         <>
-                          <span className="text-muted-foreground/40">·</span>
+                          <span className="text-muted-foreground/40">Â·</span>
                           <span>{g.brand}</span>
                         </>
                       )}
                       {g.estimatedHours > 0 && (
                         <>
-                          <span className="text-muted-foreground/40">·</span>
+                          <span className="text-muted-foreground/40">Â·</span>
                           <span>{g.estimatedHours}h</span>
                         </>
                       )}
@@ -1348,7 +1390,7 @@ function KBGuideViewDialog({
               <div className="space-y-4 pb-2">
                 {guide.symptoms && (
                   <div>
-                    <p className="text-xs font-medium uppercase text-muted-foreground">Síntomas</p>
+                    <p className="text-xs font-medium uppercase text-muted-foreground">SÃ­ntomas</p>
                     <p className="text-sm">{guide.symptoms}</p>
                   </div>
                 )}
@@ -1372,7 +1414,7 @@ function KBGuideViewDialog({
   )
 }
 
-// ============== Guardar como guía ==============
+// ============== Guardar como guÃ­a ==============
 function SaveAsGuideDialog({
   open,
   onOpenChange,
@@ -1397,7 +1439,7 @@ function SaveAsGuideDialog({
         ? [diag.findings, diag.rootCause, diag.recommendation].filter(Boolean).join('\n\n')
         : order.diagnosisText || ''
       const brand = order.device?.brand ? ` ${order.device.brand}` : ''
-      setTitle(`Reparación${brand} ${dt?.label || 'equipo'}`.trim())
+      setTitle(`ReparaciÃ³n${brand} ${dt?.label || 'equipo'}`.trim())
       setSymptoms(diag?.findings || '')
       setSteps(base)
     }
@@ -1405,7 +1447,7 @@ function SaveAsGuideDialog({
 
   const handleSubmit = () => {
     if (!title.trim() || !steps.trim()) {
-      toast.error('Título y procedimiento son obligatorios')
+      toast.error('TÃ­tulo y procedimiento son obligatorios')
       return
     }
     create.mutate(
@@ -1440,20 +1482,20 @@ function SaveAsGuideDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="size-5" />
-            Guardar como guía
+            Guardar como guÃ­a
           </DialogTitle>
           <DialogDescription>
-            Crea una guía de reparación reutilizable a partir del diagnóstico de esta orden. Se
-            guardará como borrador para que la revises antes de publicarla.
+            Crea una guÃ­a de reparaciÃ³n reutilizable a partir del diagnÃ³stico de esta orden. Se
+            guardarÃ¡ como borrador para que la revises antes de publicarla.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-3">
           <div className="space-y-1.5">
-            <Label>Título</Label>
+            <Label>TÃ­tulo</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Síntomas (separados por coma)</Label>
+            <Label>SÃ­ntomas (separados por coma)</Label>
             <Input
               value={symptoms}
               onChange={(e) => setSymptoms(e.target.value)}
@@ -1466,7 +1508,7 @@ function SaveAsGuideDialog({
               value={steps}
               onChange={(e) => setSteps(e.target.value)}
               rows={8}
-              placeholder="1. Desconectar el equipo.\n2. …"
+              placeholder="1. Desconectar el equipo.\n2. â€¦"
             />
           </div>
         </div>
@@ -1477,7 +1519,7 @@ function SaveAsGuideDialog({
           <Button onClick={handleSubmit} disabled={create.isPending} className="gap-2">
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
             <BookmarkPlus className="size-4" />
-            Guardar guía
+            Guardar guÃ­a
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1566,9 +1608,9 @@ function CreateQuoteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Crear Cotización</DialogTitle>
+          <DialogTitle>Crear CotizaciÃ³n</DialogTitle>
           <DialogDescription>
-            Define los ítems (repuestos, mano de obra, otros). IVA 19% aplicado.
+            Define los Ã­tems (repuestos, mano de obra, otros). IVA 19% aplicado.
           </DialogDescription>
         </DialogHeader>
 
@@ -1583,7 +1625,7 @@ function CreateQuoteDialog({
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Ítem #{idx + 1}
+                      Ãtem #{idx + 1}
                     </span>
                     {items.length > 1 && (
                       <Button
@@ -1614,12 +1656,12 @@ function CreateQuoteDialog({
                       </Select>
                     </div>
                     <div className="sm:col-span-9">
-                      <Label className="text-xs">Descripción</Label>
+                      <Label className="text-xs">DescripciÃ³n</Label>
                       <Input
                         className="h-8"
                         value={it.description}
                         onChange={(e) => updateItem(idx, { description: e.target.value })}
-                        placeholder="Describe el ítem…"
+                        placeholder="Describe el Ã­temâ€¦"
                       />
                     </div>
                     <div className="sm:col-span-3">
@@ -1656,7 +1698,7 @@ function CreateQuoteDialog({
             })}
 
             <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={addItem}>
-              <Plus className="size-4" /> Agregar ítem
+              <Plus className="size-4" /> Agregar Ã­tem
             </Button>
           </div>
         </ScrollArea>
@@ -1668,7 +1710,7 @@ function CreateQuoteDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Condiciones, garantía, etc."
+              placeholder="Condiciones, garantÃ­a, etc."
             />
           </div>
 
@@ -1707,7 +1749,7 @@ function CreateQuoteDialog({
             className="gap-2"
           >
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
-            {sendImmediately ? 'Crear y Enviar' : 'Crear Cotización'}
+            {sendImmediately ? 'Crear y Enviar' : 'Crear CotizaciÃ³n'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1741,7 +1783,7 @@ function ViewQuoteDialog({
             <QuoteStatusBadge status={quote.status} />
           </div>
           <DialogDescription>
-            Cotización creada {timeAgo(quote.createdAt)}
+            CotizaciÃ³n creada {timeAgo(quote.createdAt)}
           </DialogDescription>
         </DialogHeader>
 
@@ -1758,7 +1800,7 @@ function ViewQuoteDialog({
                 <div>
                   <p className="text-xs text-muted-foreground">Equipo</p>
                   <p className="font-medium">
-                    {[quote.workOrder?.device?.brand, quote.workOrder?.device?.model].filter(Boolean).join(' ') || '—'}
+                    {[quote.workOrder?.device?.brand, quote.workOrder?.device?.model].filter(Boolean).join(' ') || 'â€”'}
                   </p>
                 </div>
               </div>
@@ -1767,7 +1809,7 @@ function ViewQuoteDialog({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Descripción</TableHead>
+                  <TableHead>DescripciÃ³n</TableHead>
                   <TableHead className="text-right">Cant.</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -1788,7 +1830,7 @@ function ViewQuoteDialog({
                 {(!quote.items || quote.items.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
-                      Sin ítems
+                      Sin Ã­tems
                     </TableCell>
                   </TableRow>
                 )}
@@ -1820,14 +1862,14 @@ function ViewQuoteDialog({
 
             {settings?.warrantyPolicy && (
               <div className="rounded-md bg-emerald-50 p-3 text-sm dark:bg-emerald-950/20">
-                <p className="text-xs font-medium text-emerald-700">Política de garantías</p>
+                <p className="text-xs font-medium text-emerald-700">PolÃ­tica de garantÃ­as</p>
                 <p className="mt-0.5 whitespace-pre-wrap text-emerald-900 dark:text-emerald-200">{settings.warrantyPolicy}</p>
               </div>
             )}
 
             {quote.validUntil && (
               <p className="text-xs text-muted-foreground">
-                Válida hasta: {formatDate(quote.validUntil)}
+                VÃ¡lida hasta: {formatDate(quote.validUntil)}
               </p>
             )}
             {quote.approvedBy && (
@@ -1840,7 +1882,7 @@ function ViewQuoteDialog({
 
         <DialogFooter>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={copyLink}>
-            <LinkIcon className="size-3.5" /> Copiar link aprobación
+            <LinkIcon className="size-3.5" /> Copiar link aprobaciÃ³n
           </Button>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
@@ -1878,7 +1920,7 @@ function CreateInvoiceFromOrderDialog({
       })))
     } else if (order?.totalAmount > 0) {
       setItems([{
-        description: `Servicio de reparación - ${order.code}`,
+        description: `Servicio de reparaciÃ³n - ${order.code}`,
         quantity: 1,
         unitPrice: order.totalAmount,
         itemType: 'other',
@@ -1964,7 +2006,7 @@ function CreateInvoiceFromOrderDialog({
                 <div key={idx} className="grid grid-cols-12 gap-2 rounded-md border bg-muted/20 p-2">
                   <Input
                     className="col-span-12 sm:col-span-6"
-                    placeholder="Descripción"
+                    placeholder="DescripciÃ³n"
                     value={it.description}
                     onChange={(e) => updateItem(idx, 'description', e.target.value)}
                   />
@@ -2038,7 +2080,7 @@ function CreateInvoiceFromOrderDialog({
               </p>
             </div>
             <div className="grid gap-2">
-              <Label>Método</Label>
+              <Label>MÃ©todo</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={paidAmount === 0}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -2075,3 +2117,254 @@ function CreateInvoiceFromOrderDialog({
     </Dialog>
   )
 }
+
+// ============== Agregar Repuesto desde Inventario ==============
+function AddPartDialog({
+  open,
+  onOpenChange,
+  order,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  order: any
+}) {
+  const qc = useQueryClient()
+  const { data: settings } = useSettings()
+  const { update } = usePartMutations()
+
+  const [search, setSearch] = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
+  const [selected, setSelected] = React.useState<any | null>(null)
+  const [qty, setQty] = React.useState('1')
+
+  React.useEffect(() => {
+    if (!open) {
+      setSelected(null)
+      setQty('1')
+      setSearch('')
+      setDebouncedSearch('')
+    }
+  }, [open])
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const { data: parts, isLoading } = useParts(
+    open && debouncedSearch ? { search: debouncedSearch } : {}
+  )
+
+  const quantity = Math.floor(Number(qty) || 0)
+  const stock = selected ? selected.stock : 0
+  const valid =
+    !!selected && quantity >= 1 && quantity <= stock
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!valid || !selected) return
+    update.mutate(
+      {
+        id: selected.id,
+        data: {
+          action: 'adjust_stock',
+          quantity: -quantity,
+          movementType: 'out',
+          reason: `Salida por orden ${order.code}`,
+          workOrderId: order.id,
+        },
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ['work-orders'] })
+          toast.success(
+            `${quantity} × ${selected.name} descontado(s) del inventario`
+          )
+          onOpenChange(false)
+        },
+      }
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="grid grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-[92dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="size-5" />
+            Tomar repuesto del inventario
+          </DialogTitle>
+          <DialogDescription>
+            Se registrará la salida y se descontará el stock de la orden{' '}
+            <span className="font-mono">{order.code}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 space-y-3">
+          {/* Buscador */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, SKU o marca…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+              autoFocus
+            />
+          </div>
+
+          {/* Resultados */}
+          <ScrollArea className="max-h-[240px] rounded-lg border sm:max-h-[280px]">
+            {isLoading ? (
+              <div className="space-y-2 p-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : !parts || parts.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                No se encontraron repuestos con «{debouncedSearch}»
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {(parts as any[]).map((p) => {
+                  const isSelected = selected?.id === p.id
+                  const outOfStock = p.stock <= 0
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        disabled={outOfStock}
+                        onClick={() => {
+                          setSelected(p)
+                          setQty('1')
+                        }}
+                        className={cn(
+                          'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors',
+                          isSelected
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30'
+                            : 'hover:bg-muted/60',
+                          outOfStock && 'cursor-not-allowed opacity-50'
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {p.name}
+                            {isSelected && (
+                              <Check className="ml-1.5 inline size-3.5 text-emerald-600" />
+                            )}
+                          </p>
+                          <p className="truncate font-mono text-xs text-muted-foreground">
+                            {p.sku}
+                            {p.brand ? ` · ${p.brand}` : ''}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {outOfStock ? (
+                            <Badge variant="outline" className="border-rose-200 text-[10px] text-rose-600 dark:border-rose-800 dark:text-rose-400">
+                              Sin stock
+                            </Badge>
+                          ) : (
+                            <>
+                              <p className="text-xs font-medium tabular-nums">
+                                Stock: {p.stock} {p.unit}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground tabular-nums">
+                                {formatCurrency(p.unitPrice, settings?.currencySymbol || '$')}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </ScrollArea>
+
+          {/* Selección + cantidad */}
+          {selected && (
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{selected.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{selected.sku}</p>
+                </div>
+                <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setSelected(null)}>
+                  <X className="size-4" />
+                </Button>
+              </div>
+
+              <div className="flex items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="part-qty" className="text-xs">Cantidad a usar</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setQty(String(Math.max(1, quantity - 1)))}
+                      disabled={quantity <= 1}
+                    >
+                      <Minus className="size-3.5" />
+                    </Button>
+                    <Input
+                      id="part-qty"
+                      type="number"
+                      min={1}
+                      max={stock}
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      className="h-8 w-16 text-center font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => setQty(String(Math.min(stock, quantity + 1)))}
+                      disabled={quantity >= stock}
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="ml-auto pb-0.5 text-right text-xs text-muted-foreground">
+                  <p>
+                    Disponible: <span className="font-medium tabular-nums">{stock} {selected.unit}</span>
+                  </p>
+                  <p className={cn(quantity > stock && 'font-medium text-rose-600')}>
+                    Quedaría:{' '}
+                    <span className="font-medium tabular-nums">
+                      {Math.max(0, stock - (quantity || 0))} {selected.unit}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              {quantity > stock && (
+                <p className="text-xs font-medium text-rose-600">
+                  Solo hay {stock} unidad(es) disponibles
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="shrink-0 border-t pt-4">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" className="w-full sm:w-auto">
+              Cancelar
+            </Button>
+          </DialogClose>
+          <Button onClick={handleSubmit} disabled={!valid || update.isPending} className="w-full gap-1.5 sm:w-auto">
+            {update.isPending ? <Loader2 className="size-4 animate-spin" /> : <Package className="size-4" />}
+            Registrar salida
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
