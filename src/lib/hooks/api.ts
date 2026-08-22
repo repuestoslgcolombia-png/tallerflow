@@ -1215,3 +1215,84 @@ export function useRepairGuideMutations() {
   })
   return { create, update, remove }
 }
+
+// ============== AUTOMATIZACIONES WHATSAPP ==============
+
+export function useAutomations() {
+  return useQuery({
+    queryKey: ['automations'],
+    queryFn: async () => {
+      const res = await fetch('/api/whatsapp/automations')
+      if (!res.ok) throw new Error('Error al cargar automatizaciones')
+      return res.json()
+    },
+  })
+}
+
+export interface AutomationRuleUpdate {
+  enabled?: boolean
+  templateCode?: string | null
+  delayMinutes?: number
+  daysOffset?: number | null
+}
+
+export function useAutomationMutations() {
+  const qc = useQueryClient()
+  const update = useMutation({
+    mutationFn: async ({ id, ...data }: AutomationRuleUpdate & { id: string }) => {
+      const res = await fetch(`/api/whatsapp/automations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al actualizar automatización')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['automations'] })
+      toast.success('Automatización actualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { update, updatePending: update.isPending }
+}
+
+export function useAutomationTest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ ruleId, phone }: { ruleId: string; phone: string }) => {
+      const res = await fetch('/api/whatsapp/automations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', ruleId, phone }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al enviar mensaje de prueba')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['automation-logs'] })
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export function useAutomationLogs(params: { trigger?: string; status?: string; limit?: number } = {}) {
+  const query = new URLSearchParams()
+  if (params.trigger) query.set('trigger', params.trigger)
+  if (params.status) query.set('status', params.status)
+  if (params.limit) query.set('limit', String(params.limit))
+  return useQuery({
+    queryKey: ['automation-logs', params.trigger, params.status, params.limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/automations/logs?${query.toString()}`)
+      if (!res.ok) throw new Error('Error al cargar historial de automatizaciones')
+      return res.json()
+    },
+  })
+}

@@ -16,6 +16,7 @@ import { InventoryView } from '@/modules/inventory/inventory-view'
 import { GuidesView } from '@/modules/guides/guides-view'
 import { RemindersView } from '@/modules/reminders/reminders-view'
 import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
+import { AutomationsView } from '@/modules/automations/automations-view'
 import { SettingsView } from '@/modules/settings/settings-view'
 import { QuickRegisterView } from '@/modules/quick-register/quick-register-view'
 
@@ -42,6 +43,7 @@ export default function HomePage() {
             {currentView === 'guides' && <GuidesView />}
             {currentView === 'reminders' && <RemindersView />}
             {currentView === 'whatsapp' && <WhatsAppView />}
+            {currentView === 'automations' && <AutomationsView />}
             {currentView === 'settings' && <SettingsView />}
           </main>
         </div>

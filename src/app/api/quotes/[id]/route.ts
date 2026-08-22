@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
+import { runTrigger } from '@/lib/automations'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,6 +58,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
         return q
       })
+
+      await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id })
+
       return ok(quote)
     }
 

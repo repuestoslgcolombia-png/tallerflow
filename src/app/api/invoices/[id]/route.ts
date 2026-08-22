@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
+import { runTrigger } from '@/lib/automations'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -54,6 +55,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         })
       }
 
+      await runTrigger('payment_received', {
+        workOrderId: existing.workOrderId || undefined,
+        customerId: existing.customerId,
+        invoiceId: id,
+      })
+
       return ok(invoice)
     }
 
@@ -86,6 +93,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           data: { totalPaid: existing.total },
         })
       }
+
+      await runTrigger('payment_received', {
+        workOrderId: existing.workOrderId || undefined,
+        customerId: existing.customerId,
+        invoiceId: id,
+      })
 
       return ok(invoice)
     }

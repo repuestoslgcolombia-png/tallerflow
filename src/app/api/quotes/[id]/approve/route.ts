@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
+import { runTrigger } from '@/lib/automations'
 
 // GET /api/quotes/[id]/approve?token=xxx - validar token y obtener cotización
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         return { quote: updated, workOrder: wo }
       })
+
+      await runTrigger('quote_approved', { workOrderId: quote.workOrderId, quoteId: id })
+
       return ok(result)
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, created } from '@/lib/api'
+import { runTrigger } from '@/lib/automations'
 
 // GET /api/work-orders
 export async function GET(req: NextRequest) {
@@ -98,6 +99,8 @@ export async function POST(req: NextRequest) {
 
       return wo
     })
+
+    await runTrigger('order_received', { workOrderId: workOrder.id })
 
     return created(workOrder)
   } catch (e) {

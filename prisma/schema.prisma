@@ -451,12 +451,17 @@ model AuditLog {
 
 model AutomationRule {
   id           String   @id @default(cuid())
-  trigger      String   @unique // order_received | quote_sent | quote_approved | order_ready | order_delivered | payment_received
+  trigger      String // order_received | quote_sent | quote_approved | order_ready | order_delivered | payment_received | invoice_created
+  action       String   @default("send_whatsapp") // send_whatsapp | create_reminder
   enabled      Boolean  @default(true)
-  templateCode String   // código de la plantilla de WhatsApp a usar
-  delayMinutes Int      @default(0) // minutos de espera antes de enviar (0 = inmediato)
+  templateCode String?  // código de la plantilla de WhatsApp a usar
+  delayMinutes Int      @default(0) // minutos de espera antes de enviar (0 = inmediato, solo send_whatsapp)
+  daysOffset   Int?     // días después del evento para crear el recordatorio (solo create_reminder)
+  reminderType String?  // warranty_check | maintenance (solo create_reminder)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@unique([trigger, action])
 }
 
 model AutomationLog {

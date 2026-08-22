@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Menu, Search, Plus, Command } from 'lucide-react'
+import { Menu, Search, Plus, Command, Zap } from 'lucide-react'
 import { useAppStore, type View } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +43,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   guides: { title: 'Base de Conocimiento', subtitle: 'Guías de reparación reutilizables' },
   reminders: { title: 'Recordatorios', subtitle: 'Seguimiento post-servicio a clientes' },
   whatsapp: { title: 'WhatsApp', subtitle: 'Mensajería y plantillas de comunicación' },
+  automations: { title: 'Automatizaciones', subtitle: 'Mensajes y recordatorios automáticos' },
   settings: { title: 'Configuración', subtitle: 'Ajustes del taller' },
 }
 
@@ -58,6 +59,7 @@ const QUICK_NAV = [
   { view: 'guides' as View, label: 'Base de Conocimiento', icon: BookOpen, hint: 'Guías de reparación' },
   { view: 'reminders' as View, label: 'Recordatorios', icon: Bell, hint: 'Seguimiento post-servicio' },
   { view: 'whatsapp' as View, label: 'WhatsApp', icon: MessageCircle, hint: 'Mensajería y plantillas' },
+  { view: 'automations' as View, label: 'Automatizaciones', icon: Zap, hint: 'Mensajes y recordatorios automáticos' },
   { view: 'settings' as View, label: 'Configuración', icon: Settings, hint: 'Ajustes del taller' },
 ]
 

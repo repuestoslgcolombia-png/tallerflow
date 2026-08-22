@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, serverError } from '@/lib/api'
+import { sweepDueReminders } from '@/lib/automations'
 
 export async function GET(_req: NextRequest) {
   try {
+    // "Cron" ligero: al abrir la app se envían los WhatsApp de recordatorios vencidos
+    await sweepDueReminders()
+
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const endOfToday = new Date(startOfToday)

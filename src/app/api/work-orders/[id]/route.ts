@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { WORK_ORDER_STATUS, WorkOrderStatusKey } from '@/lib/constants'
+import { runTrigger } from '@/lib/automations'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -99,6 +100,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
         return wo
       })
+
+      if (['ready', 'delivered'].includes(newStatus)) {
+        await runTrigger(newStatus === 'ready' ? 'order_ready' : 'order_delivered', { workOrderId: id })
+      }
 
       return ok(workOrder)
     }

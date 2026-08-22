@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
+import { runTrigger } from '@/lib/automations'
 
 // GET /api/invoices - listar facturas
 export async function GET(req: NextRequest) {
@@ -145,6 +146,20 @@ export async function POST(req: NextRequest) {
 
       return inv
     })
+
+    await runTrigger('invoice_created', {
+      workOrderId: body.workOrderId,
+      customerId: body.customerId,
+      invoiceId: invoice.id,
+    })
+
+    if (invoice.status === 'paid') {
+      await runTrigger('payment_received', {
+        workOrderId: body.workOrderId,
+        customerId: body.customerId,
+        invoiceId: invoice.id,
+      })
+    }
 
     return created(invoice)
   } catch (e) {

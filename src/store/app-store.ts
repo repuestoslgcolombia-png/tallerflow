@@ -15,6 +15,7 @@ export type View =
   | 'guides'
   | 'reminders'
   | 'whatsapp'
+  | 'automations'
   | 'settings'
 
 interface AppState {
