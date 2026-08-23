@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
           deviceId: body.deviceId,
           technicianId: body.technicianId || null,
           priority: body.priority || 'normal',
+          serviceType: body.serviceType || 'revision',
           reportedIssue: body.reportedIssue,
           diagnosisText: body.diagnosisText || null,
           internalNotes: body.internalNotes || null,

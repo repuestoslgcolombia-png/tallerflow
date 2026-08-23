@@ -69,6 +69,7 @@ import {
   WORK_ORDER_STATUS,
   PRIORITY,
   DEVICE_TYPES,
+  SERVICE_TYPES,
   formatCurrency,
   timeAgo,
   fullName,
@@ -430,6 +431,7 @@ function CreateOrderDialog({
 
   const [customerId, setCustomerId] = React.useState('')
   const [deviceId, setDeviceId] = React.useState('')
+  const [serviceType, setServiceType] = React.useState<string>('revision')
   const [priority, setPriority] = React.useState<PriorityKey>('normal')
   const [technicianId, setTechnicianId] = React.useState('')
   const [reportedIssue, setReportedIssue] = React.useState('')
@@ -450,6 +452,7 @@ function CreateOrderDialog({
   const resetForm = () => {
     setCustomerId('')
     setDeviceId('')
+    setServiceType('revision')
     setPriority('normal')
     setTechnicianId('')
     setReportedIssue('')
@@ -473,6 +476,7 @@ function CreateOrderDialog({
     const payload: any = {
       customerId,
       deviceId,
+      serviceType,
       priority,
       reportedIssue: reportedIssue.trim(),
       internalNotes: internalNotes.trim() || undefined,
@@ -589,8 +593,29 @@ function CreateOrderDialog({
 
             <Separator />
 
-            {/* Prioridad + Técnico */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Tipo de servicio + Prioridad + Técnico */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Tipo de servicio</Label>
+                <Select value={serviceType} onValueChange={setServiceType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(SERVICE_TYPES) as (keyof typeof SERVICE_TYPES)[]).map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {SERVICE_TYPES[k].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {(serviceType === 'mantenimiento' || serviceType === 'instalacion')
+                    ? 'Flujo corto: Recibida → Lista → Entregada'
+                    : 'Flujo completo con diagnóstico y cotización'}
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label>Prioridad</Label>
                 <Select value={priority} onValueChange={(v) => setPriority(v as PriorityKey)}>

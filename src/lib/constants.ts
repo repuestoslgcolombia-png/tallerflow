@@ -310,10 +310,33 @@ export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {
   cancelled: [],
 }
 
-export function getNextStatuses(current: WorkOrderStatusKey): WorkOrderStatusKey[] {
-  const next = STATUS_FLOW[current] || []
+// Flujos simplificados por tipo de servicio (fallback: STATUS_FLOW estándar)
+// Mantenimiento e Instalación no requieren diagnóstico ni cotización
+const SERVICE_FLOW_SHORT: Partial<Record<WorkOrderStatusKey, WorkOrderStatusKey[]>> = {
+  received: ['ready', 'cancelled'],
+  ready: ['delivered'],
+}
+
+export function getNextStatuses(
+  current: WorkOrderStatusKey,
+  serviceType?: string | null
+): WorkOrderStatusKey[] {
+  // Mantenimiento e instalación usan el flujo corto; revisión y otros, el completo
+  const flow =
+    serviceType === 'mantenimiento' || serviceType === 'instalacion'
+      ? { ...STATUS_FLOW, ...SERVICE_FLOW_SHORT }
+      : STATUS_FLOW
+  const next = flow[current] || []
   // Guard defensivo: nunca retornar estados que no existan en WORK_ORDER_STATUS
   return next.filter((s) => !!WORK_ORDER_STATUS[s])
+}
+
+// Etapas visibles del flujo según servicio (para steppers/pipelines)
+export function getFlowStages(serviceType?: string | null): WorkOrderStatusKey[] {
+  if (serviceType === 'mantenimiento' || serviceType === 'instalacion') {
+    return ['received', 'ready']
+  }
+  return ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready']
 }
 
 // ============== HELPERS ==============

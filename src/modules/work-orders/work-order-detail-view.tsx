@@ -94,6 +94,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
@@ -124,6 +125,7 @@ import {
   DEVICE_TYPES,
   QUOTE_STATUS,
   getNextStatuses,
+  getFlowStages,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -233,7 +235,10 @@ export function WorkOrderDetailView() {
   }
 
   const statusConf = WORK_ORDER_STATUS[order.status as WorkOrderStatusKey]
-  const nextStatuses = getNextStatuses(order.status as WorkOrderStatusKey)
+  const nextStatuses = getNextStatuses(order.status as WorkOrderStatusKey, order.serviceType)
+  const flowStages = getFlowStages(order.serviceType)
+  // Servicios con flujo corto no manejan cotización
+  const hasQuoteStage = flowStages.includes('quoted')
   const canDelete = ['received', 'cancelled'].includes(order.status)
   const balance = (order.totalAmount || 0) - (order.totalPaid || 0)
 
@@ -316,15 +321,17 @@ export function WorkOrderDetailView() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setCreateQuoteOpen(true)}
-          >
-            <FileText className="size-3.5" />
-            Crear Cotización
-          </Button>
+          {hasQuoteStage && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setCreateQuoteOpen(true)}
+            >
+              <FileText className="size-3.5" />
+              Crear Cotización
+            </Button>
+          )}
 
           {order.status === 'delivered' && !order.invoice && (
             <Button
@@ -646,7 +653,7 @@ export function WorkOrderDetailView() {
               <StatusBadge status={order.status} className="text-sm" />
               {statusConf?.step != null && statusConf.step >= 0 && (
                 <div className="space-y-1.5">
-                  <StatusStepper currentStep={statusConf.step} />
+                  <StatusStepper statusKey={order.status as WorkOrderStatusKey} stages={flowStages} />
                   <p className="text-xs text-muted-foreground">{statusConf.description}</p>
                 </div>
               )}
@@ -1940,6 +1947,7 @@ function CreateInvoiceFromOrderDialog({
   const [paid, setPaid] = React.useState('0')
   const [paymentMethod, setPaymentMethod] = React.useState('cash')
   const [notes, setNotes] = React.useState('')
+  const [applyIva, setApplyIva] = React.useState(true)
 
   // Initialize items from approved quote or work order total
   React.useEffect(() => {
@@ -1965,11 +1973,12 @@ function CreateInvoiceFromOrderDialog({
     setPaid('0')
     setPaymentMethod('cash')
     setNotes('')
+    setApplyIva(true)
   }, [open, order])
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
   const taxRate = 19
-  const taxAmount = subtotal * (taxRate / 100)
+  const taxAmount = applyIva ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
   const paidAmount = Number(paid) || 0
 
@@ -1996,6 +2005,7 @@ function CreateInvoiceFromOrderDialog({
         })),
         paid: paidAmount,
         paymentMethod: paidAmount > 0 ? paymentMethod : null,
+        applyTax: applyIva,
         notes: notes || null,
       },
       { onSuccess: () => onOpenChange(false) }
@@ -2080,19 +2090,37 @@ function CreateInvoiceFromOrderDialog({
             </div>
           </div>
 
+          {/* IVA opcional */}
+          <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="apply-iva" className="text-sm">Aplicar IVA (19%)</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Desactívalo para facturar sin impuesto
+              </p>
+            </div>
+            <Switch id="apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+          </div>
+
           {/* Totals */}
           <div className="rounded-lg border bg-muted/30 p-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Impuesto (19%)</span>
-              <span>{formatCurrency(taxAmount)}</span>
-            </div>
+            {applyIva ? (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">IVA (19%)</span>
+                <span>{formatCurrency(taxAmount)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>IVA</span>
+                <span>Exento</span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span className="tabular-nums">{formatCurrency(total)}</span>
             </div>
           </div>
 
@@ -2403,24 +2431,23 @@ function AddPartDialog({
 }
 
 
-// ============== Stepper visual de estados ==============
-const STEPS_ORDER: WorkOrderStatusKey[] = [
-  'received',
-  'diagnosing',
-  'quoted',
-  'approved',
-  'in_progress',
-  'ready',
-]
 
-function StatusStepper({ currentStep }: { currentStep: number }) {
+// ============== Stepper visual de estados (adaptativo por servicio) ==============
+function StatusStepper({
+  statusKey,
+  stages,
+}: {
+  statusKey: WorkOrderStatusKey
+  stages: WorkOrderStatusKey[]
+}) {
+  const currentIdx = stages.indexOf(statusKey)
   return (
     <ol className="space-y-0">
-      {STEPS_ORDER.map((key, idx) => {
+      {stages.map((key, idx) => {
         const conf = WORK_ORDER_STATUS[key]
-        const done = idx < currentStep
-        const current = idx === currentStep
-        const isLast = idx === STEPS_ORDER.length - 1
+        const done = idx < currentIdx
+        const current = idx === currentIdx || (currentIdx === -1 && key === statusKey)
+        const isLast = idx === stages.length - 1
         return (
           <li key={key} className="flex gap-2.5">
             {/* Columna de puntos y línea */}
@@ -2449,7 +2476,7 @@ function StatusStepper({ currentStep }: { currentStep: number }) {
               )}
             </div>
             {/* Etiqueta */}
-            <div className={cn('pb-3 leading-tight', !isLast && '')}>
+            <div className="pb-3 leading-tight">
               <p className={cn('text-xs', current ? 'font-semibold' : done ? 'text-muted-foreground' : 'text-muted-foreground/60')}>
                 {conf.label}
                 {current && <span className="ml-1.5 text-[10px] font-normal text-primary">estás aquí</span>}

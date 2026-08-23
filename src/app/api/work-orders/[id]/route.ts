@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
-import { WORK_ORDER_STATUS, STATUS_FLOW, WorkOrderStatusKey } from '@/lib/constants'
+import { WORK_ORDER_STATUS, getNextStatuses, WorkOrderStatusKey } from '@/lib/constants'
 import { runTrigger } from '@/lib/automations'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -76,7 +76,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         return badRequest(`Estado inválido: ${body.status}`)
       }
       const currentKey = existing.status as WorkOrderStatusKey
-      const allowed = STATUS_FLOW[currentKey] || []
+      // Flujo según tipo de servicio (mantenimiento/instalación usan flujo corto)
+      const allowed = getNextStatuses(currentKey, existing.serviceType)
       if (newStatus !== currentKey && !allowed.includes(newStatus)) {
         return badRequest(
           `Transición inválida: de "${WORK_ORDER_STATUS[currentKey]?.label || currentKey}" solo se puede pasar a ${allowed.map((s) => `"${WORK_ORDER_STATUS[s].label}"`).join(', ') || 'ningún estado'}`
