@@ -302,7 +302,7 @@ export const APPLIANCE_BRANDS = [
 export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {
   received: ['diagnosing', 'cancelled'],
   diagnosing: ['quoted', 'in_progress', 'cancelled'],
-  quoted: ['approved', 'rejected' as WorkOrderStatusKey, 'cancelled'],
+  quoted: ['approved', 'cancelled'],
   approved: ['in_progress', 'cancelled'],
   in_progress: ['ready', 'cancelled'],
   ready: ['delivered', 'in_progress'],
@@ -311,7 +311,9 @@ export const STATUS_FLOW: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {
 }
 
 export function getNextStatuses(current: WorkOrderStatusKey): WorkOrderStatusKey[] {
-  return STATUS_FLOW[current] || []
+  const next = STATUS_FLOW[current] || []
+  // Guard defensivo: nunca retornar estados que no existan en WORK_ORDER_STATUS
+  return next.filter((s) => !!WORK_ORDER_STATUS[s])
 }
 
 // ============== HELPERS ==============
