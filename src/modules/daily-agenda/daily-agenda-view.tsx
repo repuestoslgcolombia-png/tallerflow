@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useDailyAgenda, useDailyTaskMutations } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
-import { formatDate, timeAgo, formatCurrency, WORK_ORDER_STATUS, PRIORITY, DEVICE_TYPES, REMINDER_TYPES } from '@/lib/constants'
+import { formatDate, formatDateTime, timeAgo, formatCurrency, WORK_ORDER_STATUS, PRIORITY, DEVICE_TYPES, REMINDER_TYPES } from '@/lib/constants'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { StatusBadge, PriorityBadge } from '@/components/tallerflow/badges'
+import { cn } from '@/lib/utils'
 import {
   Sun, Moon, ListChecks, ClipboardList, Bell, Package, AlertTriangle, Clock, ArrowRight,
   CheckCircle2, X, Plus, Loader2, AlertCircle, Wrench, User,
@@ -82,6 +84,8 @@ export function DailyAgendaView() {
 
   const stats = data?.stats || {}
   const workOrdersToday = data?.workOrdersToday || []
+  const completedToday = data?.completedToday || []
+  const workshopFlow = data?.workshopFlow || []
   const remindersToday = data?.remindersToday || []
   const overdueReminders = data?.overdueReminders || []
   const ordersReady = data?.ordersReady || []
@@ -152,12 +156,19 @@ export function DailyAgendaView() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           icon={ClipboardList}
           label="Órdenes hoy"
           value={stats.workOrdersToday || 0}
           color="sky"
+          onClick={() => navigate('work-orders')}
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Completadas hoy"
+          value={stats.completedToday || 0}
+          color="emerald"
           onClick={() => navigate('work-orders')}
         />
         <StatCard
@@ -172,7 +183,7 @@ export function DailyAgendaView() {
           icon={CheckCircle2}
           label="Para entregar"
           value={stats.ordersReady || 0}
-          color="emerald"
+          color="teal"
           onClick={() => navigate('work-orders')}
         />
         <StatCard
@@ -191,6 +202,9 @@ export function DailyAgendaView() {
         />
       </div>
 
+      {/* Flujo del taller (visión global) */}
+      <WorkshopFlowCard flow={workshopFlow} onOpenOrders={() => navigate('work-orders')} />
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column: Checklist + Work Orders Today */}
         <div className="space-y-6 lg:col-span-2">
@@ -204,7 +218,20 @@ export function DailyAgendaView() {
                   {stats.dailyTasksDone}/{stats.dailyTasksTotal}
                 </Badge>
               </div>
+              {stats.dailyTasksTotal > 0 && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {Math.round(((stats.dailyTasksDone || 0) / stats.dailyTasksTotal) * 100)}%
+                </span>
+              )}
             </div>
+            {(stats.dailyTasksTotal || 0) > 0 && (
+              <div className="px-4 pt-3">
+                <Progress
+                  value={((stats.dailyTasksDone || 0) / stats.dailyTasksTotal) * 100}
+                  className="h-1.5"
+                />
+              </div>
+            )}
             <div className="divide-y">
               {dailyTasks.length === 0 && !isAddingTask && (
                 <div className="flex flex-col items-center gap-2 px-4 py-8 text-center text-sm text-muted-foreground">
@@ -302,53 +329,78 @@ export function DailyAgendaView() {
             </div>
           </Card>
 
-          {/* Work Orders Today */}
-          {workOrdersToday.length > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-sky-500" />
-                  <h2 className="text-sm font-medium">Órdenes recibidas hoy</h2>
-                  <Badge variant="outline" className="ml-1 text-xs">{workOrdersToday.length}</Badge>
-                </div>
-                <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('work-orders')}>
-                  Ver todas <ArrowRight className="ml-1 h-3 w-3" />
-                </Button>
+          {/* Órdenes del día */}
+          <Card className="p-0 overflow-hidden">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-sky-500" />
+                <h2 className="text-sm font-medium">Órdenes del día</h2>
+                <Badge variant="outline" className="ml-1 text-xs">{workOrdersToday.length}</Badge>
               </div>
-              <div className="divide-y">
-                {workOrdersToday.map((wo: any) => {
-                  const DeviceIcon = getDeviceIcon(wo.device?.type)
-                  return (
-                    <div
-                      key={wo.id}
-                      className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
-                      onClick={() => navigate('work-order-detail', { workOrderId: wo.id })}
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400">
-                        <DeviceIcon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">{wo.code}</span>
-                          <StatusBadge status={wo.status} />
-                          <PriorityBadge priority={wo.priority} />
-                        </div>
-                        <p className="truncate text-sm font-medium">
-                          {wo.device?.brand} {wo.device?.model}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {wo.customer?.firstName} {wo.customer?.lastName}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right text-xs text-muted-foreground">
-                        {timeAgo(wo.createdAt)}
-                      </div>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate('work-orders')}>
+                Ver todas <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+            {workOrdersToday.length === 0 ? (
+              <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
+                <CalendarDays className="h-7 w-7 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  Sin órdenes recibidas ni visitas programadas para hoy
+                </p>
+              </div>
+            ) : (
+            <div className="divide-y">
+              {workOrdersToday.map((wo: any) => {
+                const DeviceIcon = getDeviceIcon(wo.device?.type)
+                return (
+                  <div
+                    key={wo.id}
+                    className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                    onClick={() => navigate('work-order-detail', { workOrderId: wo.id })}
+                  >
+                    <div className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                      wo.isScheduledVisit
+                        ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400'
+                        : 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400'
+                    )}>
+                      <DeviceIcon className="h-4 w-4" />
                     </div>
-                  )
-                })}
-              </div>
-            </Card>
-          )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs text-muted-foreground">{wo.code}</span>
+                        <StatusBadge status={wo.status} />
+                        <PriorityBadge priority={wo.priority} />
+                        {wo.isScheduledVisit ? (
+                          <Badge variant="outline" className="border-violet-200 bg-violet-50 px-1.5 py-0 text-[10px] text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-400">
+                            <CalendarDays className="mr-0.5 h-2.5 w-2.5" />
+                            Visita {wo.scheduledVisitAt && formatDateTime(wo.scheduledVisitAt)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-sky-200 bg-sky-50 px-1.5 py-0 text-[10px] text-sky-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-400">
+                            Recibida hoy
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-sm font-medium">
+                        {wo.device?.brand} {wo.device?.model}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {wo.customer?.firstName} {wo.customer?.lastName}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right text-xs text-muted-foreground">
+                      {timeAgo(wo.createdAt)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            )}
+          </Card>
+
+          {/* Completadas hoy */}
+          <CompletedTodayCard orders={completedToday} onOpenOrder={(id: string) => navigate('work-order-detail', { workOrderId: id })} />
         </div>
 
         {/* Right column: Reminders + Ready Orders + Alerts */}
@@ -528,6 +580,7 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
     sky: 'bg-sky-50 text-sky-600 dark:bg-sky-950/30 dark:text-sky-400',
     amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400',
     emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400',
+    teal: 'bg-teal-50 text-teal-600 dark:bg-teal-950/30 dark:text-teal-400',
     rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400',
     violet: 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400',
   }
@@ -541,10 +594,150 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
         <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
       <div className="min-w-0">
-        <p className="text-lg font-bold leading-tight sm:text-xl">{value}</p>
+        <p className="text-lg font-bold leading-tight tabular-nums sm:text-xl">{value}</p>
         <p className="truncate text-xs text-muted-foreground">{label}</p>
         {sub && <p className="truncate text-[10px] text-rose-500">{sub}</p>}
       </div>
     </div>
+  )
+}
+
+// ============== Flujo del taller (visión global) ==============
+const FLOW_STAGES = ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready'] as const
+
+function WorkshopFlowCard({
+  flow,
+  onOpenOrders,
+}: {
+  flow: { status: string; count: number }[]
+  onOpenOrders: () => void
+}) {
+  const counts: Record<string, number> = {}
+  for (const item of flow) counts[item.status] = item.count
+  const stages = FLOW_STAGES.map((s) => ({
+    key: s,
+    conf: (WORK_ORDER_STATUS as any)[s],
+    count: counts[s] || 0,
+  }))
+  const total = stages.reduce((sum, s) => sum + s.count, 0)
+  const maxCount = Math.max(1, ...stages.map((s) => s.count))
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Wrench className="h-4 w-4 text-orange-500" />
+          <h2 className="text-sm font-medium">Flujo del taller</h2>
+          <Badge variant="outline" className="ml-1 text-xs">
+            {total} activa{total === 1 ? '' : 's'}
+          </Badge>
+        </div>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onOpenOrders}>
+          Ver órdenes <ArrowRight className="ml-1 h-3 w-3" />
+        </Button>
+      </div>
+
+      {/* Barra segmentada proporcional */}
+      {total > 0 ? (
+        <div className="px-4 pt-4">
+          <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+            {stages
+              .filter((s) => s.count > 0)
+              .map((s) => (
+                <div
+                  key={s.key}
+                  className={cn('h-full first:rounded-l-full last:rounded-r-full transition-all', s.conf?.dot)}
+                  style={{ width: `${(s.count / total) * 100}%` }}
+                  title={`${s.conf.label}: ${s.count}`}
+                />
+              ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Etapas */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-4 py-4 sm:grid-cols-3 lg:grid-cols-6">
+        {stages.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={onOpenOrders}
+            className="group flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/50"
+          >
+            <div className="flex w-full items-center justify-between gap-1.5">
+              <span className={cn('size-2 shrink-0 rounded-full', s.count > 0 ? s.conf?.dot : 'bg-muted-foreground/25')} />
+              <span className="text-base font-bold leading-none tabular-nums">{s.count}</span>
+            </div>
+            <span className={cn('truncate text-[11px]', s.count > 0 ? 'font-medium' : 'text-muted-foreground')}>
+              {s.conf?.label}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {total === 0 && (
+        <p className="border-t px-4 py-3 text-center text-xs text-muted-foreground">
+          No hay órdenes activas en el taller — buen momento para mantenimiento preventivo del taller mismo.
+        </p>
+      )}
+    </Card>
+  )
+}
+
+// ============== Completadas hoy ==============
+function CompletedTodayCard({
+  orders,
+  onOpenOrder,
+}: {
+  orders: any[]
+  onOpenOrder: (id: string) => void
+}) {
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <h2 className="text-sm font-medium">Completadas hoy</h2>
+          <Badge variant="outline" className="ml-1 text-xs">{orders.length}</Badge>
+        </div>
+      </div>
+      {orders.length === 0 ? (
+        <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
+          <Sparkles className="h-7 w-7 text-muted-foreground/50" />
+          <p className="text-sm font-medium">Aún no hay entregas hoy</p>
+          <p className="text-xs text-muted-foreground">Las órdenes entregadas aparecerán aquí</p>
+        </div>
+      ) : (
+        <div className="divide-y">
+          {orders.map((wo: any) => {
+            const DeviceIcon = getDeviceIcon(wo.device?.type)
+            return (
+              <div
+                key={wo.id}
+                className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors"
+                onClick={() => onOpenOrder(wo.id)}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                  <DeviceIcon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {wo.code} · {wo.device?.brand} {wo.device?.model}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {wo.customer?.firstName} {wo.customer?.lastName}
+                    {wo.technician?.name && ` · Técnico: ${wo.technician.name}`}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right text-xs text-muted-foreground">
+                  <p>{formatDateTime(wo.deliveredAt)}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Entregada</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
   )
 }

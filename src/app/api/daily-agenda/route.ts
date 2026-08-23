@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest) {
     endOfToday.setDate(endOfToday.getDate() + 1)
 
     const [
-      workOrdersToday,
+      workOrdersTodayRaw,
       remindersToday,
       overdueReminders,
       ordersReady,
@@ -23,9 +23,16 @@ export async function GET(_req: NextRequest) {
       pendingInvoices,
       overdueInvoices,
       dailyTasks,
+      completedToday,
+      workshopFlowRaw,
     ] = await Promise.all([
       db.workOrder.findMany({
-        where: { createdAt: { gte: startOfToday, lt: endOfToday } },
+        where: {
+          OR: [
+            { createdAt: { gte: startOfToday, lt: endOfToday } },
+            { scheduledVisitAt: { gte: startOfToday, lt: endOfToday } },
+          ],
+        },
         include: { customer: true, device: true, technician: true },
         orderBy: { createdAt: 'desc' },
       }),
@@ -73,7 +80,29 @@ export async function GET(_req: NextRequest) {
         include: { assignee: true },
         orderBy: [{ isCompleted: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       }),
+      db.workOrder.findMany({
+        where: { deliveredAt: { gte: startOfToday, lt: endOfToday } },
+        include: { customer: true, device: true, technician: true },
+        orderBy: { deliveredAt: 'desc' },
+      }),
+      db.workOrder.groupBy({
+        by: ['status'],
+        _count: true,
+        where: { status: { notIn: ['delivered', 'cancelled'] } },
+      }),
     ])
+
+    // Marcar el origen de cada orden del día: recibida hoy o visita programada hoy
+    const workOrdersToday = workOrdersTodayRaw.map((wo) => ({
+      ...wo,
+      isScheduledVisit:
+        !!wo.scheduledVisitAt &&
+        wo.scheduledVisitAt >= startOfToday &&
+        wo.scheduledVisitAt < endOfToday &&
+        wo.createdAt < startOfToday,
+    }))
+
+    const workshopFlow = workshopFlowRaw.map((g) => ({ status: g.status, count: g._count }))
 
     const urgentOrders = await db.workOrder.count({
       where: {
@@ -89,6 +118,8 @@ export async function GET(_req: NextRequest) {
 
     return ok({
       workOrdersToday,
+      completedToday,
+      workshopFlow,
       remindersToday,
       overdueReminders,
       ordersReady,
@@ -111,6 +142,9 @@ export async function GET(_req: NextRequest) {
       urgentOrders,
       stats: {
         workOrdersToday: workOrdersToday.length,
+        completedToday: completedToday.length,
+        activeWorkshopOrders: workshopFlow.reduce((s: number, g) => s + g.count, 0),
+        workshopFlow,
         remindersToday: remindersToday.length,
         overdueReminders: overdueReminders.length,
         ordersReady: ordersReady.length,
