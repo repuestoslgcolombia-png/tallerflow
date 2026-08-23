@@ -248,6 +248,7 @@ export function useWorkOrderMutations() {
       qc.invalidateQueries({ queryKey: ['work-orders'] })
       qc.invalidateQueries({ queryKey: ['work-order'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      qc.invalidateQueries({ queryKey: ['reminders'] })
       toast.success('Estado actualizado')
     },
     onError: (e: Error) => toast.error(e.message),

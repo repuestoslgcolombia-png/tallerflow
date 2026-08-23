@@ -95,6 +95,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
@@ -105,7 +106,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { StatusBadge, PriorityBadge, QuoteStatusBadge, InvoiceStatusBadge } from '@/components/tallerflow/badges'
+import { StatusBadge, PriorityBadge, QuoteStatusBadge, InvoiceStatusBadge, ReminderStatusBadge } from '@/components/tallerflow/badges'
 import { useAppStore } from '@/store/app-store'
 import {
   useWorkOrder,
@@ -118,12 +119,14 @@ import {
   useSettings,
   useParts,
   usePartMutations,
+  useReminders,
 } from '@/lib/hooks/api'
 import {
   WORK_ORDER_STATUS,
   PRIORITY,
   DEVICE_TYPES,
   QUOTE_STATUS,
+  REMINDER_TYPES,
   getNextStatuses,
   getFlowStages,
   formatCurrency,
@@ -176,6 +179,7 @@ export function WorkOrderDetailView() {
   const { patch, remove, update } = useWorkOrderMutations()
   const { update: updateQuote } = useQuoteMutations()
   const { data: settings } = useSettings()
+  const { data: orderReminders } = useReminders({ workOrderId: selectedWorkOrderId || undefined })
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
@@ -187,6 +191,7 @@ export function WorkOrderDetailView() {
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
   const [addPartOpen, setAddPartOpen] = React.useState(false)
   const [statusToConfirm, setStatusToConfirm] = React.useState<WorkOrderStatusKey | null>(null)
+  const [deliverOpen, setDeliverOpen] = React.useState(false)
 
   const order: any = data
 
@@ -242,16 +247,30 @@ export function WorkOrderDetailView() {
   const canDelete = ['received', 'cancelled'].includes(order.status)
   const balance = (order.totalAmount || 0) - (order.totalPaid || 0)
 
-  const changeStatus = (newStatus: WorkOrderStatusKey) => {
+  const changeStatus = (
+    newStatus: WorkOrderStatusKey,
+    extra?: { reminders?: Array<{ type: string; daysAfter: number; channel?: string }>; skipAutoReminders?: boolean }
+  ) => {
     patch.mutate(
-      { id: order.id, data: { action: 'change_status', status: newStatus } },
-      { onSuccess: () => toast.success(`Estado cambiado a "${WORK_ORDER_STATUS[newStatus].label}"`) }
+      { id: order.id, data: { action: 'change_status', status: newStatus, ...extra } },
+      {
+        onSuccess: () => {
+          toast.success(`Estado cambiado a "${WORK_ORDER_STATUS[newStatus].label}"`)
+          if (extra?.reminders && extra.reminders.length > 0) {
+            toast.success(`${extra.reminders.length} recordatorio${extra.reminders.length > 1 ? 's' : ''} programado${extra.reminders.length > 1 ? 's' : ''}`)
+          }
+        },
+      }
     )
   }
 
   // Estados terminales requieren confirmación porque notifican al cliente por WhatsApp
   const confirmStatus = (newStatus: WorkOrderStatusKey) => {
-    if (newStatus === 'delivered' || newStatus === 'cancelled') {
+    if (newStatus === 'delivered') {
+      setDeliverOpen(true)
+      return
+    }
+    if (newStatus === 'cancelled') {
       setStatusToConfirm(newStatus)
       return
     }
@@ -723,6 +742,46 @@ export function WorkOrderDetailView() {
             </CardContent>
           </Card>
 
+          {/* Recordatorios */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="size-4" />
+                Recordatorios
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {!orderReminders || orderReminders.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Sin recordatorios para esta orden. Se programan al entregar el servicio.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {orderReminders.map((r: any) => (
+                    <div key={r.id} className="rounded-md border p-2.5 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium leading-tight">{r.title}</p>
+                        <ReminderStatusBadge status={r.status} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {REMINDER_TYPES[r.type as keyof typeof REMINDER_TYPES]?.label || r.type} · vence {formatDate(r.dueDate)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={() => navigate('reminders')}
+              >
+                <Clock className="size-3.5" />
+                Ver módulo de Recordatorios
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Resumen Financiero */}
           <Card>
             <CardHeader className="pb-3">
@@ -963,6 +1022,17 @@ export function WorkOrderDetailView() {
         open={addPartOpen}
         onOpenChange={setAddPartOpen}
         order={order}
+      />
+
+      {/* Entrega de servicio: recordatorios post-entrega */}
+      <DeliverOrderDialog
+        open={deliverOpen}
+        onOpenChange={setDeliverOpen}
+        order={order}
+        isPending={patch.isPending}
+        onConfirm={(reminders) =>
+          changeStatus('delivered', { reminders, skipAutoReminders: true })
+        }
       />
 
       {/* Confirmación de estados terminales (notifican al cliente) */}
@@ -1238,6 +1308,153 @@ function AssignTechDialog({
           <Button onClick={handleSave} disabled={!techId || patch.isPending} className="gap-2">
             {patch.isPending && <Loader2 className="size-4 animate-spin" />}
             Asignar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============== Deliver Order Dialog ==============
+function DeliverOrderDialog({
+  open,
+  onOpenChange,
+  order,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  order: any
+  onConfirm: (reminders: Array<{ type: string; daysAfter: number; channel?: string }>) => void
+  isPending: boolean
+}) {
+  const [maintenanceEnabled, setMaintenanceEnabled] = React.useState(true)
+  const [maintenanceDays, setMaintenanceDays] = React.useState(180)
+  const [reviewEnabled, setReviewEnabled] = React.useState(true)
+  const [reviewDays, setReviewDays] = React.useState(3)
+
+  React.useEffect(() => {
+    if (open) {
+      setMaintenanceEnabled(true)
+      setMaintenanceDays(180)
+      setReviewEnabled(true)
+      setReviewDays(3)
+    }
+  }, [open])
+
+  const maintenanceDue = React.useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + (maintenanceDays || 0))
+    return d
+  }, [maintenanceDays])
+
+  const reviewDue = React.useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + (reviewDays || 0))
+    return d
+  }, [reviewDays])
+
+  const handleConfirm = () => {
+    const reminders: Array<{ type: string; daysAfter: number; channel?: string }> = []
+    if (maintenanceEnabled) reminders.push({ type: 'maintenance', daysAfter: maintenanceDays || 0, channel: 'whatsapp' })
+    if (reviewEnabled) reminders.push({ type: 'service_review', daysAfter: reviewDays || 0, channel: 'whatsapp' })
+    onConfirm(reminders)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="size-5 text-emerald-500" />
+            Entregar servicio
+          </DialogTitle>
+          <DialogDescription>
+            La orden {order?.code} se marcará como entregada y el cliente recibirá la notificación por WhatsApp.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Recordatorios post-entrega
+          </p>
+
+          {/* Próximo mantenimiento */}
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="deliver-maintenance"
+                checked={maintenanceEnabled}
+                onCheckedChange={(v) => setMaintenanceEnabled(v === true)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="deliver-maintenance" className="flex items-center gap-1.5 font-medium cursor-pointer">
+                  <Wrench className="size-3.5 text-teal-500" />
+                  Próximo mantenimiento
+                </Label>
+                {maintenanceEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={maintenanceDays}
+                      onChange={(e) => setMaintenanceDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-20 h-8"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      días → vence {formatDate(maintenanceDue)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Solicitud de referencia */}
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="deliver-review"
+                checked={reviewEnabled}
+                onCheckedChange={(v) => setReviewEnabled(v === true)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="deliver-review" className="flex items-center gap-1.5 font-medium cursor-pointer">
+                  <Sparkles className="size-3.5 text-amber-500" />
+                  Solicitud de referencia
+                </Label>
+                {reviewEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={reviewDays}
+                      onChange={(e) => setReviewDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-20 h-8"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      días → vence {formatDate(reviewDue)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Esta acción no se puede deshacer. Los recordatorios aparecerán en el módulo de Recordatorios.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Volver</Button>
+          <Button onClick={handleConfirm} disabled={isPending} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+            {isPending && <Loader2 className="size-4 animate-spin" />}
+            Confirmar entrega
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,8 +1,73 @@
 import { NextRequest } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
-import { WORK_ORDER_STATUS, getNextStatuses, WorkOrderStatusKey } from '@/lib/constants'
+import { WORK_ORDER_STATUS, getNextStatuses, WorkOrderStatusKey, REMINDER_TYPES } from '@/lib/constants'
 import { runTrigger } from '@/lib/automations'
+
+// Crea recordatorios de entrega (mantenimiento, referencia, etc.) con dedupe por orden+tipo
+async function createDeliveryReminders(
+  tx: Prisma.TransactionClient,
+  workOrderId: string,
+  customerId: string,
+  reminders: Array<{ type?: string; daysAfter?: number; channel?: string }>
+) {
+  const wo = await tx.workOrder.findUnique({
+    where: { id: workOrderId },
+    include: { customer: true, device: true },
+  })
+  if (!wo) return
+
+  const customerName = wo.customer ? `${wo.customer.firstName} ${wo.customer.lastName}` : ''
+  const equipo = wo.device ? `${wo.device.brand} ${wo.device.model}`.trim() : 'equipo'
+
+  for (const r of reminders) {
+    const type = r?.type && REMINDER_TYPES[r.type as keyof typeof REMINDER_TYPES] ? r.type : null
+    if (!type) continue
+
+    const days = typeof r.daysAfter === 'number' && r.daysAfter >= 0
+      ? r.daysAfter
+      : REMINDER_TYPES[type as keyof typeof REMINDER_TYPES].defaultDays
+
+    // Dedupe: no duplicar si ya existe un recordatorio del mismo tipo para esta orden
+    const existingReminder = await tx.reminder.findFirst({
+      where: { workOrderId, type },
+    })
+    if (existingReminder) continue
+
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + days)
+
+    const titles: Record<string, string> = {
+      maintenance: `Próximo mantenimiento - ${customerName}`,
+      service_review: `Solicitud de referencia - ${customerName}`,
+      follow_up: `Seguimiento post-servicio - ${customerName}`,
+      warranty_check: `Verificar garantía - ${customerName}`,
+    }
+
+    const messages: Record<string, string> = {
+      maintenance: `Recordar próximo mantenimiento de ${equipo} (${wo.code}) a ${customerName}.`,
+      service_review: `Solicitar referencia/reseña del servicio a ${customerName} (${wo.code}, ${equipo}).`,
+      follow_up: `Contactar a ${customerName} para seguimiento de ${equipo} (${wo.code}).`,
+      warranty_check: `Verificar garantía de ${equipo} (${wo.code}) de ${customerName}.`,
+    }
+
+    await tx.reminder.create({
+      data: {
+        customerId,
+        workOrderId,
+        type,
+        title: titles[type] || REMINDER_TYPES[type as keyof typeof REMINDER_TYPES].label,
+        message: messages[type] || null,
+        dueDate,
+        channel: r.channel || 'whatsapp',
+        status: 'pending',
+        priority: 'normal',
+        daysAfter: days,
+      },
+    })
+  }
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -106,11 +171,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           },
         })
 
+        // Recordatorios explícitos solicitados desde la UI al entregar
+        if (newStatus === 'delivered' && Array.isArray(body.reminders)) {
+          await createDeliveryReminders(tx, id, existing.customerId, body.reminders)
+        }
+
         return wo
       })
 
       if (['ready', 'delivered'].includes(newStatus)) {
-        await runTrigger(newStatus === 'ready' ? 'order_ready' : 'order_delivered', { workOrderId: id })
+        await runTrigger(newStatus === 'ready' ? 'order_ready' : 'order_delivered', {
+          workOrderId: id,
+          // Si la UI ya creó los recordatorios, no duplicar con las reglas automáticas
+          skipAutoReminders: newStatus === 'delivered' && body.skipAutoReminders === true,
+        })
       }
 
       return ok(workOrder)

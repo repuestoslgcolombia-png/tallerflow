@@ -9,6 +9,8 @@ export interface TriggerContext {
   customerId?: string
   invoiceId?: string
   quoteId?: string
+  // Si la UI ya creó los recordatorios al entregar, omitir reglas create_reminder
+  skipAutoReminders?: boolean
 }
 
 const DEFAULT_RULES: Array<{
@@ -214,11 +216,13 @@ export async function runTrigger(trigger: string, ctx: TriggerContext = {}) {
     const context = await loadContext(ctx)
     if (!context) return
 
-    for (const rule of rules) {
+      for (const rule of rules) {
       try {
         if (rule.action === 'send_whatsapp') {
           await executeSendWhatsApp(rule, context, trigger)
         } else if (rule.action === 'create_reminder') {
+          // La UI ya creó los recordatorios al entregar: no duplicar
+          if (ctx.skipAutoReminders) continue
           await executeCreateReminder(rule, context, trigger)
         }
       } catch (e) {
