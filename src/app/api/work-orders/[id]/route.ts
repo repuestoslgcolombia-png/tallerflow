@@ -40,8 +40,8 @@ async function createDeliveryReminders(
 
     const titles: Record<string, string> = {
       maintenance: `Próximo mantenimiento - ${customerName}`,
-      service_review: `Solicitud de referencia - ${customerName}`,
-      follow_up: `Seguimiento post-servicio - ${customerName}`,
+      service_review: `Solicitud de reseña - ${customerName}`,
+      follow_up: `Seguimiento postservicio - ${customerName}`,
       warranty_check: `Verificar garantía - ${customerName}`,
     }
 

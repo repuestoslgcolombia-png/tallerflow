@@ -259,7 +259,7 @@ export function NotificationBell() {
             Configuración
           </Button>
           <span className="text-[10px] text-muted-foreground">
-            Actualizado cada 60s
+            Actualizado cada minuto
           </span>
         </div>
       </PopoverContent>

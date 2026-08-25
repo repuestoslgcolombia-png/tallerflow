@@ -71,6 +71,7 @@ import {
   DEVICE_TYPES,
   SERVICE_TYPES,
   formatCurrency,
+  formatDateTime,
   timeAgo,
   fullName,
   type WorkOrderStatusKey,
@@ -133,14 +134,14 @@ export function WorkOrdersView() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Órdenes de Trabajo</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Órdenes de trabajo</h1>
           <p className="text-sm text-muted-foreground">
-            Gestiona el flujo de reparaciones del taller
+            Gestiona el flujo de reparaciones del taller.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="size-4" />
-          Nueva Orden
+          Nueva orden
         </Button>
       </div>
 
@@ -153,19 +154,19 @@ export function WorkOrdersView() {
           onClick={() => setStatusFilter('all')}
         />
         <StatCard
-          label="En Diagnóstico"
+          label="En diagnóstico"
           value={diagnosingCount}
           tone="amber"
           onClick={() => setStatusFilter('diagnosing')}
         />
         <StatCard
-          label="Por Aprobar"
+          label="Por aprobar"
           value={toApproveCount}
           tone="sky"
           onClick={() => setStatusFilter('quoted')}
         />
         <StatCard
-          label="Listas Entrega"
+          label="Listas para entregar"
           value={readyCount}
           tone="teal"
           onClick={() => setStatusFilter('ready')}
@@ -335,7 +336,7 @@ export function WorkOrdersView() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs text-muted-foreground" title={o.receivedAt}>
+                      <span className="text-xs text-muted-foreground" title={formatDateTime(o.receivedAt)}>
                         {timeAgo(o.receivedAt)}
                       </span>
                     </TableCell>
@@ -609,7 +610,7 @@ function CreateOrderDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {(serviceType === 'mantenimiento' || serviceType === 'instalacion')
                     ? 'Flujo corto: Recibida → Lista → Entregada'
                     : 'Flujo completo con diagnóstico y cotización'}

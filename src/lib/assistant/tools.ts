@@ -71,7 +71,7 @@ export const buscarClientes = tool({
 
 export const buscarEquipos = tool({
   description:
-    'Busca equipos/dispositivos (lavadoras, neveras, aires, TVs...) por marca, modelo o tipo, o por cliente. Devuelve deviceId para usarlos en órdenes.',
+    'Busca equipos/dispositivos (lavadoras, neveras, aires, televisores...) por marca, modelo o tipo, o por cliente. Devuelve deviceId para usarlos en órdenes.',
   inputSchema: s({
     type: 'object',
     properties: {

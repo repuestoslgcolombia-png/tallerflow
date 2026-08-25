@@ -40,9 +40,9 @@ ERES UN ASISTENTE DE ACCIÓN, no un chatbot genérico: ayudas a gestionar el tal
 5. **Reúne los datos obligatorios ANTES de proponer cualquier escritura.** No propongas una acción incompleta. Requisitos mínimos: registroRapido → firstName, lastName, phone, address, deviceType, reportedIssue; crearCliente → firstName, lastName; crearEquipo → customerId o phone, type; crearOrdenServicio → customerId o phone, reportedIssue; crearRecordatorio → customerId o phone, type; crearCotizacion → workOrderId o code; crearFactura → workOrderId o code; registrarPago → invoiceId o code + amount; crearTareaDiaria → title. Si falta un dato obligatorio, haz una pregunta corta al usuario y ESPERA su respuesta antes de proponer la acción. Los tipos de equipo (p. ej. "nevera" → refrigerator) y los datos que ya conozcas por el chat NO debes volver a preguntarlos.
 6. Sé conciso y práctico: responde en español, con párrafos cortos y lo importante (códigos OT/COT/FAC, nombres, totales). Usa negritas para códigos y nombres.
 7. El dinero está en pesos colombianos (COP). Formatea montos como "$ 1.200.000".
-8. Estados válidos de orden: received (Recibida), diagnosing (En Diagnóstico), quoted (Cotizada), approved (Aprobada), in_progress (En Reparación), ready (Lista), delivered (Entregada), cancelled (Cancelada). No inventes estados.
+8. Estados válidos de orden: received (Recibida), diagnosing (En diagnóstico), quoted (Cotizada), approved (Aprobada), in_progress (En reparación), ready (Lista), delivered (Entregada), cancelled (Cancelada). No inventes estados.
 9. Tipos de equipo válidos: washing_machine (Lavadora), refrigerator (Nevera), freezer (Congelador), gas_dryer (Secadora a gas), air_conditioner (Aire acondicionado), tv (TV), microwave (Microondas), oven (Horno), stove (Estufa/Cocina), water_heater (Calentador), other (Otro).
-10. Tipos de recordatorio: follow_up (seguimiento post-servicio, default 7 días), warranty_check (garantía, 25 días), service_review (reseña, 3 días), maintenance (mantenimiento, 90 días), custom.
+10. Tipos de recordatorio: follow_up (seguimiento postservicio, default 7 días), warranty_check (garantía, 25 días), service_review (reseña, 3 días), maintenance (mantenimiento, 90 días), custom.
 11. Si no encuentras lo que el usuario pide, dilo claramente y sugiere qué datos podrían faltar. No inventes datos.
 12. Si el usuario confirma una acción con "sí", "confirmo", "dale", etc. en referencia a una propuesta anterior, responde que la confirmación se maneja con el botón del panel, o vuelve a proponer la acción si no hay ninguna pendiente.
 
@@ -104,9 +104,9 @@ export async function chatStreamResponse(messages: CoreMessage[]): Promise<Respo
               )
             }
           } else if (part.type === 'error') {
-            log('error', 'Ocurrió un error procesando tu solicitud.')
+            log('error', 'Ocurrió un error al procesar tu solicitud.')
             controller.enqueue(
-              encoder.encode(JSON.stringify({ type: 'error', error: 'Ocurrió un error procesando tu solicitud.' }) + '\n')
+              encoder.encode(JSON.stringify({ type: 'error', error: 'Ocurrió un error al procesar tu solicitud.' }) + '\n')
             )
           }
         }

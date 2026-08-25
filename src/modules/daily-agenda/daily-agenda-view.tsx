@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useDailyAgenda, useDailyTaskMutations } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
-import { formatDate, formatDateTime, timeAgo, formatCurrency, WORK_ORDER_STATUS, PRIORITY, DEVICE_TYPES, REMINDER_TYPES } from '@/lib/constants'
+import { formatDate, formatDateTime, formatTime, timeAgo, formatCurrency, WORK_ORDER_STATUS, PRIORITY, DEVICE_TYPES, REMINDER_TYPES } from '@/lib/constants'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -213,7 +213,7 @@ export function DailyAgendaView() {
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div className="flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-violet-500" />
-                <h2 className="text-sm font-medium">Checklist del día</h2>
+                <h2 className="text-sm font-medium">Tareas del día</h2>
                 <Badge variant="outline" className="ml-1 text-xs">
                   {stats.dailyTasksDone}/{stats.dailyTasksTotal}
                 </Badge>
@@ -238,7 +238,7 @@ export function DailyAgendaView() {
                   <ClipboardList className="h-8 w-8 text-muted-foreground/50" />
                   <p>Sin tareas para hoy</p>
                   <Button variant="outline" size="sm" onClick={() => setIsAddingTask(true)}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Añadir tarea
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Agregar tarea
                   </Button>
                 </div>
               )}
@@ -262,7 +262,7 @@ export function DailyAgendaView() {
                             if (e.key === 'Escape') { setEditingTaskId(null); setEditTaskTitle('') }
                           }}
                         />
-                        <Button size="sm" variant="ghost" onClick={() => handleUpdateTaskTitle(task.id)} className="h-8">
+                        <Button size="sm" variant="ghost" onClick={() => handleUpdateTaskTitle(task.id)} className="h-8" aria-label="Guardar">
                           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                         </Button>
                       </div>
@@ -294,6 +294,7 @@ export function DailyAgendaView() {
                       variant="ghost"
                       className="h-7 w-7 p-0"
                       onClick={() => removeTask.mutate(task.id)}
+                      aria-label="Eliminar tarea"
                     >
                       <X className="h-3.5 w-3.5 text-muted-foreground" />
                     </Button>
@@ -305,7 +306,7 @@ export function DailyAgendaView() {
                   <Input
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Nueva tarea..."
+                    placeholder="Nueva tarea…"
                     className="h-9 text-sm"
                     autoFocus
                     disabled={isSavingTask}
@@ -322,7 +323,7 @@ export function DailyAgendaView() {
               {dailyTasks.length > 0 && !isAddingTask && (
                 <div className="px-4 py-2">
                   <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setIsAddingTask(true)}>
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Añadir tarea
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Agregar tarea
                   </Button>
                 </div>
               )}
@@ -374,7 +375,7 @@ export function DailyAgendaView() {
                         {wo.isScheduledVisit ? (
                           <Badge variant="outline" className="border-violet-200 bg-violet-50 px-1.5 py-0 text-[10px] text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-400">
                             <CalendarDays className="mr-0.5 h-2.5 w-2.5" />
-                            Visita {wo.scheduledVisitAt && formatDateTime(wo.scheduledVisitAt)}
+                            Visita {wo.scheduledVisitAt && formatTime(wo.scheduledVisitAt)}
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="border-sky-200 bg-sky-50 px-1.5 py-0 text-[10px] text-sky-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-400">
@@ -596,7 +597,7 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
       <div className="min-w-0">
         <p className="text-lg font-bold leading-tight tabular-nums sm:text-xl">{value}</p>
         <p className="truncate text-xs text-muted-foreground">{label}</p>
-        {sub && <p className="truncate text-[10px] text-rose-500">{sub}</p>}
+        {sub && <p className="truncate text-[11px] text-rose-600 dark:text-rose-400">{sub}</p>}
       </div>
     </div>
   )
@@ -677,7 +678,7 @@ function WorkshopFlowCard({
 
       {total === 0 && (
         <p className="border-t px-4 py-3 text-center text-xs text-muted-foreground">
-          No hay órdenes activas en el taller — buen momento para mantenimiento preventivo del taller mismo.
+          No hay órdenes activas en el taller — buen momento para hacer mantenimiento preventivo.
         </p>
       )}
     </Card>

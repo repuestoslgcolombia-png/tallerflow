@@ -399,7 +399,7 @@ export function CustomerDetailView() {
               <div className="space-y-1">
                 <CardTitle className="text-base">Equipos del cliente</CardTitle>
                 <CardDescription className="text-xs">
-                  Dispositivos registrados a nombre de este cliente.
+                  Equipos registrados a nombre de este cliente.
                 </CardDescription>
               </div>
               <Button

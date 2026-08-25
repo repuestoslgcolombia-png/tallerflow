@@ -49,7 +49,7 @@ export function SettingsView() {
 const ROLE_LABELS: Record<string, string> = {
   technician: 'Técnico',
   receptionist: 'Recepcionista',
-  admin: 'Admin',
+  admin: 'Administrador',
 }
 
 const ROLE_CLASSES: Record<string, string> = {
@@ -97,7 +97,7 @@ function TeamSection() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Equipo de trabajo</h2>
-          <p className="text-sm text-muted-foreground">Gestiona los técnicos y personal del taller</p>
+          <p className="text-sm text-muted-foreground">Gestiona los técnicos y el personal del taller.</p>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ function TeamSection() {
                 <SelectContent>
                   <SelectItem value="technician">Técnico</SelectItem>
                   <SelectItem value="receptionist">Recepcionista</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -167,7 +167,7 @@ function TeamSection() {
             Miembros del equipo
           </CardTitle>
           <CardDescription>
-            {team.length} {team.length === 1 ? 'miembro' : 'miembros'} · el switch activa/desactiva
+            {team.length} {team.length === 1 ? 'miembro' : 'miembros'} · usa el interruptor para activar o desactivar
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -261,7 +261,7 @@ function SettingsForm({ settings }: { settings: any }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Configuración del Taller</h2>
+          <h2 className="text-lg font-semibold">Configuración del taller</h2>
           <p className="text-sm text-muted-foreground">Personaliza la información y parámetros de tu taller</p>
         </div>
         {dirty && (
@@ -278,7 +278,7 @@ function SettingsForm({ settings }: { settings: any }) {
             <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Store className="size-4" />
             </div>
-            Información del Taller
+            Información del taller
           </CardTitle>
           <CardDescription>Datos que aparecerán en cotizaciones y facturas</CardDescription>
         </CardHeader>
@@ -306,7 +306,7 @@ function SettingsForm({ settings }: { settings: any }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email" className="flex items-center gap-1.5">
-                <Mail className="size-3.5 text-muted-foreground" /> Email
+                <Mail className="size-3.5 text-muted-foreground" /> Correo electrónico
               </Label>
               <Input
                 id="email"
@@ -338,7 +338,7 @@ function SettingsForm({ settings }: { settings: any }) {
                 onChange={(e) => update('logoUrl', e.target.value)}
                 placeholder="https://..."
               />
-              <p className="text-[11px] text-muted-foreground">Se mostrará en documentos PDF generados</p>
+              <p className="text-[11px] text-muted-foreground">Se mostrará en los documentos PDF generados</p>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="warrantyPolicy" className="flex items-center gap-1.5">
@@ -364,7 +364,7 @@ function SettingsForm({ settings }: { settings: any }) {
             <div className="flex size-7 items-center justify-center rounded-md bg-emerald-100 text-emerald-600">
               <DollarSign className="size-4" />
             </div>
-            Configuración de Facturación
+            Configuración de facturación
           </CardTitle>
           <CardDescription>Parámetros monetarios y de impuestos</CardDescription>
         </CardHeader>
@@ -418,7 +418,7 @@ function SettingsForm({ settings }: { settings: any }) {
             <div className="flex size-7 items-center justify-center rounded-md bg-violet-100 text-violet-600">
               <Hash className="size-4" />
             </div>
-            Contadores de Documentos
+            Contadores de documentos
           </CardTitle>
           <CardDescription>Se incrementan automáticamente al crear documentos</CardDescription>
         </CardHeader>

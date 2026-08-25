@@ -29,18 +29,18 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'quick-register', label: 'Captación Rápida', icon: UserPlus, description: 'Registro exprés', group: 'operation' },
-  { id: 'dashboard', label: 'Flujo Diario', icon: LayoutDashboard, description: 'Agenda y tareas del día', group: 'operation' },
+  { id: 'quick-register', label: 'Registro rápido', icon: UserPlus, description: 'Registro exprés', group: 'operation' },
+  { id: 'dashboard', label: 'Flujo diario', icon: LayoutDashboard, description: 'Agenda y tareas del día', group: 'operation' },
   { id: 'work-orders', label: 'Órdenes', icon: ClipboardList, description: 'Órdenes de trabajo', group: 'operation' },
   { id: 'customers', label: 'Clientes', icon: Users, description: 'Gestión de clientes', group: 'operation' },
   { id: 'devices', label: 'Equipos', icon: Laptop, description: 'Inventario de equipos', group: 'operation' },
   { id: 'quotes', label: 'Cotizaciones', icon: FileText, description: 'Cotizaciones y aprobaciones', group: 'operation' },
   { id: 'invoices', label: 'Facturas', icon: Receipt, description: 'Facturación y pagos', group: 'operation' },
-  { id: 'reminders', label: 'Recordatorios', icon: Bell, description: 'Seguimiento post-servicio', group: 'operation' },
+  { id: 'reminders', label: 'Recordatorios', icon: Bell, description: 'Seguimiento postservicio', group: 'operation' },
   { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'Mensajería y plantillas', group: 'operation' },
   { id: 'automations', label: 'Automatizaciones', icon: Zap, description: 'Mensajes y recordatorios automáticos', group: 'operation' },
   { id: 'inventory', label: 'Inventario', icon: Package, description: 'Repuestos y stock', group: 'admin' },
-  { id: 'guides', label: 'Base de Conocimiento', icon: BookOpen, description: 'Guías de reparación', group: 'admin' },
+  { id: 'guides', label: 'Base de conocimiento', icon: BookOpen, description: 'Guías de reparación', group: 'admin' },
   { id: 'settings', label: 'Configuración', icon: Settings, description: 'Ajustes del taller', group: 'admin' },
 ]
 
@@ -157,7 +157,7 @@ export function Sidebar() {
             <p className="mt-0.5 text-[11px] text-muted-foreground">Bogotá, Colombia</p>
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1.5 rounded-full bg-emerald-500" />
-              Sistema operativo
+              Sistema en línea
             </div>
           </div>
         </div>

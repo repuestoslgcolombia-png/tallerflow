@@ -134,6 +134,7 @@ import {
   formatDateTime,
   timeAgo,
   fullName,
+  pluralizeUnit,
   type WorkOrderStatusKey,
   type PriorityKey,
 } from '@/lib/constants'
@@ -280,7 +281,7 @@ export function WorkOrderDetailView() {
   const copyApprovalLink = (q: any) => {
     const url = `${window.location.origin}/?quote=${q.id}&token=${q.approvalToken}`
     navigator.clipboard.writeText(url)
-    toast.success('Link copiado al portapapeles')
+    toast.success('Enlace copiado al portapapeles')
   }
 
   const sendQuote = (q: any) => {
@@ -314,7 +315,7 @@ export function WorkOrderDetailView() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
-                Cambiar Estado
+                Cambiar estado
                 <ChevronRight className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -348,7 +349,7 @@ export function WorkOrderDetailView() {
               onClick={() => setCreateQuoteOpen(true)}
             >
               <FileText className="size-3.5" />
-              Crear Cotización
+              Crear cotización
             </Button>
           )}
 
@@ -360,7 +361,7 @@ export function WorkOrderDetailView() {
               onClick={() => setCreateInvoiceOpen(true)}
             >
               <FileCheck className="size-3.5" />
-              Generar Factura
+              Generar factura
             </Button>
           )}
 
@@ -372,7 +373,7 @@ export function WorkOrderDetailView() {
               onClick={() => navigate('invoices')}
             >
               <Receipt className="size-3.5" />
-              Ver Factura
+              Ver factura
             </Button>
           )}
 
@@ -606,7 +607,7 @@ export function WorkOrderDetailView() {
                     </p>
                   </div>
                   <Button size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
-                    <Plus className="size-4" /> Crear Cotización
+                    <Plus className="size-4" /> Crear cotización
                   </Button>
                 </div>
               ) : (
@@ -650,7 +651,7 @@ export function WorkOrderDetailView() {
                           className="gap-1"
                           onClick={() => copyApprovalLink(q)}
                         >
-                          <LinkIcon className="size-3.5" /> Link
+                          <LinkIcon className="size-3.5" /> Enlace
                         </Button>
                       </div>
                     </div>
@@ -858,7 +859,7 @@ export function WorkOrderDetailView() {
                   onClick={() => setCreateInvoiceOpen(true)}
                 >
                   <FileCheck className="size-3.5" />
-                  Generar Factura
+                  Generar factura
                 </Button>
               )}
             </CardContent>
@@ -973,7 +974,7 @@ export function WorkOrderDetailView() {
                               −{m.quantity}
                             </Badge>
                             {subtotal > 0 && (
-                              <p className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
+                              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
                                 ≈ {formatCurrency(subtotal, settings?.currencySymbol || '$')}
                               </p>
                             )}
@@ -1051,7 +1052,7 @@ export function WorkOrderDetailView() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (statusToConfirm) changeStatus(statusToConfirm)
@@ -1078,7 +1079,7 @@ export function WorkOrderDetailView() {
             <AlertDialogTitle>¿Eliminar orden {order.code}?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente la orden,
-              su timeline, cotizaciones y movimientos asociados.
+              su línea de tiempo, cotizaciones y movimientos asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1413,7 +1414,7 @@ function DeliverOrderDialog({
             </div>
           </div>
 
-          {/* Solicitud de referencia */}
+          {/* Solicitud de reseña */}
           <div className="rounded-lg border p-3 space-y-2">
             <div className="flex items-start gap-3">
               <Checkbox
@@ -1425,7 +1426,7 @@ function DeliverOrderDialog({
               <div className="flex-1 space-y-2">
                 <Label htmlFor="deliver-review" className="flex items-center gap-1.5 font-medium cursor-pointer">
                   <Sparkles className="size-3.5 text-amber-500" />
-                  Solicitud de referencia
+                  Solicitud de reseña
                 </Label>
                 {reviewEnabled && (
                   <div className="flex items-center gap-2">
@@ -1451,7 +1452,7 @@ function DeliverOrderDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Volver</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleConfirm} disabled={isPending} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
             {isPending && <Loader2 className="size-4 animate-spin" />}
             Confirmar entrega
@@ -1492,7 +1493,7 @@ function DiagnosisDialog({
         <DialogHeader>
           <DialogTitle>Agregar Diagnóstico</DialogTitle>
           <DialogDescription>
-            Registra el diagnóstico técnico. Se guardará en el campo de texto de la orden.
+            Registra el diagnóstico técnico de la orden.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -1537,7 +1538,7 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <BookOpen className="size-4 text-violet-500" />
-          Base de Conocimiento
+          Base de conocimiento
         </CardTitle>
         <CardDescription>
           Guías relacionadas con este equipo
@@ -1866,7 +1867,7 @@ function CreateQuoteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Crear Cotización</DialogTitle>
+          <DialogTitle>Crear cotización</DialogTitle>
           <DialogDescription>
             Define los ítems (repuestos, mano de obra, otros). IVA 19% aplicado.
           </DialogDescription>
@@ -2007,7 +2008,7 @@ function CreateQuoteDialog({
             className="gap-2"
           >
             {create.isPending && <Loader2 className="size-4 animate-spin" />}
-            {sendImmediately ? 'Crear y Enviar' : 'Crear Cotización'}
+            {sendImmediately ? 'Crear y enviar' : 'Crear cotización'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2029,7 +2030,7 @@ function ViewQuoteDialog({
   const copyLink = () => {
     const url = `${window.location.origin}/?quote=${quote.id}&token=${quote.approvalToken}`
     navigator.clipboard.writeText(url)
-    toast.success('Link copiado al portapapeles')
+    toast.success('Enlace copiado al portapapeles')
   }
 
   return (
@@ -2078,7 +2079,7 @@ function ViewQuoteDialog({
                   <TableRow key={it.id}>
                     <TableCell>
                       <p className="text-sm">{it.description}</p>
-                      <p className="text-xs text-muted-foreground">{it.itemType}</p>
+                      <p className="text-xs text-muted-foreground">{{ part: 'Repuesto', labor: 'Mano de obra', other: 'Otro' }[it.itemType as 'part' | 'labor' | 'other'] ?? it.itemType}</p>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCurrency(it.unitPrice)}</TableCell>
@@ -2140,7 +2141,7 @@ function ViewQuoteDialog({
 
         <DialogFooter>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={copyLink}>
-            <LinkIcon className="size-3.5" /> Copiar link aprobación
+            <LinkIcon className="size-3.5" /> Copiar enlace de aprobación
           </Button>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
@@ -2235,7 +2236,7 @@ function CreateInvoiceFromOrderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileCheck className="size-5 text-emerald-600" />
-            Generar Factura
+            Generar factura
           </DialogTitle>
           <DialogDescription>
             Crea una factura para la orden <span className="font-mono font-medium">{order.code}</span>
@@ -2257,7 +2258,7 @@ function CreateInvoiceFromOrderDialog({
           {/* Items */}
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label>Items de la factura</Label>
+              <Label>Ítems de la factura</Label>
               <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addItem}>
                 <Plus className="size-3.5" /> Agregar
               </Button>
@@ -2546,9 +2547,9 @@ function AddPartDialog({
                           ) : (
                             <>
                               <p className="text-xs font-medium tabular-nums">
-                                Stock: {p.stock} {p.unit}
+                                Stock: {p.stock} {pluralizeUnit(p.unit, p.stock)}
                               </p>
-                              <p className="text-[10px] text-muted-foreground tabular-nums">
+                              <p className="text-[11px] text-muted-foreground tabular-nums">
                                 {formatCurrency(p.unitPrice, settings?.currencySymbol || '$')}
                               </p>
                             </>

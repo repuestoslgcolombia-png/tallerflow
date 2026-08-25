@@ -176,8 +176,8 @@ export function QuickRegisterView() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Captación Rápida</h1>
-        <p className="text-sm text-muted-foreground">Registra un cliente, programa la visita y crea la orden de servicio en segundos</p>
+        <h1 className="text-2xl font-bold tracking-tight">Registro rápido</h1>
+        <p className="text-sm text-muted-foreground">Registra un cliente, programa la visita y crea la orden de trabajo en segundos.</p>
       </div>
 
       {result ? (() => {

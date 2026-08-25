@@ -102,13 +102,13 @@ export function InvoicesView() {
   }
 
   const financeCards = [
-    { label: 'Total Facturado', value: formatCurrency(stats.totalBilled, symbol), icon: Receipt, color: 'bg-slate-100 text-slate-600' },
-    { label: 'Total Cobrado', value: formatCurrency(stats.totalCollected, symbol), icon: Wallet, color: 'bg-emerald-100 text-emerald-600' },
-    { label: 'Saldo por Cobrar', value: formatCurrency(stats.outstanding, symbol), icon: AlertCircle, color: 'bg-amber-100 text-amber-600', highlight: stats.outstanding > 0 },
-    { label: 'Ingresos del Mes', value: formatCurrency(stats.monthRevenue, symbol), icon: TrendingUp, color: 'bg-violet-100 text-violet-600', hint: 'Incluye abonos' },
+    { label: 'Total facturado', value: formatCurrency(stats.totalBilled, symbol), icon: Receipt, color: 'bg-slate-100 text-slate-600' },
+    { label: 'Total cobrado', value: formatCurrency(stats.totalCollected, symbol), icon: Wallet, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Saldo por cobrar', value: formatCurrency(stats.outstanding, symbol), icon: AlertCircle, color: 'bg-amber-100 text-amber-600', highlight: stats.outstanding > 0 },
+    { label: 'Ingresos del mes', value: formatCurrency(stats.monthRevenue, symbol), icon: TrendingUp, color: 'bg-violet-100 text-violet-600', hint: 'Incluye abonos' },
   ]
   const countCards = [
-    { key: 'all', label: 'Total Facturas', value: stats.total, icon: Receipt, color: 'bg-slate-100 text-slate-600' },
+    { key: 'all', label: 'Total de facturas', value: stats.total, icon: Receipt, color: 'bg-slate-100 text-slate-600' },
     { key: 'pending', label: 'Pendientes', value: stats.pending, icon: Clock, color: 'bg-amber-100 text-amber-600' },
     { key: 'paid', label: 'Pagadas', value: stats.paid, icon: Check, color: 'bg-emerald-100 text-emerald-600' },
   ]
@@ -127,7 +127,7 @@ export function InvoicesView() {
           />
         </div>
         <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" /> Nueva Factura
+          <Plus className="size-4" /> Nueva factura
         </Button>
       </div>
 
@@ -142,10 +142,10 @@ export function InvoicesView() {
                   <Icon className="size-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-bold leading-tight tabular-nums lg:text-xl">{s.value}</p>
+                  <p className="text-base font-bold leading-tight tabular-nums sm:text-lg lg:text-xl">{s.value}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {s.label}
-                    {s.hint && <span className="hidden text-[10px] sm:inline"> · {s.hint}</span>}
+                    {s.hint && <span className="hidden text-[11px] sm:inline"> · {s.hint}</span>}
                   </p>
                 </div>
               </CardContent>
@@ -170,7 +170,7 @@ export function InvoicesView() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-lg font-bold leading-tight tabular-nums lg:text-2xl">{s.value}</p>
-                  <p className="truncate text-[10px] text-muted-foreground sm:text-xs">{s.label}</p>
+                  <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{s.label}</p>
                 </div>
               </CardContent>
             </Card>
@@ -211,7 +211,7 @@ export function InvoicesView() {
                 <p className="text-sm text-muted-foreground">Crea la primera factura desde una orden entregada.</p>
               </div>
               <Button variant="outline" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-                <Plus className="size-4" /> Nueva Factura
+                <Plus className="size-4" /> Nueva factura
               </Button>
             </div>
           ) : (
@@ -263,7 +263,7 @@ export function InvoicesView() {
                           {inv.paid > 0 ? (
                             <div className="flex flex-col items-end">
                               <span className="text-xs font-medium text-emerald-600">{formatCurrency(inv.paid, settings?.currencySymbol || '$')}</span>
-                              {balance > 0 && <span className="text-[10px] text-amber-600">Saldo: {formatCurrency(balance, settings?.currencySymbol || '$')}</span>}
+                              {balance > 0 && <span className="text-[11px] text-amber-700">Saldo: {formatCurrency(balance, settings?.currencySymbol || '$')}</span>}
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -518,7 +518,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileCheck className="size-5 text-primary" />
-            Nueva Factura
+            Nueva factura
           </DialogTitle>
           <DialogDescription>Genera una factura desde una orden de trabajo entregada o lista.</DialogDescription>
         </DialogHeader>
@@ -557,7 +557,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           {/* Items */}
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label>Items de la factura</Label>
+              <Label>Ítems de la factura</Label>
               <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addItem}>
                 <Plus className="size-3.5" /> Agregar
               </Button>
@@ -585,7 +585,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="Precio unit."
+                    placeholder="Precio unitario"
                     value={it.unitPrice}
                     onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
                   />
@@ -777,7 +777,7 @@ function InvoiceDetailDialog({ invoice, onClose, onPay, onEdit }: { invoice: any
                 {(!invoice.items || invoice.items.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={4} className="py-4 text-center text-sm text-muted-foreground">
-                      Sin items
+                      Sin ítems
                     </TableCell>
                   </TableRow>
                 )}
@@ -1038,10 +1038,10 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="size-5 text-primary" />
-            Editar Factura {invoice.code}
+            Editar factura {invoice.code}
           </DialogTitle>
           <DialogDescription>
-            Corrige los items, totales, notas o método de pago de esta factura.
+            Corrige los ítems, totales, notas o método de pago de esta factura.
           </DialogDescription>
         </DialogHeader>
 
@@ -1051,7 +1051,7 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>
                 <strong>Atención:</strong> Esta factura ya está marcada como pagada.
-                Si cambias los items o totales, el saldo puede verse afectado.
+                Si cambias los ítems o totales, el saldo puede verse afectado.
                 Considera anular y crear una nueva si el cambio es significativo.
               </span>
             </p>
@@ -1062,7 +1062,7 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
           {/* Items */}
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label>Items de la factura</Label>
+              <Label>Ítems de la factura</Label>
               <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addItem}>
                 <Plus className="size-3.5" /> Agregar
               </Button>

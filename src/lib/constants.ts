@@ -9,7 +9,7 @@ export const WORK_ORDER_STATUS = {
     step: 0,
   },
   diagnosing: {
-    label: 'En Diagnóstico',
+    label: 'En diagnóstico',
     color: 'bg-amber-100 text-amber-700 border-amber-200',
     dot: 'bg-amber-500',
     description: 'Técnico evaluando el equipo',
@@ -30,7 +30,7 @@ export const WORK_ORDER_STATUS = {
     step: 3,
   },
   in_progress: {
-    label: 'En Reparación',
+    label: 'En reparación',
     color: 'bg-orange-100 text-orange-700 border-orange-200',
     dot: 'bg-orange-500',
     description: 'Reparación en proceso',
@@ -87,7 +87,7 @@ export const DEVICE_TYPES = {
 export type DeviceTypeKey = keyof typeof DEVICE_TYPES
 
 export const SERVICE_TYPES = {
-  mantenimiento: { label: 'Mantenimiento Preventivo', color: 'bg-teal-100 text-teal-700 border-teal-200' },
+  mantenimiento: { label: 'Mantenimiento preventivo', color: 'bg-teal-100 text-teal-700 border-teal-200' },
   revision: { label: 'Revisión', color: 'bg-sky-100 text-sky-700 border-sky-200' },
   instalacion: { label: 'Instalación', color: 'bg-violet-100 text-violet-700 border-violet-200' },
 } as const
@@ -105,7 +105,7 @@ export const QUOTE_STATUS = {
 export const INVOICE_STATUS = {
   pending: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200' },
   paid: { label: 'Pagada', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  partial: { label: 'Pago Parcial', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  partial: { label: 'Pago parcial', color: 'bg-sky-100 text-sky-700 border-sky-200' },
   cancelled: { label: 'Anulada', color: 'bg-rose-100 text-rose-700 border-rose-200' },
 } as const
 
@@ -123,11 +123,11 @@ export const MOVEMENT_TYPES = {
 
 export const REMINDER_TYPES = {
   follow_up: {
-    label: 'Seguimiento post-servicio',
+    label: 'Seguimiento postservicio',
     description: 'Contactar al cliente días después de la entrega',
     icon: 'Phone',
     defaultDays: 7,
-    defaultTemplate: 'Hola {cliente}, ¿cómo va el equipo {equipo} que reparamos? Si tiene alguna duda, estamos para ayudarte.',
+    defaultTemplate: 'Hola {cliente}, ¿cómo va el equipo {equipo} que reparamos? Si tiene alguna duda, estamos para ayudarle.',
   },
   warranty_check: {
     label: 'Revisión de garantía',
@@ -173,7 +173,7 @@ export type ReminderStatusKey = keyof typeof REMINDER_STATUS
 
 export const REMINDER_CHANNELS = {
   whatsapp: { label: 'WhatsApp', icon: 'MessageCircle', color: 'bg-emerald-100 text-emerald-700' },
-  email: { label: 'Email', icon: 'Mail', color: 'bg-sky-100 text-sky-700' },
+  email: { label: 'Correo', icon: 'Mail', color: 'bg-sky-100 text-sky-700' },
   phone: { label: 'Llamada', icon: 'Phone', color: 'bg-violet-100 text-violet-700' },
   sms: { label: 'SMS', icon: 'Smartphone', color: 'bg-amber-100 text-amber-700' },
 } as const
@@ -260,7 +260,7 @@ export const PART_CATEGORIES = {
     description: 'Repuestos para aires acondicionados split y ventana',
   },
   tv: {
-    label: 'TVs',
+    label: 'Televisores',
     icon: 'Tv',
     color: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800',
     description: 'Repuestos para televisores LED, LCD y Smart TV',
@@ -368,6 +368,14 @@ export function formatDate(date: Date | string): string {
   })
 }
 
+export function formatTime(date: Date | string): string {
+  const d = new Date(date)
+  return d.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function timeAgo(date: Date | string): string {
   const d = new Date(date)
   const now = new Date()
@@ -394,4 +402,16 @@ export function getInitials(name: string): string {
 
 export function fullName(firstName: string, lastName: string): string {
   return `${firstName} ${lastName}`.trim()
+}
+
+export function pluralizeUnit(unit: string, qty: number): string {
+  if (qty === 1) return unit
+  const plurals: Record<string, string> = {
+    unidad: 'unidades',
+    metro: 'metros',
+    gramo: 'gramos',
+    litro: 'litros',
+    rollo: 'rollos',
+  }
+  return plurals[unit] || unit
 }

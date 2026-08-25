@@ -226,15 +226,15 @@ export function GuidesView() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <BookOpen className="h-6 w-6 text-primary" />
-              Base de Conocimiento
+              Base de conocimiento
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Guías de reparación reutilizables para el taller
+              Guías de reparación reutilizables para el taller.
             </p>
           </div>
           <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
-            Nueva Guía
+            Nueva guía
           </Button>
         </div>
 
@@ -259,7 +259,7 @@ export function GuidesView() {
           />
           <StatCard
             icon={<Star className="h-5 w-5" />}
-            label="Veces usada"
+            label="Usos"
             value={String(stats.usages)}
             color="text-violet-600 bg-violet-100 dark:bg-violet-950/40 dark:text-violet-400"
           />
@@ -623,7 +623,7 @@ function EmptyState({ onCreate, hasFilters }: { onCreate: () => void; hasFilters
       {!hasFilters && (
         <Button onClick={onCreate} className="mt-4">
           <Plus className="h-4 w-4 mr-2" />
-          Nueva Guía
+          Nueva guía
         </Button>
       )}
     </div>
@@ -711,22 +711,22 @@ function GuideDetailContent({
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Marca</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Marca</div>
                 <div className="text-sm font-medium">{guide.brand || '—'}</div>
               </div>
               <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Modelo</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Modelo</div>
                 <div className="text-sm font-medium">{guide.model || '—'}</div>
               </div>
               <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Horas</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Horas</div>
                 <div className="text-sm font-medium flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   {guide.estimatedHours ? `${guide.estimatedHours} h` : '—'}
                 </div>
               </div>
               <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Usos</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Usos</div>
                 <div className="text-sm font-medium flex items-center gap-1">
                   <Star className="h-3.5 w-3.5 text-violet-500" />
                   {guide.usageCount}
@@ -906,7 +906,7 @@ function GuideFormDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title.trim() || !form.steps.trim()) {
-      toast.error('Título y procedimiento son obligatorios')
+      toast.error('El título y el procedimiento son obligatorios')
       return
     }
 
@@ -1000,7 +1000,7 @@ function GuideFormDialog({
                   <Field label="Marca">
                     <Select value={form.brand} onValueChange={(v) => update('brand', v)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona marca" />
+                        <SelectValue placeholder="Selecciona una marca" />
                       </SelectTrigger>
                       <SelectContent>
                         {APPLIANCE_BRANDS.map((b) => (

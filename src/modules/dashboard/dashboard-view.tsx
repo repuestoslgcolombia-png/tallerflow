@@ -77,7 +77,7 @@ export function DashboardView() {
 
   const kpis = [
     {
-      label: 'Órdenes Activas',
+      label: 'Órdenes activas',
       value: totals.workOrders,
       sub: `${statusDistribution.find((s: any) => s.key === 'in_progress')?.count || 0} en reparación`,
       icon: ClipboardList,
@@ -85,7 +85,7 @@ export function DashboardView() {
       onClick: () => navigate('work-orders'),
     },
     {
-      label: 'Ingresos del Mes',
+      label: 'Ingresos del mes',
       value: formatCurrency(totals.monthRevenue),
       sub: 'Facturas pagadas',
       icon: DollarSign,
@@ -93,7 +93,7 @@ export function DashboardView() {
       onClick: () => navigate('quotes'),
     },
     {
-      label: 'Por Aprobar',
+      label: 'Por aprobar',
       value: formatCurrency(totals.pendingQuoteValue),
       sub: 'En cotizaciones enviadas',
       icon: Clock,
@@ -101,7 +101,7 @@ export function DashboardView() {
       onClick: () => navigate('quotes'),
     },
     {
-      label: 'Tasa de Aprobación',
+      label: 'Tasa de aprobación',
       value: `${totals.quoteApprovalRate}%`,
       sub: 'Últimos 30 días',
       icon: TrendingUp,
@@ -149,8 +149,8 @@ export function DashboardView() {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-                    <p className="mt-1 truncate text-xl font-bold lg:text-2xl">{kpi.value}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{kpi.sub}</p>
+                    <p className="mt-1 text-lg font-bold lg:text-2xl">{kpi.value}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{kpi.sub}</p>
                   </div>
                   <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', kpi.color)}>
                     <Icon className="size-5" />
@@ -170,7 +170,7 @@ export function DashboardView() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Activity className="size-4 text-muted-foreground" />
-                Órdenes Recibidas
+                Órdenes recibidas
               </CardTitle>
               <Badge variant="secondary" className="text-xs">Últimos 14 días</Badge>
             </div>
@@ -189,7 +189,7 @@ export function DashboardView() {
                       {day.count}
                     </span>
                   </div>
-                  <span className="text-[9px] text-muted-foreground">{day.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{day.label}</span>
                 </div>
               ))}
             </div>
@@ -199,7 +199,7 @@ export function DashboardView() {
         {/* Status distribution */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Distribución por Estado</CardTitle>
+            <CardTitle className="text-base">Distribución por estado</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2.5">
             {statusDistribution.map((s: any) => {
@@ -228,7 +228,7 @@ export function DashboardView() {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Órdenes Recientes</CardTitle>
+              <CardTitle className="text-base">Órdenes recientes</CardTitle>
               <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => navigate('work-orders')}>
                 Ver todas <ArrowUpRight className="size-3.5" />
               </Button>
@@ -299,7 +299,7 @@ export function DashboardView() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Bell className="size-4 text-amber-500" />
-                  Recordatorios de Hoy
+                  Recordatorios de hoy
                 </CardTitle>
                 <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => navigate('reminders')}>
                   Ver todos <ChevronRight className="size-3.5" />
@@ -334,7 +334,7 @@ export function DashboardView() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium">{r?.title ?? ''}</p>
                         {r.customer && (
-                          <p className="truncate text-[10px] text-muted-foreground">
+                          <p className="truncate text-[11px] text-muted-foreground">
                             {fullName(r.customer.firstName, r.customer.lastName)}
                           </p>
                         )}
@@ -355,7 +355,7 @@ export function DashboardView() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <AlertTriangle className="size-4 text-amber-500" />
-                  Stock Bajo
+                  Stock bajo
                 </CardTitle>
                 <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => navigate('inventory')}>
                   Ver <ChevronRight className="size-3.5" />
@@ -381,10 +381,10 @@ export function DashboardView() {
                       <p className="font-mono text-[10px] text-muted-foreground">{part.sku}</p>
                     </div>
                     <div className="text-right">
-                      <p className={cn('text-sm font-bold', part.stock <= 0 ? 'text-rose-600' : 'text-amber-600')}>
+                      <p className={cn('text-sm font-bold', part.stock <= 0 ? 'text-rose-600' : 'text-amber-700')}>
                         {part.stock}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">mín: {part.minStock}</p>
+                      <p className="text-[11px] text-muted-foreground">mín: {part.minStock}</p>
                     </div>
                   </div>
                 ))
@@ -397,7 +397,7 @@ export function DashboardView() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wrench className="size-4 text-muted-foreground" />
-                Carga de Técnicos
+                Carga de técnicos
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5">
@@ -433,13 +433,13 @@ export function DashboardView() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate('work-orders')}>
-              <ClipboardList className="size-4" /> Nueva Orden
+              <ClipboardList className="size-4" /> Nueva orden
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate('customers')}>
-              <Package className="size-4" /> Nuevo Cliente
+              <Package className="size-4" /> Nuevo cliente
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate('inventory')}>
-              <AlertTriangle className="size-4" /> Nuevo Repuesto
+              <AlertTriangle className="size-4" /> Nuevo repuesto
             </Button>
           </div>
         </CardContent>

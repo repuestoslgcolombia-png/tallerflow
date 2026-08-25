@@ -381,7 +381,7 @@ export function CustomersView() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nombre, teléfono, email..."
+            placeholder="Buscar por nombre, teléfono o correo..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"

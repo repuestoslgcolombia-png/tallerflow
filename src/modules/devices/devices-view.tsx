@@ -412,7 +412,7 @@ function DeviceFormDialogInner({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="serial">Serial / IMEI</Label>
+            <Label htmlFor="serial">Serial</Label>
             <Input
               id="serial"
               value={form.serial}
@@ -431,7 +431,7 @@ function DeviceFormDialogInner({
               onChange={(e) =>
                 setForm((f) => ({ ...f, accessories: e.target.value }))
               }
-              placeholder="Cargador, funda, cable, batería..."
+              placeholder="Manguera, bandeja, rejilla, base..."
               rows={2}
             />
           </div>

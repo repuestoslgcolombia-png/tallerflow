@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     default: 'TallerFlow — Gestión de Talleres de Electrodomésticos',
     template: '%s · TallerFlow',
   },
-  description: "Sistema integral de gestión para talleres de reparación de electrodomésticos del hogar: lavadoras, neveras, congeladores, secadoras a gas, aires acondicionados y TVs. Órdenes de trabajo, cotizaciones, inventario y WhatsApp en un solo lugar.",
+  description: "Sistema integral de gestión para talleres de reparación de electrodomésticos del hogar: lavadoras, neveras, congeladores, secadoras a gas, aires acondicionados y televisores. Órdenes de trabajo, cotizaciones, inventario y WhatsApp en un solo lugar.",
   keywords: ["TallerFlow", "taller", "electrodomésticos", "reparación", "lavadoras", "neveras", "aires acondicionados", "gestión", "ERP", "órdenes de trabajo", "cotizaciones", "inventario", "facturación", "WhatsApp"],
   authors: [{ name: "TallerFlow" }],
   creator: "TallerFlow",

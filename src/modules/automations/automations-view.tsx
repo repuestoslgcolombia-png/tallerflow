@@ -128,7 +128,7 @@ export function AutomationsView() {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-emerald-900 dark:text-emerald-200">
-              Notificaciones WhatsApp Automáticas
+              Notificaciones automáticas de WhatsApp
             </h3>
             <p className="text-xs text-emerald-700 dark:text-emerald-400">
               Tus clientes reciben mensajes y recordatorios automáticos en cada etapa del proceso.{' '}
@@ -179,10 +179,10 @@ export function AutomationsView() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Bell className="size-4 text-amber-500" />
-              Recordatorios Automáticos
+              Recordatorios automáticos
             </CardTitle>
             <CardDescription>
-              Se crea un recordatorio programado y su WhatsApp se envía solo cuando llega la fecha
+              Se crea un recordatorio programado y el mensaje de WhatsApp se envía automáticamente cuando llega la fecha.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -199,7 +199,7 @@ export function AutomationsView() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <MessageCircle className="size-4 text-emerald-500" />
-              Reglas de Notificación
+              Reglas de notificación
             </CardTitle>
             <CardDescription>
               Activa o desactiva los mensajes automáticos que se envían a tus clientes
@@ -221,7 +221,7 @@ export function AutomationsView() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="size-4 text-emerald-500" />
-            Historial de Ejecuciones
+            Historial de ejecuciones
           </CardTitle>
           <CardDescription>
             {(logs || []).length > 0
@@ -243,7 +243,7 @@ export function AutomationsView() {
               </div>
               <p className="text-sm font-medium">Aún no hay ejecuciones</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Cuando se dispare una automatización verás el detalle aquí. Puedes probarlas con el botón «Probar».
+                Cuando se dispare una automatización, verás el detalle aquí. Puedes probarlas con el botón «Probar».
               </p>
             </div>
           ) : (
@@ -360,7 +360,7 @@ function RuleControls({ children }: { children: React.ReactNode }) {
 
 function ActiveBadge() {
   return (
-    <Badge variant="outline" className="border-emerald-300 text-[9px] text-emerald-600">
+    <Badge variant="outline" className="border-emerald-300 text-[10px] text-emerald-600">
       Activo
     </Badge>
   )
@@ -403,7 +403,7 @@ function WhatsAppRuleRow({ rule, onTest }: { rule: any; onTest: () => void }) {
           </span>
           <span className="flex items-center gap-0.5">
             <Clock className="size-3" />
-            {rule.delayMinutes === 0 ? 'Inmediato' : `${rule.delayMinutes} min de retraso`}
+            {rule.delayMinutes === 0 ? 'Inmediato' : `${rule.delayMinutes} min de espera`}
           </span>
         </div>
       </div>
@@ -476,7 +476,7 @@ function ReminderRuleRow({ rule, onTest }: { rule: any; onTest: () => void }) {
 function FlowCard({ rules }: { rules: any[] }) {
   const steps = [
     { trigger: 'order_received', title: '«Recibimos tu equipo»', desc: 'Cliente deja el equipo → WhatsApp inmediato' },
-    { trigger: 'quote_sent', title: '«Tu cotización está lista»', desc: 'Cotización enviada → WhatsApp con total' },
+    { trigger: 'quote_sent', title: '«Tu cotización está lista»', desc: 'Cotización enviada → WhatsApp con el total' },
     { trigger: 'quote_approved', title: '«Cotización aprobada»', desc: 'Cliente aprueba → WhatsApp de confirmación' },
     { trigger: 'order_ready', title: '«¡Tu equipo está listo!»', desc: 'Reparación completa → WhatsApp de aviso' },
     {
@@ -493,7 +493,7 @@ function FlowCard({ rules }: { rules: any[] }) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <TrendingUp className="size-4 text-emerald-500" />
-          Flujo de Notificaciones
+          Flujo de notificaciones
         </CardTitle>
         <CardDescription>Así recibe tu cliente las actualizaciones automáticas</CardDescription>
       </CardHeader>

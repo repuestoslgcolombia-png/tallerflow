@@ -73,7 +73,7 @@ const CATEGORY_ICONS: Record<string, any> = {
 const CATEGORY_LABELS: Record<string, string> = {
   general: 'General',
   quotes: 'Cotizaciones',
-  orders: 'Ã“rdenes',
+  orders: 'Órdenes',
   reminders: 'Recordatorios',
   marketing: 'Marketing',
 }
@@ -87,7 +87,7 @@ export function WhatsAppView() {
         <TabsList className="grid w-full grid-cols-4 sm:w-auto">
           <TabsTrigger value="connection" className="gap-1.5">
             <QrCode className="size-3.5" />
-            <span className="hidden sm:inline">ConexiÃ³n</span>
+            <span className="hidden sm:inline">Conexión</span>
           </TabsTrigger>
           <TabsTrigger value="compose" className="gap-1.5">
             <Send className="size-3.5" />
@@ -147,14 +147,14 @@ function ConnectionTab() {
               <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400">
                 <CheckCircle2 className="size-5" />
               </div>
-              WhatsApp Business Conectado
+              WhatsApp Business conectado
             </CardTitle>
-            <CardDescription>Tu nÃºmero de negocio estÃ¡ enlazado y listo para enviar mensajes</CardDescription>
+            <CardDescription>Tu número de negocio está enlazado y listo para enviar mensajes</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-[11px] font-medium uppercase text-muted-foreground">NÃºmero de telÃ©fono</p>
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Número de teléfono</p>
                 <p className="mt-1 flex items-center gap-1.5 font-mono text-sm font-semibold">
                   <Phone className="size-3.5 text-emerald-500" />
                   {conn.phone}
@@ -166,11 +166,11 @@ function ConnectionTab() {
               </div>
               <div className="rounded-lg border bg-muted/30 p-3">
                 <p className="text-[11px] font-medium uppercase text-muted-foreground">Conectado desde</p>
-                <p className="mt-1 text-sm">{conn.connectedAt ? formatDateTime(conn.connectedAt) : 'â€”'}</p>
+                <p className="mt-1 text-sm">{conn.connectedAt ? formatDateTime(conn.connectedAt) : '—'}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-[11px] font-medium uppercase text-muted-foreground">Ãšltima actividad</p>
-                <p className="mt-1 text-sm">{conn.lastSeenAt ? timeAgo(conn.lastSeenAt) : 'â€”'}</p>
+                <p className="text-[11px] font-medium uppercase text-muted-foreground">Última actividad</p>
+                <p className="mt-1 text-sm">{conn.lastSeenAt ? timeAgo(conn.lastSeenAt) : '—'}</p>
               </div>
             </div>
 
@@ -198,7 +198,7 @@ function ConnectionTab() {
             <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
               <Wifi className="size-4 shrink-0 text-emerald-600" />
               <p className="text-xs text-emerald-800 dark:text-emerald-300">
-                Los mensajes se envÃ­an a travÃ©s de tu WhatsApp Business. El destinatario verÃ¡ tu nÃºmero de negocio como remitente.
+                Los mensajes se envían a través de tu WhatsApp Business. El destinatario verá tu número de negocio como remitente.
               </p>
             </div>
           </CardContent>
@@ -208,7 +208,7 @@ function ConnectionTab() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Smartphone className="size-4" />
-              Estado del Dispositivo
+              Estado del dispositivo
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -216,7 +216,7 @@ function ConnectionTab() {
               <span className="text-sm">Estado</span>
               <Badge className="border-emerald-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <span className="mr-1 size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                En lÃ­nea
+                En línea
               </Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -225,7 +225,7 @@ function ConnectionTab() {
             </div>
             <div className="rounded-lg border border-dashed p-3 text-center">
               <p className="text-xs text-muted-foreground">
-                Para usar la API oficial de WhatsApp Business Cloud, configura tu token en la secciÃ³n de ajustes avanzados.
+                Para usar la API oficial de WhatsApp Business Cloud, configura tu token en la sección de ajustes avanzados.
               </p>
             </div>
           </CardContent>
@@ -242,9 +242,9 @@ function ConnectionTab() {
           <CardHeader className="pb-3 text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-base">
               <QrCode className="size-5 text-emerald-500" />
-              Escanea el cÃ³digo QR
+              Escanea el código QR
             </CardTitle>
-            <CardDescription>Abre WhatsApp en tu telÃ©fono y escanea este cÃ³digo para enlazar tu nÃºmero de negocio</CardDescription>
+            <CardDescription>Abre WhatsApp en tu teléfono y escanea este código para enlazar tu número de negocio</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
             {conn.qr && (
@@ -258,21 +258,21 @@ function ConnectionTab() {
             )}
 
             <div className="text-center">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">CÃ³digo de emparejamiento</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Código de emparejamiento</p>
               <p className="mt-1 font-mono text-3xl font-bold tracking-[0.3em] text-emerald-600">{conn.pairingCode}</p>
             </div>
 
             <div className="w-full rounded-md border bg-amber-50 p-3 dark:bg-amber-950/20">
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                â±ï¸ El cÃ³digo expira en 2 minutos. Si no puedes escanear a tiempo, genera uno nuevo.
+                ⏱️ El código expira en 2 minutos. Si no puedes escanear a tiempo, genera uno nuevo.
               </p>
             </div>
 
-            {/* Formulario de confirmaciÃ³n */}
+            {/* Formulario de confirmación */}
             <div className="w-full space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">Confirma tu nÃºmero de WhatsApp Business</p>
+              <p className="text-sm font-medium">Confirma tu número de WhatsApp Business</p>
               <div className="grid gap-2">
-                <Label htmlFor="phone-confirm">NÃºmero de telÃ©fono *</Label>
+                <Label htmlFor="phone-confirm">Número de teléfono *</Label>
                 <Input
                   id="phone-confirm"
                   value={phone}
@@ -307,7 +307,7 @@ function ConnectionTab() {
                   }}
                   disabled={!phone || mutation.isPending}
                 >
-                  <Link2 className="size-3.5" /> Confirmar conexiÃ³n
+                  <Link2 className="size-3.5" /> Confirmar conexión
                 </Button>
               </div>
             </div>
@@ -327,7 +327,7 @@ function ConnectionTab() {
           </div>
           <CardTitle className="text-lg">Conecta tu WhatsApp Business</CardTitle>
           <CardDescription className="mx-auto max-w-md">
-            Enlaza tu nÃºmero de WhatsApp de negocio para enviar cotizaciones, facturas y recordatorios directamente desde TallerFlow
+            Enlaza tu número de WhatsApp de negocio para enviar cotizaciones, facturas y recordatorios directamente desde TallerFlow
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -335,24 +335,24 @@ function ConnectionTab() {
             <div className="rounded-lg border bg-muted/30 p-3 text-center">
               <QrCode className="mx-auto mb-1.5 size-5 text-emerald-500" />
               <p className="text-xs font-medium">1. Genera el QR</p>
-              <p className="text-[10px] text-muted-foreground">Crea un cÃ³digo Ãºnico</p>
+              <p className="text-[10px] text-muted-foreground">Crea un código único</p>
             </div>
             <div className="rounded-lg border bg-muted/30 p-3 text-center">
               <Smartphone className="mx-auto mb-1.5 size-5 text-emerald-500" />
               <p className="text-xs font-medium">2. Escanea</p>
-              <p className="text-[10px] text-muted-foreground">Ãbrelo en WhatsApp</p>
+              <p className="text-[10px] text-muted-foreground">Ábrelo en WhatsApp</p>
             </div>
             <div className="rounded-lg border bg-muted/30 p-3 text-center">
               <CheckCircle2 className="mx-auto mb-1.5 size-5 text-emerald-500" />
               <p className="text-xs font-medium">3. Confirma</p>
-              <p className="text-[10px] text-muted-foreground">Verifica tu nÃºmero</p>
+              <p className="text-[10px] text-muted-foreground">Verifica tu número</p>
             </div>
           </div>
 
           <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
             <p className="flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
               <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-              <span>Tus mensajes se envÃ­an a travÃ©s de WhatsApp Web/API usando tu nÃºmero enlazado. No almacenamos tu contraseÃ±a ni claves privadas.</span>
+              <span>Tus mensajes se envían a través de WhatsApp Web/API usando tu número enlazado. No almacenamos tu contraseña ni claves privadas.</span>
             </p>
           </div>
 
@@ -363,7 +363,7 @@ function ConnectionTab() {
             disabled={mutation.isPending}
           >
             <QrCode className="size-5" />
-            {mutation.isPending ? 'Generando...' : 'Generar cÃ³digo QR'}
+            {mutation.isPending ? 'Generando...' : 'Generar código QR'}
           </Button>
         </CardContent>
       </Card>
@@ -459,15 +459,15 @@ function ComposeTab() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      {/* Formulario de composiciÃ³n */}
+      {/* Formulario de composición */}
       <div className="lg:col-span-2 space-y-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Send className="size-4 text-emerald-500" />
-              Componer Mensaje
+              Redactar mensaje
             </CardTitle>
-            <CardDescription>Selecciona un cliente y plantilla para enviar un mensaje por WhatsApp</CardDescription>
+            <CardDescription>Selecciona un cliente y una plantilla para enviar un mensaje por WhatsApp</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Cliente */}
@@ -478,7 +478,7 @@ function ComposeTab() {
                 <SelectContent>
                   {(customers || []).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.firstName} {c.lastName} {c.phone ? `Â· ${c.phone}` : ''}
+                      {c.firstName} {c.lastName} {c.phone ? `· ${c.phone}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -559,7 +559,7 @@ function ComposeTab() {
                   <p className="text-sm font-medium">{fullName(selectedCustomer.firstName, selectedCustomer.lastName)}</p>
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Phone className="size-3" />
-                    {selectedCustomer.phone || 'Sin telÃ©fono'}
+                    {selectedCustomer.phone || 'Sin teléfono'}
                   </p>
                 </div>
                 {phone && (
@@ -570,7 +570,7 @@ function ComposeTab() {
               </div>
             )}
 
-            {/* BotÃ³n enviar */}
+            {/* Botón enviar */}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => { setMessage(''); setTemplateCode(''); setCustomerId('') }} disabled={!message && !customerId}>
                 Limpiar
@@ -588,13 +588,13 @@ function ComposeTab() {
         </Card>
       </div>
 
-      {/* Plantillas rÃ¡pidas laterales */}
+      {/* Plantillas rápidas laterales */}
       <div className="space-y-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Sparkles className="size-4 text-amber-500" />
-              Plantillas rÃ¡pidas
+              Plantillas rápidas
             </CardTitle>
             <CardDescription className="text-xs">Toca para usar</CardDescription>
           </CardHeader>
@@ -672,13 +672,13 @@ function TemplatesTab() {
           <SelectContent>
             {categories.map((c) => (
               <SelectItem key={c} value={c}>
-                {c === 'all' ? 'Todas las categorÃ­as' : CATEGORY_LABELS[c] || c}
+                {c === 'all' ? 'Todas las categorías' : CATEGORY_LABELS[c] || c}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" /> Nueva Plantilla
+          <Plus className="size-4" /> Nueva plantilla
         </Button>
       </div>
 
@@ -758,8 +758,8 @@ function TemplatesTab() {
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Â¿Eliminar plantilla?</AlertDialogTitle>
-            <AlertDialogDescription>La plantilla serÃ¡ desactivada. Esta acciÃ³n se puede deshacer.</AlertDialogDescription>
+            <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
+            <AlertDialogDescription>La plantilla será desactivada. Esta acción se puede deshacer.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -801,24 +801,24 @@ function TemplateFormDialog({ open, onOpenChange, template }: { open: boolean; o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar Plantilla' : 'Nueva Plantilla'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar plantilla' : 'Nueva plantilla'}</DialogTitle>
           <DialogDescription>{isEdit ? 'Modifica los campos de la plantilla.' : 'Crea una plantilla de mensaje reutilizable.'}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="code">CÃ³digo *</Label>
+              <Label htmlFor="code">Código *</Label>
               <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="quote_sent" disabled={isEdit} className="font-mono text-sm" />
-              <p className="text-[11px] text-muted-foreground">Identificador Ãºnico, sin espacios</p>
+              <p className="text-[11px] text-muted-foreground">Identificador único, sin espacios</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="CotizaciÃ³n enviada" />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Cotización enviada" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label>CategorÃ­a</Label>
+              <Label>Categoría</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -830,7 +830,7 @@ function TemplateFormDialog({ open, onOpenChange, template }: { open: boolean; o
             </div>
             <div className="grid gap-2">
               <Label htmlFor="subject">Asunto</Label>
-              <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="DescripciÃ³n corta" />
+              <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Descripción corta" />
             </div>
           </div>
           <div className="grid gap-2">
@@ -879,7 +879,7 @@ function HistoryTab() {
           </div>
           <div className="text-center">
             <p className="font-medium">No hay mensajes enviados</p>
-            <p className="text-sm text-muted-foreground">Los mensajes que envÃ­es aparecerÃ¡n aquÃ­</p>
+            <p className="text-sm text-muted-foreground">Los mensajes que envíes aparecerán aquí</p>
           </div>
           <Button variant="outline" className="gap-1.5" onClick={() => navigate('whatsapp')}>
             <Send className="size-4" /> Enviar primer mensaje

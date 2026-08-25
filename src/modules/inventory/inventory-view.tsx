@@ -105,6 +105,7 @@ import {
   formatDate,
   formatDateTime,
   timeAgo,
+  pluralizeUnit,
   type PartCategoryKey,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -296,15 +297,15 @@ export function InventoryView() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <Boxes className="h-6 w-6 text-primary" />
-              Inventario de Repuestos
+              Inventario de repuestos
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Gestión de repuestos para electrodomésticos
+              Gestión de repuestos para electrodomésticos.
             </p>
           </div>
           <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
-            Nuevo Repuesto
+            Nuevo repuesto
           </Button>
         </div>
 
@@ -578,7 +579,7 @@ export function InventoryView() {
                           {part.location ? (
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <MapPin className="h-3.5 w-3.5" />
-                              <span className="truncate max-w-[120px]">{part.location}</span>
+                              <span className="truncate max-w-[120px]" title={part.location}>{part.location}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
@@ -588,7 +589,7 @@ export function InventoryView() {
                           {part.warranty ? (
                             <div className="flex items-center gap-1 text-sm">
                               <Shield className="h-3.5 w-3.5 text-emerald-500" />
-                              <span>{part.warranty}m</span>
+                              <span>{part.warranty} meses</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
@@ -597,7 +598,7 @@ export function InventoryView() {
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Acciones">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -694,7 +695,7 @@ export function InventoryView() {
               {deactivatePart && (
                 <>
                   El repuesto <strong>{deactivatePart.name}</strong> ({deactivatePart.sku}) será
-                  marcado como inactivo. Podrás reactivarlo más adelante editándolo.
+                  marcado como inactivo. Podrás reactivarlo más adelante.
                 </>
               )}
             </AlertDialogDescription>
@@ -806,7 +807,7 @@ function EmptyState({ onCreate, hasFilters }: { onCreate: () => void; hasFilters
       {!hasFilters && (
         <Button onClick={onCreate} className="mt-4">
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Repuesto
+          Nuevo repuesto
         </Button>
       )}
     </div>
@@ -857,7 +858,7 @@ function PartCard({
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 -mr-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 -mr-2" aria-label="Acciones">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -1068,7 +1069,7 @@ function PartDetailContent({
                   Stock actual
                 </div>
                 <div className="text-lg font-bold">
-                  {part.stock} <span className="text-xs font-normal text-muted-foreground">{part.unit}</span>
+                  {part.stock} <span className="text-xs font-normal text-muted-foreground">{pluralizeUnit(part.unit, part.stock)}</span>
                 </div>
               </div>
               <div className="rounded-md border bg-muted/30 px-3 py-2">
@@ -1088,7 +1089,7 @@ function PartDetailContent({
               {part.applianceType && (
                 <div className="rounded-md border bg-muted/30 px-3 py-2">
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Tipo equipo
+                    Tipo de equipo
                   </div>
                   <div className="text-sm font-medium">{part.applianceType}</div>
                 </div>
@@ -1111,7 +1112,7 @@ function PartDetailContent({
               </div>
               <div className="rounded-md border bg-muted/30 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Precio venta
+                  Precio de venta
                 </div>
                 <div className="text-sm font-medium">{formatCurrency(part.unitPrice)}</div>
               </div>
@@ -1315,7 +1316,7 @@ function PartFormDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.sku.trim() || !form.name.trim()) {
-      toast.error('SKU y Nombre son obligatorios')
+      toast.error('El SKU y el nombre son obligatorios')
       return
     }
 
@@ -1484,7 +1485,7 @@ function PartFormDialog({
                     <Field label="Tipo de gas">
                       <Select value={form.gasType || 'N/A'} onValueChange={(v) => update('gasType', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona gas" />
+                          <SelectValue placeholder="Selecciona el tipo de gas" />
                         </SelectTrigger>
                         <SelectContent>
                           {GAS_TYPES.map((g) => (
@@ -1687,7 +1688,7 @@ function AdjustStockDialog({
               </div>
               <div className="text-xl font-bold">
                 {part.stock}{' '}
-                <span className="text-xs font-normal text-muted-foreground">{part.unit}</span>
+                <span className="text-xs font-normal text-muted-foreground">{pluralizeUnit(part.unit, part.stock)}</span>
               </div>
             </div>
             <div

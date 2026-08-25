@@ -132,7 +132,7 @@ export function RemindersView() {
   })
 
   const statCards = [
-    { key: 'pending', label: 'Pendientes Hoy', value: stats.today, icon: Clock, color: 'bg-amber-100 text-amber-600' },
+    { key: 'pending', label: 'Pendientes hoy', value: stats.today, icon: Clock, color: 'bg-amber-100 text-amber-600' },
     { key: 'overdue', label: 'Vencidos', value: stats.overdue, icon: AlertTriangle, color: 'bg-rose-100 text-rose-600' },
     { key: 'snoozed', label: 'Pospuestos', value: stats.snoozed, icon: Pause, color: 'bg-violet-100 text-violet-600' },
     { key: 'done', label: 'Completados', value: stats.done, icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-600' },
@@ -152,7 +152,7 @@ export function RemindersView() {
           />
         </div>
         <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" /> Nuevo Recordatorio
+          <Plus className="size-4" /> Nuevo recordatorio
         </Button>
       </div>
 
@@ -306,7 +306,7 @@ export function RemindersView() {
                       {reminder.status === 'pending' && (
                         <>
                           <DropdownMenuItem onClick={() => setCompleting(reminder)}>
-                            <CheckCircle2 className="mr-2 size-4" /> Marcar completado
+                            <CheckCircle2 className="mr-2 size-4" /> Marcar como completado
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setSnoozing(reminder)}>
                             <Pause className="mr-2 size-4" /> Posponer
@@ -335,7 +335,7 @@ export function RemindersView() {
                             <Play className="mr-2 size-4" /> Reactivar
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setCompleting(reminder)}>
-                            <CheckCircle2 className="mr-2 size-4" /> Marcar completado
+                            <CheckCircle2 className="mr-2 size-4" /> Marcar como completado
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setEditing(reminder)}>
@@ -521,7 +521,7 @@ function CreateEditReminderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar Recordatorio' : 'Nuevo Recordatorio'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar recordatorio' : 'Nuevo recordatorio'}</DialogTitle>
           <DialogDescription>
             {isEdit ? 'Actualiza los datos del recordatorio.' : 'Programa un seguimiento para tu cliente.'}
           </DialogDescription>
@@ -678,7 +678,7 @@ function CompleteDialog({ reminder, onClose }: { reminder: any; onClose: () => v
             </p>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="notes">Notas de resultado</Label>
+            <Label htmlFor="notes">Notas del resultado</Label>
             <Textarea
               id="notes"
               value={notes}
