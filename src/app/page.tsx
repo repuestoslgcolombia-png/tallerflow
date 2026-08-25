@@ -1,5 +1,7 @@
 'use client'
 
+import { Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/tallerflow/sidebar'
 import { Header } from '@/components/tallerflow/header'
 import { useAppStore } from '@/store/app-store'
@@ -11,6 +13,7 @@ import { DevicesView } from '@/modules/devices/devices-view'
 import { WorkOrdersView } from '@/modules/work-orders/work-orders-view'
 import { WorkOrderDetailView } from '@/modules/work-orders/work-order-detail-view'
 import { QuotesView } from '@/modules/quotes/quotes-view'
+import { PublicQuoteApproval } from '@/modules/quotes/public-quote-approval'
 import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
 import { GuidesView } from '@/modules/guides/guides-view'
@@ -21,6 +24,26 @@ import { SettingsView } from '@/modules/settings/settings-view'
 import { QuickRegisterView } from '@/modules/quick-register/quick-register-view'
 
 export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageInner />
+    </Suspense>
+  )
+}
+
+function HomePageInner() {
+  // Enlace público de aprobación: /?quote=<id>&token=<token>
+  const searchParams = useSearchParams()
+  const publicQuoteId = searchParams.get('quote')
+  const publicToken = searchParams.get('token')
+  if (publicQuoteId && publicToken) {
+    return <PublicQuoteApproval quoteId={publicQuoteId} token={publicToken} />
+  }
+
+  return <AppShell />
+}
+
+function AppShell() {
   const { currentView } = useAppStore()
 
   return (

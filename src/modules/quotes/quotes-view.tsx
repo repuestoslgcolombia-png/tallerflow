@@ -17,6 +17,10 @@ import {
   DollarSign,
   Clock,
   CheckCircle2,
+  History,
+  RotateCw,
+  XCircle,
+  CalendarClock,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -58,6 +62,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -69,7 +74,7 @@ import {
 
 import { QuoteStatusBadge } from '@/components/tallerflow/badges'
 import { useAppStore } from '@/store/app-store'
-import { useQuotes, useQuoteMutations, useSettings } from '@/lib/hooks/api'
+import { useQuotes, useQuote, useQuoteMutations, useSettings } from '@/lib/hooks/api'
 import {
   QUOTE_STATUS,
   formatCurrency,
@@ -81,6 +86,23 @@ import { cn } from '@/lib/utils'
 
 type QuoteStatusKey = keyof typeof QUOTE_STATUS
 
+// ============== Helpers ==============
+const PENDING_ORDER: Record<string, number> = { sent: 0, draft: 1, expired: 2, rejected: 3, approved: 4 }
+
+function daysSince(dateIso: string | null | undefined): number | null {
+  if (!dateIso) return null
+  const d = new Date(dateIso)
+  if (isNaN(d.getTime())) return null
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (24 * 60 * 60 * 1000)))
+}
+
+function daysUntil(dateIso: string | null | undefined): number | null {
+  if (!dateIso) return null
+  const d = new Date(dateIso)
+  if (isNaN(d.getTime())) return null
+  return Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+}
+
 // ============== Main View ==============
 export function QuotesView() {
   const { navigate } = useAppStore()
@@ -88,6 +110,7 @@ export function QuotesView() {
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
   const [deleteQuote, setDeleteQuote] = React.useState<any | null>(null)
+  const [rejectQuote, setRejectQuote] = React.useState<any | null>(null)
 
   const status = statusFilter !== 'all' ? statusFilter : undefined
   const { data, isLoading, isError, refetch } = useQuotes({ status })
@@ -97,25 +120,32 @@ export function QuotesView() {
   const { data: allData } = useQuotes({})
   const all: any[] = allData || []
   const total = all.length
-  const pendingCount = all.filter((q) => q.status === 'sent').length
+  const pendingQuotes = all.filter((q) => q.status === 'sent')
+  const pendingCount = pendingQuotes.length
   const approvedCount = all.filter((q) => q.status === 'approved').length
-  const pendingValue = all
-    .filter((q) => q.status === 'sent')
-    .reduce((acc, q) => acc + (q.total || 0), 0)
+  const expiredCount = all.filter((q) => q.status === 'expired').length
+  const pendingValue = pendingQuotes.reduce((acc, q) => acc + (q.total || 0), 0)
   const approvedValue = all
     .filter((q) => q.status === 'approved')
     .reduce((acc, q) => acc + (q.total || 0), 0)
 
-  // Client-side filter by search
-  const filtered = quotes.filter((q) => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    const cust = q.workOrder?.customer
-    return (
-      q.code?.toLowerCase().includes(s) ||
-      `${cust?.firstName || ''} ${cust?.lastName || ''}`.toLowerCase().includes(s)
-    )
-  })
+  // Client-side filter by search + pending-first sorting
+  const filtered = quotes
+    .filter((q) => {
+      if (!search) return true
+      const s = search.toLowerCase()
+      const cust = q.workOrder?.customer
+      return (
+        q.code?.toLowerCase().includes(s) ||
+        `${cust?.firstName || ''} ${cust?.lastName || ''}`.toLowerCase().includes(s)
+      )
+    })
+    .sort((a, b) => {
+      const pa = PENDING_ORDER[a.status] ?? 9
+      const pb = PENDING_ORDER[b.status] ?? 9
+      if (pa !== pb) return pa - pb
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
 
   return (
     <div className="space-y-4">
@@ -124,19 +154,21 @@ export function QuotesView() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cotizaciones</h1>
           <p className="text-sm text-muted-foreground">
-            Gestiona las cotizaciones enviadas a clientes
+            Gestiona las cotizaciones enviadas a clientes.
           </p>
         </div>
         <Button onClick={() => navigate('work-orders')} className="gap-2">
           <Plus className="size-4" />
-          Crear desde Orden
+          Crear desde una orden
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Total" value={String(total)} icon={<ClipboardList className="size-4" />} tone="slate" />
         <StatCard label="Pendientes" value={String(pendingCount)} icon={<Clock className="size-4" />} tone="sky" />
+        <StatCard label="Valor pendiente" value={formatCurrency(pendingValue)} icon={<DollarSign className="size-4" />} tone="amber" />
+        <StatCard label="Vencidas" value={String(expiredCount)} icon={<CalendarClock className="size-4" />} tone="orange" />
         <StatCard label="Aprobadas" value={String(approvedCount)} icon={<CheckCircle2 className="size-4" />} tone="emerald" />
         <StatCard label="Valor aprobado" value={formatCurrency(approvedValue)} icon={<DollarSign className="size-4" />} tone="teal" />
       </div>
@@ -215,7 +247,7 @@ export function QuotesView() {
                 </p>
               </div>
               <Button onClick={() => navigate('work-orders')} variant="outline" size="sm">
-                Ver Órdenes
+                Ver órdenes
               </Button>
             </div>
           ) : (
@@ -227,7 +259,7 @@ export function QuotesView() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Equipo</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="text-center">Items</TableHead>
+                  <TableHead className="text-center">Ítems</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Vencimiento</TableHead>
                   <TableHead className="pr-4 text-right">Acciones</TableHead>
@@ -261,6 +293,25 @@ export function QuotesView() {
                     </TableCell>
                     <TableCell>
                       <QuoteStatusBadge status={q.status} />
+                      {q.status === 'sent' &&
+                        (() => {
+                          const waiting = daysSince(q.sentAt || q.createdAt)
+                          if (waiting === null) return null
+                          return (
+                            <p
+                              className={cn(
+                                'mt-0.5 text-[11px]',
+                                waiting >= 5
+                                  ? 'font-medium text-rose-600'
+                                  : waiting >= 3
+                                    ? 'font-medium text-amber-600'
+                                    : 'text-muted-foreground'
+                              )}
+                            >
+                              Esperando hace {waiting} {waiting === 1 ? 'día' : 'días'}
+                            </p>
+                          )
+                        })()}
                     </TableCell>
                     <TableCell className="text-center tabular-nums">
                       {q.items?.length || 0}
@@ -270,9 +321,26 @@ export function QuotesView() {
                     </TableCell>
                     <TableCell>
                       {q.validUntil ? (
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(q.validUntil)}
-                        </span>
+                        (() => {
+                          const left = daysUntil(q.validUntil)
+                          const overdue = left !== null && left < 0 && q.status !== 'approved'
+                          const soon = left !== null && left >= 0 && left <= 3 && q.status === 'sent'
+                          return (
+                            <span
+                              className={cn(
+                                'text-xs',
+                                overdue
+                                  ? 'font-medium text-rose-600'
+                                  : soon
+                                    ? 'font-medium text-amber-600'
+                                    : 'text-muted-foreground'
+                              )}
+                            >
+                              {formatDate(q.validUntil)}
+                              {soon && ` (${left} ${left === 1 ? 'día' : 'días'})`}
+                            </span>
+                          )
+                        })()
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -282,6 +350,7 @@ export function QuotesView() {
                         quote={q}
                         onView={() => setViewQuote(q)}
                         onDeleted={(qte) => setDeleteQuote(qte)}
+                        onRejected={(qte) => setRejectQuote(qte)}
                         onUpdated={refetch}
                       />
                     </TableCell>
@@ -296,6 +365,16 @@ export function QuotesView() {
 
       {/* Detail dialog */}
       <QuoteDetailDialog quote={viewQuote} onOpenChange={(v) => !v && setViewQuote(null)} />
+
+      {/* Reject dialog */}
+      <RejectQuoteDialog
+        quote={rejectQuote}
+        onOpenChange={(v) => !v && setRejectQuote(null)}
+        onDone={() => {
+          setRejectQuote(null)
+          refetch()
+        }}
+      />
 
       {/* Delete dialog */}
       <AlertDialog open={!!deleteQuote} onOpenChange={(v) => !v && setDeleteQuote(null)}>
@@ -345,13 +424,15 @@ function StatCard({
   label: string
   value: string
   icon: React.ReactNode
-  tone: 'slate' | 'sky' | 'emerald' | 'teal'
+  tone: 'slate' | 'sky' | 'emerald' | 'teal' | 'amber' | 'orange'
 }) {
   const toneClasses = {
     slate: 'bg-slate-100 text-slate-600',
     sky: 'bg-sky-100 text-sky-700',
     emerald: 'bg-emerald-100 text-emerald-700',
     teal: 'bg-teal-100 text-teal-700',
+    amber: 'bg-amber-100 text-amber-700',
+    orange: 'bg-orange-100 text-orange-700',
   }
   return (
     <Card>
@@ -359,7 +440,7 @@ function StatCard({
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="truncate text-xl font-semibold tabular-nums">{value}</p>
+            <p className="text-xl font-semibold tabular-nums">{value}</p>
           </div>
           <div className={cn('flex size-8 items-center justify-center rounded-md', toneClasses[tone])}>
             {icon}
@@ -398,11 +479,13 @@ function QuoteActionsMenu({
   quote,
   onView,
   onDeleted,
+  onRejected,
   onUpdated,
 }: {
   quote: any
   onView: () => void
   onDeleted: (q: any) => void
+  onRejected: (q: any) => void
   onUpdated: () => void
 }) {
   const { update } = useQuoteMutations()
@@ -410,7 +493,7 @@ function QuoteActionsMenu({
   const copyLink = () => {
     const url = `${window.location.origin}/?quote=${quote.id}&token=${quote.approvalToken}`
     navigator.clipboard.writeText(url)
-    toast.success('Link copiado al portapapeles')
+    toast.success('Enlace copiado al portapapeles')
   }
 
   const sendQuote = () => {
@@ -420,24 +503,53 @@ function QuoteActionsMenu({
     )
   }
 
+  const resendQuote = () => {
+    update.mutate(
+      { id: quote.id, data: { action: 'resend' } },
+      {
+        onSuccess: () => {
+          toast.success(
+            quote.status === 'expired'
+              ? 'Cotización reactivada con nueva validez de 7 días'
+              : 'Cotización reenviada'
+          )
+          onUpdated()
+        },
+      }
+    )
+  }
+
   return (
     <div className="flex justify-end">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8">
+          <Button variant="ghost" size="icon" className="size-8" aria-label="Acciones">
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onClick={onView}>
             <Eye className="size-4" /> Ver detalle
           </DropdownMenuItem>
           <DropdownMenuItem onClick={copyLink}>
-            <LinkIcon className="size-4" /> Copiar link
+            <LinkIcon className="size-4" /> Copiar enlace
           </DropdownMenuItem>
           {quote.status === 'draft' && (
             <DropdownMenuItem onClick={sendQuote} disabled={update.isPending}>
               <Send className="size-4" /> Enviar
+            </DropdownMenuItem>
+          )}
+          {(quote.status === 'sent' || quote.status === 'expired') && (
+            <DropdownMenuItem onClick={resendQuote} disabled={update.isPending}>
+              <RotateCw className="size-4" /> Reenviar
+            </DropdownMenuItem>
+          )}
+          {(quote.status === 'draft' || quote.status === 'sent') && (
+            <DropdownMenuItem
+              className="text-amber-600 focus:text-amber-700"
+              onClick={() => onRejected(quote)}
+            >
+              <XCircle className="size-4" /> Marcar rechazada
             </DropdownMenuItem>
           )}
           {quote.status !== 'approved' && (
@@ -457,6 +569,62 @@ function QuoteActionsMenu({
   )
 }
 
+// ============== Reject Quote Dialog ==============
+function RejectQuoteDialog({
+  quote,
+  onOpenChange,
+  onDone,
+}: {
+  quote: any | null
+  onOpenChange: (open: boolean) => void
+  onDone: () => void
+}) {
+  const [reason, setReason] = React.useState('')
+  const { update } = useQuoteMutations()
+
+  const reject = () => {
+    if (!quote) return
+    update.mutate(
+      { id: quote.id, data: { action: 'reject', reason: reason.trim() || undefined } },
+      {
+        onSuccess: () => {
+          toast.success(`Cotización ${quote.code} marcada como rechazada`)
+          setReason('')
+          onDone()
+        },
+        onError: () => toast.error('No se pudo rechazar la cotización'),
+      }
+    )
+  }
+
+  return (
+    <Dialog open={!!quote} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>¿Rechazar la cotización {quote?.code}?</DialogTitle>
+          <DialogDescription>
+            La orden quedará disponible para crear una nueva cotización. Puedes registrar el motivo.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Motivo del rechazo (opcional). Ej: precio, demora, cliente compró equipo nuevo…"
+          rows={3}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={update.isPending}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={reject} disabled={update.isPending}>
+            {update.isPending ? 'Rechazando…' : 'Rechazar cotización'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ============== Quote Detail Dialog ==============
 function QuoteDetailDialog({
   quote,
@@ -466,12 +634,13 @@ function QuoteDetailDialog({
   onOpenChange: (v: boolean) => void
 }) {
   const { data: settings } = useSettings()
+  const { data: full, isLoading: loadingFull } = useQuote(quote?.id ?? null)
   if (!quote) return null
 
   const copyLink = () => {
     const url = `${window.location.origin}/?quote=${quote.id}&token=${quote.approvalToken}`
     navigator.clipboard.writeText(url)
-    toast.success('Link copiado al portapapeles')
+    toast.success('Enlace copiado al portapapeles')
   }
 
   return (
@@ -603,24 +772,94 @@ function QuoteDetailDialog({
                 </span>
               )}
               {quote.approvedAt && (
-                <span>Fecha aprobación: <strong className="text-foreground">{formatDate(quote.approvedAt)}</strong></span>
+                <span>Fecha de aprobación: <strong className="text-foreground">{formatDate(quote.approvedAt)}</strong></span>
               )}
               {quote.rejectionReason && (
                 <span className="text-rose-600">
-                  Motivo rechazo: {quote.rejectionReason}
+                  Motivo de rechazo: {quote.rejectionReason}
                 </span>
               )}
+              {full?.viewedAt && (
+                <span className="text-sky-600">
+                  Vista por el cliente: <strong>{timeAgo(full.viewedAt)}</strong>
+                </span>
+              )}
+              {full?.sentAt && (
+                <span>Enviada: <strong className="text-foreground">{formatDate(full.sentAt)}</strong></span>
+              )}
             </div>
+
+            {/* Historial */}
+            <QuoteHistory events={full?.events} loading={loadingFull} />
           </div>
         </ScrollArea>
 
         <DialogFooter>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={copyLink}>
-            <LinkIcon className="size-3.5" /> Copiar link aprobación
+            <LinkIcon className="size-3.5" /> Copiar enlace de aprobación
           </Button>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ============== Quote History ==============
+const EVENT_DOT: Record<string, string> = {
+  created: 'bg-slate-400',
+  sent: 'bg-sky-500',
+  viewed: 'bg-sky-300',
+  resent: 'bg-sky-500',
+  approved: 'bg-emerald-500',
+  rejected: 'bg-rose-500',
+  expired: 'bg-orange-500',
+  edited: 'bg-violet-500',
+}
+
+function QuoteHistory({
+  events,
+  loading,
+}: {
+  events: any[] | undefined
+  loading: boolean
+}) {
+  return (
+    <div className="rounded-md border p-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <History className="size-3.5" /> Historial
+      </p>
+      {loading ? (
+        <div className="mt-2 space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ) : !events || events.length === 0 ? (
+        <p className="mt-1 text-xs text-muted-foreground">Sin eventos registrados.</p>
+      ) : (
+        <div className="relative mt-2">
+          <div className="absolute left-[5px] top-2 bottom-2 w-px bg-border" />
+          <ul className="space-y-3">
+            {[...events].reverse().map((ev) => (
+              <li key={ev.id} className="relative pl-6">
+                <span
+                  className={cn(
+                    'absolute left-0 top-1 size-[11px] rounded-full border-2 border-background',
+                    EVENT_DOT[ev.eventType] || 'bg-slate-400'
+                  )}
+                />
+                <p className="text-xs font-medium leading-tight">{ev.title}</p>
+                {ev.description && (
+                  <p className="text-[11px] text-muted-foreground whitespace-pre-wrap">
+                    {ev.description}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground">{timeAgo(ev.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   )
 }

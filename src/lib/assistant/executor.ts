@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { randomUUID } from 'crypto'
+import { logQuoteEvent } from '@/lib/quotes/history'
 import {
   WORK_ORDER_STATUS,
   DEVICE_TYPES,
@@ -255,7 +256,7 @@ async function executeRegistroRapido(args: Record<string, unknown>): Promise<Exe
         workOrderId: workOrder.id,
         type: 'follow_up',
         title: `Seguimiento - ${code}`,
-        message: `Hola ${customer.firstName}, ¿cómo va el equipo ${deviceLabel(device)} que recibimos? Si tiene alguna duda, estamos para ayudarte.`,
+        message: `Hola ${customer.firstName}, ¿cómo va el equipo ${deviceLabel(device)} que recibimos? Si tiene alguna duda, estamos para ayudarle.`,
         dueDate: followUp,
         channel: 'whatsapp',
         status: 'pending',
@@ -339,7 +340,7 @@ async function executeCrearEquipo(args: Record<string, unknown>): Promise<ExecRe
 
   return {
     ok: true,
-    message: `Equipo **${deviceLabel(device)}** registrado a ${customerName(customer)}.`,
+    message: `Equipo **${deviceLabel(device)}** registrado a nombre de ${customerName(customer)}.`,
     data: { deviceId: device.id, deviceLabel: deviceLabel(device), customerId: customer.id },
   }
 }
@@ -381,7 +382,7 @@ async function executeCrearOrdenServicio(args: Record<string, unknown>): Promise
             eventType: 'status_change',
             fromStatus: '',
             toStatus: 'received',
-            title: 'Orden creada por asistente',
+            title: 'Orden creada por el asistente',
             description: `Cliente: ${customerName(customer)} | Equipo: ${deviceLabel(device)} | ${args.reportedIssue}`,
           },
         },
@@ -394,7 +395,7 @@ async function executeCrearOrdenServicio(args: Record<string, unknown>): Promise
         action: 'create',
         entity: 'WorkOrder',
         entityId: wo.id,
-        description: `Orden creada por asistente - ${code} - ${customerName(customer)}`,
+        description: `Orden creada por el asistente - ${code} - ${customerName(customer)}`,
       },
     })
 
@@ -442,7 +443,7 @@ async function executeActualizarEstado(args: Record<string, unknown>): Promise<E
         eventType: 'status_change',
         fromStatus: wo.status,
         toStatus: status,
-        title: 'Cambio de estado por asistente',
+        title: 'Cambio de estado por el asistente',
         description: `De ${(WORK_ORDER_STATUS as Record<string, { label: string }>)[wo.status].label} a ${(WORK_ORDER_STATUS as Record<string, { label: string }>)[status].label}`,
       },
     })
@@ -480,7 +481,7 @@ async function executeAsignarTecnico(args: Record<string, unknown>): Promise<Exe
       data: {
         workOrderId: wo.id,
         eventType: 'assignment',
-        title: 'Técnico asignado por asistente',
+        title: 'Técnico asignado por el asistente',
         description: `Asignado a ${technician.name}`,
       },
     })
@@ -607,11 +608,26 @@ async function executeCrearCotizacion(args: Record<string, unknown>): Promise<Ex
         subtotal,
         tax,
         total,
+        ...(sendImmediately ? { sentAt: new Date() } : {}),
         items: { create: items },
       },
     })
 
+    await logQuoteEvent(tx, {
+      quoteId: quote.id,
+      eventType: 'created',
+      toStatus: quote.status,
+      description: `Cotización ${code} creada por el asistente para la orden ${wo.code}. Total: $${total.toFixed(0)}`,
+    })
+
     if (sendImmediately) {
+      await logQuoteEvent(tx, {
+        quoteId: quote.id,
+        eventType: 'sent',
+        fromStatus: 'draft',
+        toStatus: 'sent',
+        description: `Cotización ${code} enviada al cliente`,
+      })
       await tx.workOrder.update({
         where: { id: wo.id },
         data: { status: 'quoted' },
@@ -633,7 +649,7 @@ async function executeCrearCotizacion(args: Record<string, unknown>): Promise<Ex
         action: 'create',
         entity: 'Quote',
         entityId: quote.id,
-        description: `Cotización ${code} creada por asistente para ${wo.code}`,
+        description: `Cotización ${code} creada por el asistente para ${wo.code}`,
       },
     })
 
@@ -751,7 +767,7 @@ async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecR
         action: 'create',
         entity: 'Invoice',
         entityId: invoice.id,
-        description: `Factura ${code} creada por asistente para ${wo.code}`,
+        description: `Factura ${code} creada por el asistente para ${wo.code}`,
       },
     })
 
@@ -784,7 +800,7 @@ async function executeRegistrarPago(args: Record<string, unknown>): Promise<Exec
   if (!invoice) throw new Error('No encontré la factura asociada a la orden. Pásame el código de factura o de orden.')
 
   const amount = Number(args.amount)
-  if (!amount || amount <= 0) throw new Error('El monto del pago debe ser mayor a 0.')
+  if (!amount || amount <= 0) throw new Error('El monto del pago debe ser mayor que 0.')
 
   const newPaid = Math.min(invoice.total, (invoice.paid || 0) + amount)
   const status = newPaid >= invoice.total ? 'paid' : 'partial'

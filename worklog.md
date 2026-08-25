@@ -487,3 +487,12 @@ Stage Summary:
 - L1: Atoms desnormalizados (hechos reutilizables, semánticamente indexados)
 - L2: Scenarios (escenas de negocio, con timeline y contexto)
 - L3: Core knowledge (ground truth, merged facts, canónica)
+
+## 2026-08-25 · Flujo completo de control de cotizaciones
+- **Schema:** modelo QuoteEvent (created|sent|viewed|approved|rejected|expired|resent|edited) + sentAt/viewedAt en Quote, índice por status. db:push aplicado.
+- **Historial:** helper src/lib/quotes/history.ts (logQuoteEvent, expireOverdueQuotes). Vencimiento lazy en GET /api/quotes y [id]: las "sent" con validUntil pasado pasan a "expired" con evento.
+- **API:** eventos registrados en crear/enviar/rechazar/aprobar/reenviar/editar; nueva acción PUT action=resend (reactiva vencidas con nueva validez 7 días); GET approve?token registra primera vista del cliente (viewed); GET [id] incluye events.
+- **Página pública:** src/modules/quotes/public-quote-approval.tsx; interceptada en page.tsx cuando la URL trae ?quote=<id>&token=<token> (Suspense + useSearchParams). El cliente ya SÍ puede aprobar/rechazar desde el enlace. AssistantWidget se oculta ahí.
+- **UI cotizaciones:** stats con Valor pendiente y Vencidas; orden pendientes-primero; columna estado muestra "Esperando hace N días"; vencimiento con color (amber ≤3 días, rose vencida); menú con Reenviar y Marcar rechazada (con motivo); diálogo detalle con sección Historial (timeline) vía hook nuevo useQuote(id).
+- **Hermes:** crearCotizacion del executor registra eventos created/sent.
+- **Verificado:** lint 0 errores; ciclo API completo (crear→enviar→vista pública→reenviar→rechazar→historial 5 eventos→delete).

@@ -2,10 +2,14 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
 import { randomUUID } from 'crypto'
+import { expireOverdueQuotes, logQuoteEvent } from '@/lib/quotes/history'
 
 // GET /api/quotes
 export async function GET(req: NextRequest) {
   try {
+    // Vencimiento lazy antes de listar
+    await expireOverdueQuotes()
+
     const { searchParams } = new URL(req.url)
     const workOrderId = searchParams.get('workOrderId')
     const status = searchParams.get('status')
@@ -88,6 +92,7 @@ export async function POST(req: NextRequest) {
           subtotal,
           tax: taxAmount,
           total,
+          ...(body.sendImmediately ? { sentAt: new Date() } : {}),
           items: { create: items },
         },
         include: {
@@ -95,6 +100,23 @@ export async function POST(req: NextRequest) {
           items: { include: { part: true } },
         },
       })
+
+      await logQuoteEvent(tx, {
+        quoteId: q.id,
+        eventType: 'created',
+        toStatus: q.status,
+        description: `Cotización ${code} creada. Total: $${total.toFixed(0)}`,
+      })
+
+      if (body.sendImmediately) {
+        await logQuoteEvent(tx, {
+          quoteId: q.id,
+          eventType: 'sent',
+          fromStatus: 'draft',
+          toStatus: 'sent',
+          description: `Cotización ${code} enviada al cliente`,
+        })
+      }
 
       // Actualizar estado de la orden
       if (body.sendImmediately) {

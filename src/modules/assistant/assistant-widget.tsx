@@ -268,7 +268,7 @@ export function AssistantWidget() {
         ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
         : null
     if (!SR) {
-      toast.info('Tu navegador no soporta dictado por voz.')
+      toast.info('Tu navegador no admite dictado por voz.')
       return
     }
     const rec = new SR()
@@ -283,6 +283,15 @@ export function AssistantWidget() {
     rec.onerror = () => toast.error('No se pudo capturar la voz.')
     rec.start()
   }, [])
+
+  // Ocultar el asistente en la página pública de aprobación de cotizaciones
+  const [isPublicQuote, setIsPublicQuote] = useState(false)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('quote') && params.get('token')) setIsPublicQuote(true)
+  }, [])
+
+  if (isPublicQuote) return null
 
   const renderLink = (link: LinkTarget) => (
     <Button
@@ -340,7 +349,7 @@ export function AssistantWidget() {
                   <p className="text-sm font-medium">Hola, soy Hermes 👋</p>
                   <p className="text-xs text-muted-foreground">
                     Te ayudo a gestionar el taller: registros, órdenes, recordatorios, cotizaciones,
-                    facturas y el estado del día. Las acciones de escritura siempre las confirmas tú.
+                    facturas y el estado del día. Los cambios siempre los confirmas tú antes de aplicarlos.
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {CHIPS.map((c) => (
@@ -373,7 +382,7 @@ export function AssistantWidget() {
                       ) : streaming && !m.pendingCards?.length ? (
                         <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Pensando...</span>
+                          <span>Pensando…</span>
                         </div>
                       ) : null}
                       {m.error && (
@@ -434,7 +443,7 @@ export function AssistantWidget() {
                           <div className="mb-1.5 flex items-center gap-1.5">
                             <Check className="h-3.5 w-3.5 text-emerald-600" />
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                              {rc.entity} creado
+                              {rc.entity} {/^(Orden|Cotización|Factura|Tarea)/i.test(rc.entity) ? 'creada' : 'creado'}
                             </span>
                           </div>
                           <div className="mb-2.5 text-[13px] leading-snug">
@@ -472,7 +481,7 @@ export function AssistantWidget() {
                     void send(input)
                   }
                 }}
-                placeholder="Escribe un mensaje... (Enter para enviar)"
+                placeholder="Escribe un mensaje… (Enter para enviar)"
                 className="max-h-28 min-h-[40px] resize-none text-sm"
                 rows={1}
               />
@@ -497,8 +506,8 @@ export function AssistantWidget() {
                 </Button>
               )}
             </div>
-            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Las escrituras se ejecutan solo después de que confirmas.
+            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+              Los cambios se guardan solo después de tu confirmación.
             </p>
           </div>
         </div>

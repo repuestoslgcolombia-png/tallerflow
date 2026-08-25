@@ -159,6 +159,8 @@ model Quote {
   subtotal     Float    @default(0)
   tax          Float    @default(0)
   total        Float    @default(0)
+  sentAt       DateTime?
+  viewedAt     DateTime?
   approvedAt   DateTime?
   approvedBy   String? // nombre de quien aprueba
   rejectionReason String?
@@ -167,8 +169,10 @@ model Quote {
 
   workOrder WorkOrder   @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   items     QuoteItem[]
+  events    QuoteEvent[]
 
   @@index([workOrderId])
+  @@index([status])
 }
 
 model QuoteItem {
@@ -184,6 +188,22 @@ model QuoteItem {
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   part  Part?  @relation(fields: [partId], references: [id])
+
+  @@index([quoteId])
+}
+
+model QuoteEvent {
+  id          String   @id @default(cuid())
+  quoteId     String
+  eventType   String // created | sent | viewed | approved | rejected | expired | resent | edited
+  fromStatus  String?
+  toStatus    String?
+  title       String
+  description String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
   @@index([quoteId])
 }

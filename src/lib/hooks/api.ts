@@ -315,6 +315,18 @@ export function useQuotes(params: { workOrderId?: string; status?: string } = {}
   })
 }
 
+export function useQuote(id: string | null) {
+  return useQuery({
+    queryKey: ['quote', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/quotes/${id}`)
+      if (!res.ok) throw new Error('Error al cargar la cotización')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
 export function useQuoteMutations() {
   const qc = useQueryClient()
   const create = useMutation({
@@ -353,6 +365,7 @@ export function useQuoteMutations() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['quotes'] })
+      qc.invalidateQueries({ queryKey: ['quote'] })
       qc.invalidateQueries({ queryKey: ['work-orders'] })
       qc.invalidateQueries({ queryKey: ['work-order'] })
       toast.success('Cotización actualizada')
@@ -518,7 +531,7 @@ export function useDashboard() {
     queryKey: ['dashboard'],
     queryFn: async () => {
       const res = await fetch('/api/dashboard')
-      if (!res.ok) throw new Error('Error al cargar dashboard')
+      if (!res.ok) throw new Error('Error al cargar el flujo diario')
       return res.json()
     },
     refetchInterval: 60 * 1000, // refresh cada minuto
@@ -881,7 +894,7 @@ export function useWhatsAppRender() {
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || 'Error al renderizar')
+        throw new Error(err.error || 'Error al generar el mensaje')
       }
       return res.json()
     },
