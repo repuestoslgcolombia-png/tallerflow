@@ -139,7 +139,15 @@ export async function POST(req: NextRequest) {
       return q
     })
 
-    return created(quote)
+    const createdQuote = await db.quote.findUnique({
+      where: { id: quote.id },
+      include: {
+        workOrder: { include: { customer: true, device: true } },
+        items: { include: { part: true } },
+      },
+    })
+
+    return created(createdQuote)
   } catch (e) {
     return serverError('Error al crear cotización', e)
   }

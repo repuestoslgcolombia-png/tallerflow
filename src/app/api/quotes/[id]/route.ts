@@ -72,7 +72,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id })
 
-      return ok(quote)
+      const refreshed = await db.quote.findUnique({
+        where: { id },
+        include: {
+          workOrder: { include: { customer: true, device: true } },
+          items: { include: { part: true } },
+        },
+      })
+
+      return ok(refreshed)
     }
 
     if (body.action === 'resend') {
@@ -128,7 +136,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id })
 
-      return ok(quote)
+      const refreshed = await db.quote.findUnique({
+        where: { id },
+        include: {
+          workOrder: { include: { customer: true, device: true } },
+          items: { include: { part: true } },
+        },
+      })
+
+      return ok(refreshed)
     }
 
     if (body.action === 'reject') {
