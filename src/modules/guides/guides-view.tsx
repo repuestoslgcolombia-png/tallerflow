@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { toast } from 'sonner'
 import {
   BookOpen,
   Plus,
@@ -13,20 +12,8 @@ import {
   CheckCircle2,
   FileText,
   Clock,
-  ListChecks,
   Star,
-  Tag,
-  Loader2,
   X,
-  WashingMachine,
-  Refrigerator,
-  Snowflake,
-  Flame,
-  Wind,
-  Tv,
-  Microwave,
-  CookingPot,
-  Thermometer,
   Wrench,
   Layers,
   User,
@@ -42,8 +29,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -52,14 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,7 +55,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -87,96 +63,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { GuideStatusBadge, GuideDifficultyBadge } from '@/components/tallerflow/badges'
+import {
+  GuideIcon,
+  RepairGuideDialog,
+  type RepairGuide,
+} from '@/components/tallerflow/repair-guide-detail'
+import { GuideFormDialog } from '@/components/tallerflow/repair-guide-form'
 
-import { useRepairGuides, useRepairGuide, useRepairGuideMutations } from '@/lib/hooks/api'
+import { useRepairGuides, useRepairGuideMutations } from '@/lib/hooks/api'
 import {
   DEVICE_TYPES,
-  APPLIANCE_BRANDS,
   REPAIR_GUIDE_STATUS,
-  formatDate,
-  timeAgo,
   type DeviceTypeKey,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-
-// ============== ICON MAP ==============
-const GUIDE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  washing_machine: WashingMachine,
-  refrigerator: Refrigerator,
-  freezer: Snowflake,
-  gas_dryer: Flame,
-  air_conditioner: Wind,
-  tv: Tv,
-  microwave: Microwave,
-  oven: CookingPot,
-  stove: CookingPot,
-  water_heater: Thermometer,
-  other: Wrench,
-}
-
-function GuideIcon({
-  applianceType,
-  className,
-}: {
-  applianceType: string
-  className?: string
-}) {
-  const Icon = GUIDE_ICON_MAP[applianceType] || Wrench
-  return <Icon className={className} />
-}
-
-// ============== TIPOS ==============
-interface RepairGuide {
-  id: string
-  title: string
-  summary?: string | null
-  applianceType: string
-  brand?: string | null
-  model?: string | null
-  symptoms?: string | null
-  steps: string
-  difficulty: string
-  estimatedHours: number
-  partsUsed?: string | null
-  status: string
-  version: number
-  usageCount: number
-  author?: { id: string; name: string } | null
-  sourceWorkOrder?: { id: string; code: string } | null
-  createdAt: string
-  updatedAt: string
-}
-
-function parseJsonArray(value?: string | null): string[] {
-  if (!value) return []
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : []
-  } catch {
-    return []
-  }
-}
-
-function parsePartsUsed(value?: string | null): { partId?: string | null; name: string; qty: number }[] {
-  if (!value) return []
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function safeNumber(value: string | number | null | undefined, fallback = 0): number {
-  if (value === null || value === undefined || value === '') return fallback
-  const n = Number(value)
-  return Number.isFinite(n) ? n : fallback
-}
+import { useAppStore } from '@/store/app-store'
 
 // ============== COMPONENTE PRINCIPAL ==============
 export function GuidesView() {
+  const { navigate } = useAppStore()
   // Filtros
   const [search, setSearch] = React.useState('')
   const [applianceFilter, setApplianceFilter] = React.useState<string>('all')
@@ -196,7 +102,7 @@ export function GuidesView() {
 
   const { create, update, remove } = useRepairGuideMutations()
 
-  const [detailGuideId, setDetailGuideId] = React.useState<string | null>(null)
+  const [detailGuide, setDetailGuide] = React.useState<RepairGuide | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editingGuide, setEditingGuide] = React.useState<RepairGuide | null>(null)
   const [archiveGuide, setArchiveGuide] = React.useState<RepairGuide | null>(null)
@@ -249,19 +155,19 @@ export function GuidesView() {
             icon={<CheckCircle2 className="h-5 w-5" />}
             label="Activas"
             value={String(stats.active)}
-            color="text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400"
+            color="text-sky-700 bg-sky-100 dark:bg-sky-950/40 dark:text-sky-400"
           />
           <StatCard
             icon={<FileText className="h-5 w-5" />}
             label="Borradores"
             value={String(stats.drafts)}
-            color="text-amber-600 bg-amber-100 dark:bg-amber-950/40 dark:text-amber-400"
+            color="text-sky-700 bg-sky-100 dark:bg-sky-950/40 dark:text-sky-400"
           />
           <StatCard
             icon={<Star className="h-5 w-5" />}
             label="Usos"
             value={String(stats.usages)}
-            color="text-violet-600 bg-violet-100 dark:bg-violet-950/40 dark:text-violet-400"
+            color="text-sky-700 bg-sky-100 dark:bg-sky-950/40 dark:text-sky-400"
           />
         </div>
       </div>
@@ -364,9 +270,7 @@ export function GuidesView() {
                     <TableHead className="min-w-[140px]">Equipo</TableHead>
                     <TableHead className="min-w-[110px]">Estado</TableHead>
                     <TableHead className="min-w-[100px]">Dificultad</TableHead>
-                    <TableHead className="min-w-[110px]">Horas</TableHead>
-                    <TableHead className="min-w-[90px]">Versión</TableHead>
-                    <TableHead className="min-w-[80px]">Usos</TableHead>
+                    <TableHead className="min-w-[100px]">Versión · Usos</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -377,7 +281,7 @@ export function GuidesView() {
                       <TableRow
                         key={guide.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => setDetailGuideId(guide.id)}
+                        onClick={() => setDetailGuide(guide)}
                       >
                         <TableCell>
                           <div className="space-y-0.5">
@@ -403,6 +307,22 @@ export function GuidesView() {
                                   </span>
                                 </>
                               )}
+                              {guide.sourceWorkOrder?.code && (
+                                <>
+                                  <span className="text-muted-foreground/40">·</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate('work-order-detail', { workOrderId: guide.sourceWorkOrder?.id })
+                                    }}
+                                    className="inline-flex items-center gap-0.5 text-sky-600 underline-offset-2 hover:underline dark:text-sky-400"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    {guide.sourceWorkOrder.code}
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -423,19 +343,22 @@ export function GuidesView() {
                           <GuideDifficultyBadge difficulty={guide.difficulty} />
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>{guide.estimatedHours ? `${guide.estimatedHours} h` : '—'}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            {guide.estimatedHours > 0 && (
+                              <span className="inline-flex items-center gap-1 tabular-nums">
+                                <Clock className="h-3 w-3" />
+                                {guide.estimatedHours}h
+                              </span>
+                            )}
+                            <Badge variant="secondary" className="gap-1 font-mono">
+                              <History className="h-3 w-3" />
+                              v{guide.version}
+                            </Badge>
+                            <span className="inline-flex items-center gap-1 tabular-nums">
+                              <Star className="h-3 w-3" />
+                              {guide.usageCount}
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="gap-1 font-mono">
-                            <History className="h-3 w-3" />
-                            v{guide.version}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{guide.usageCount}</span>
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
@@ -445,10 +368,10 @@ export function GuidesView() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => setDetailGuideId(guide.id)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver detalle
-                              </DropdownMenuItem>
+<DropdownMenuItem onClick={() => setDetailGuide(guide)}>
+                <Eye className="h-4 w-4 mr-2" />
+                Ver detalle
+              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setEditingGuide(guide)}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Editar
@@ -486,11 +409,11 @@ export function GuidesView() {
 
       {/* DETAIL DIALOG */}
       <GuideDetailDialog
-        guideId={detailGuideId}
-        onClose={() => setDetailGuideId(null)}
-        onEdit={(guide) => {
-          setDetailGuideId(null)
-          setEditingGuide(guide)
+        guide={detailGuide}
+        onClose={() => setDetailGuide(null)}
+        onEdit={(g) => {
+          setDetailGuide(null)
+          setEditingGuide(g)
         }}
       />
 
@@ -632,535 +555,30 @@ function EmptyState({ onCreate, hasFilters }: { onCreate: () => void; hasFilters
 
 // ============== GUIDE DETAIL DIALOG ==============
 function GuideDetailDialog({
-  guideId,
+  guide,
   onClose,
   onEdit,
 }: {
-  guideId: string | null
+  guide: RepairGuide | null
   onClose: () => void
   onEdit: (guide: RepairGuide) => void
 }) {
-  const { data, isLoading } = useRepairGuide(guideId)
-  const guide = data as RepairGuide | undefined
+  const { update } = useRepairGuideMutations()
+  const open = !!guide
 
-  return (
-    <Dialog open={!!guideId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {isLoading || !guide ? (
-          <div className="space-y-3 p-6">
-            <Skeleton className="h-7 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        ) : (
-          <GuideDetailContent guide={guide} onClose={onClose} onEdit={() => onEdit(guide)} />
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function GuideDetailContent({
-  guide,
-  onClose,
-  onEdit,
-}: {
-  guide: RepairGuide
-  onClose: () => void
-  onEdit: () => void
-}) {
-  const dt = DEVICE_TYPES[guide.applianceType as DeviceTypeKey]
-  const symptoms = parseJsonArray(guide.symptoms)
-  const parts = parsePartsUsed(guide.partsUsed)
-  const steps = guide.steps.split('\n').map((s) => s.trim()).filter(Boolean)
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle className="flex items-start gap-3 pr-8">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              {dt && (
-                <Badge variant="outline" className="gap-1">
-                  <GuideIcon applianceType={guide.applianceType} className="h-3 w-3" />
-                  {dt.label}
-                </Badge>
-              )}
-              <GuideStatusBadge status={guide.status} />
-              <GuideDifficultyBadge difficulty={guide.difficulty} />
-              <Badge variant="secondary" className="font-mono">v{guide.version}</Badge>
-            </div>
-            <div>{guide.title}</div>
-          </div>
-        </DialogTitle>
-        {guide.summary && (
-          <DialogDescription className="text-sm leading-relaxed">
-            {guide.summary}
-          </DialogDescription>
-        )}
-      </DialogHeader>
-
-      <ScrollArea className="flex-1 -mx-6 px-6 max-h-[60vh]">
-        <div className="space-y-5 pb-2">
-          {/* META */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              <Tag className="h-4 w-4 text-muted-foreground" />
-              Información
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Marca</div>
-                <div className="text-sm font-medium">{guide.brand || '—'}</div>
-              </div>
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Modelo</div>
-                <div className="text-sm font-medium">{guide.model || '—'}</div>
-              </div>
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Horas</div>
-                <div className="text-sm font-medium flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  {guide.estimatedHours ? `${guide.estimatedHours} h` : '—'}
-                </div>
-              </div>
-              <div className="rounded-md border bg-muted/30 px-3 py-2">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Usos</div>
-                <div className="text-sm font-medium flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 text-violet-500" />
-                  {guide.usageCount}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SÍNTOMAS */}
-          {symptoms.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                Síntomas
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {symptoms.map((s) => (
-                  <Badge key={s} variant="secondary" className="font-normal">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* PROCEDIMIENTO */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              <ListChecks className="h-4 w-4 text-muted-foreground" />
-              Procedimiento
-            </h4>
-            {steps.length > 0 ? (
-              <ol className="space-y-2">
-                {steps.map((step, i) => (
-                  <li key={i} className="flex gap-2 text-sm leading-relaxed">
-                    <span className="shrink-0 mt-0.5 flex size-5 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                      {i + 1}
-                    </span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{guide.steps}</p>
-            )}
-          </div>
-
-          {/* REPUESTOS */}
-          {parts.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-                Repuestos utilizados
-              </h4>
-              <div className="space-y-1.5">
-                {parts.map((p, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm"
-                  >
-                    <span className="min-w-0 truncate">{p.name}</span>
-                    <Badge variant="secondary" className="shrink-0 font-mono">
-                      ×{p.qty}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ORIGEN */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {guide.author?.name && (
-              <span className="flex items-center gap-1">
-                <User className="h-3.5 w-3.5" />
-                Autor: {guide.author.name}
-              </span>
-            )}
-            {guide.sourceWorkOrder?.code && (
-              <span className="flex items-center gap-1">
-                <FileText className="h-3.5 w-3.5" />
-                Origen: {guide.sourceWorkOrder.code}
-              </span>
-            )}
-            <span>Creada {formatDate(guide.createdAt)}</span>
-            <span>Actualizada {timeAgo(guide.updatedAt)}</span>
-          </div>
-        </div>
-      </ScrollArea>
-
-      <DialogFooter className="gap-2 sm:gap-2">
-        <Button variant="outline" onClick={onClose}>
-          Cerrar
-        </Button>
-        <Button onClick={onEdit}>
-          <Pencil className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
-      </DialogFooter>
-    </>
-  )
-}
-
-// ============== GUIDE FORM DIALOG (CREATE/EDIT) ==============
-interface GuideFormState {
-  title: string
-  summary: string
-  applianceType: string
-  brand: string
-  model: string
-  symptomsText: string
-  steps: string
-  difficulty: string
-  estimatedHours: string
-  partsText: string
-  status: string
-}
-
-const emptyGuideForm: GuideFormState = {
-  title: '',
-  summary: '',
-  applianceType: 'washing_machine',
-  brand: '',
-  model: '',
-  symptomsText: '',
-  steps: '',
-  difficulty: 'media',
-  estimatedHours: '1',
-  partsText: '',
-  status: 'draft',
-}
-
-function guideToForm(guide: RepairGuide): GuideFormState {
-  return {
-    title: guide.title || '',
-    summary: guide.summary || '',
-    applianceType: guide.applianceType || 'washing_machine',
-    brand: guide.brand || '',
-    model: guide.model || '',
-    symptomsText: parseJsonArray(guide.symptoms).join(', '),
-    steps: guide.steps || '',
-    difficulty: guide.difficulty || 'media',
-    estimatedHours: guide.estimatedHours != null ? String(guide.estimatedHours) : '1',
-    partsText: parsePartsUsed(guide.partsUsed)
-      .map((p) => (p.qty && p.qty !== 1 ? `${p.name} (x${p.qty})` : p.name))
-      .join(', '),
-    status: guide.status || 'draft',
-  }
-}
-
-function GuideFormDialog({
-  open,
-  onOpenChange,
-  guide,
-  onSubmit,
-  submitting,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  guide?: RepairGuide
-  onSubmit: (data: any) => void
-  submitting: boolean
-}) {
-  const isEdit = !!guide
-  const [form, setForm] = React.useState<GuideFormState>(() =>
-    guide ? guideToForm(guide) : emptyGuideForm
-  )
-
+  // Incrementar uso al abrir el detalle (tabla de la base de conocimiento)
   React.useEffect(() => {
-    if (open) setForm(guide ? guideToForm(guide) : emptyGuideForm)
-  }, [open, guide])
-
-  const update = <K extends keyof GuideFormState>(key: K, value: GuideFormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.title.trim() || !form.steps.trim()) {
-      toast.error('El título y el procedimiento son obligatorios')
-      return
-    }
-
-    const symptomsArray = form.symptomsText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-
-    const partsArray = form.partsText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => {
-        const m = s.match(/^(.*?)\s*\(x(\d+)\)$/)
-        if (m) return { name: m[1].trim(), qty: parseInt(m[2], 10) || 1 }
-        return { name: s, qty: 1 }
-      })
-
-    const payload: any = {
-      title: form.title.trim(),
-      summary: form.summary.trim() || null,
-      applianceType: form.applianceType,
-      brand: form.brand || null,
-      model: form.model.trim() || null,
-      symptoms: symptomsArray,
-      steps: form.steps.trim(),
-      difficulty: form.difficulty,
-      estimatedHours: safeNumber(form.estimatedHours),
-      partsUsed: partsArray,
-    }
-
-    if (!isEdit) payload.status = form.status
-
-    onSubmit(payload)
-  }
+    if (guide) update.mutate({ id: guide.id, data: { action: 'increment_usage' } })
+  }, [guide?.id])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isEdit ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-            {isEdit ? 'Editar guía' : 'Nueva guía de reparación'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? 'Actualiza el procedimiento. Si la guía está activa, se generará una nueva versión.'
-              : 'Documenta un procedimiento reutilizable. Los campos marcados con * son obligatorios.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 -mx-6 px-6 max-h-[65vh]">
-            <div className="space-y-5 pb-2">
-              {/* INFORMACIÓN BÁSICA */}
-              <FormSection title="Información básica" icon={<BookOpen className="h-4 w-4" />}>
-                <Field label="Título" required>
-                  <Input
-                    value={form.title}
-                    onChange={(e) => update('title', e.target.value)}
-                    placeholder="Ej: Cambio de rodamientos en lavadora"
-                    required
-                  />
-                </Field>
-                <Field label="Resumen">
-                  <Textarea
-                    value={form.summary}
-                    onChange={(e) => update('summary', e.target.value)}
-                    placeholder="Resumen breve de cuándo aplicar esta guía…"
-                    rows={2}
-                  />
-                </Field>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Field label="Tipo de equipo" required>
-                    <Select value={form.applianceType} onValueChange={(v) => update('applianceType', v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(DEVICE_TYPES) as DeviceTypeKey[]).map((key) => (
-                          <SelectItem key={key} value={key}>
-                            <span className="flex items-center gap-2">
-                              <GuideIcon applianceType={key} className="h-4 w-4" />
-                              {DEVICE_TYPES[key].label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Marca">
-                    <Select value={form.brand} onValueChange={(v) => update('brand', v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una marca" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {APPLIANCE_BRANDS.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Modelo">
-                    <Input
-                      value={form.model}
-                      onChange={(e) => update('model', e.target.value)}
-                      placeholder="Ej: WT7001 o Universal"
-                    />
-                  </Field>
-                </div>
-              </FormSection>
-
-              {/* SÍNTOMAS */}
-              <FormSection title="Síntomas" icon={<Search className="h-4 w-4" />}>
-                <Field
-                  label="Síntomas frecuentes"
-                  hint="Separados por coma. Se usan para sugerir esta guía. Ej: no desagua, hace ruido, no enciende"
-                >
-                  <Input
-                    value={form.symptomsText}
-                    onChange={(e) => update('symptomsText', e.target.value)}
-                    placeholder="no desagua, hace ruido, no enciende"
-                  />
-                </Field>
-              </FormSection>
-
-              {/* PROCEDIMIENTO */}
-              <FormSection title="Procedimiento" icon={<ListChecks className="h-4 w-4" />}>
-                <Field
-                  label="Pasos"
-                  required
-                  hint="Uno por línea. Ej:\n1. Desconectar la lavadora.\n2. Retirar la tapa trasera."
-                >
-                  <Textarea
-                    value={form.steps}
-                    onChange={(e) => update('steps', e.target.value)}
-                    placeholder={'1. Desconectar el equipo.\n2. Retirar la tapa.\n3. Inspeccionar la pieza.'}
-                    rows={7}
-                    required
-                  />
-                </Field>
-              </FormSection>
-
-              {/* DETALLES */}
-              <FormSection title="Detalles" icon={<Clock className="h-4 w-4" />}>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Field label="Dificultad">
-                    <Select value={form.difficulty} onValueChange={(v) => update('difficulty', v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="facil">Fácil</SelectItem>
-                        <SelectItem value="media">Media</SelectItem>
-                        <SelectItem value="compleja">Compleja</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Horas estimadas">
-                    <Input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={form.estimatedHours}
-                      onChange={(e) => update('estimatedHours', e.target.value)}
-                      placeholder="1"
-                    />
-                  </Field>
-                  <Field label="Estado">
-                    <Select value={form.status} onValueChange={(v) => update('status', v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Borrador</SelectItem>
-                        <SelectItem value="active">Activa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-                <Field
-                  label="Repuestos utilizados"
-                  hint="Separados por coma. Cantidad opcional: Condensador (x2)"
-                >
-                  <Input
-                    value={form.partsText}
-                    onChange={(e) => update('partsText', e.target.value)}
-                    placeholder="Rodamiento 6205, Condensador 40µF (x2)"
-                  />
-                </Field>
-              </FormSection>
-            </div>
-          </ScrollArea>
-
-          <Separator className="my-2" />
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting && <Loader2 className="size-4 animate-spin" />}
-              {isEdit ? 'Guardar cambios' : 'Crear guía'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <RepairGuideDialog
+      open={open}
+      onOpenChange={(v) => !v && onClose()}
+      guide={guide}
+      maxWidth="2xl"
+      onEdit={guide ? () => onEdit(guide) : undefined}
+    />
   )
 }
-
-// ============== FORM SECTION ==============
-function FormSection({
-  title,
-  icon,
-  children,
-}: {
-  title: string
-  icon: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-3">
-      <h4 className="text-sm font-semibold flex items-center gap-1.5 text-muted-foreground">
-        {icon}
-        {title}
-      </h4>
-      {children}
-    </div>
-  )
-}
-
-function Field({
-  label,
-  required,
-  hint,
-  className,
-  children,
-}: {
-  label: string
-  required?: boolean
-  hint?: string
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className={cn('space-y-1.5', className)}>
-      <Label>
-        {label}
-        {required && <span className="text-rose-500 ml-0.5">*</span>}
-      </Label>
-      {children}
-      {hint && <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>}
-    </div>
-  )
-}
+

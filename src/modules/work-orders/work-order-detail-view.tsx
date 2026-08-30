@@ -107,6 +107,8 @@ import {
 } from '@/components/ui/table'
 
 import { StatusBadge, PriorityBadge, QuoteStatusBadge, InvoiceStatusBadge, ReminderStatusBadge } from '@/components/tallerflow/badges'
+import { RepairGuideDialog, formatPartsInput } from '@/components/tallerflow/repair-guide-detail'
+import { GuideFormDialog, type GuideFormState } from '@/components/tallerflow/repair-guide-form'
 import { useAppStore } from '@/store/app-store'
 import {
   useWorkOrder,
@@ -1531,6 +1533,7 @@ function DiagnosisDialog({
 
 // ============== Base de Conocimiento (sugerencias) ==============
 function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide: () => void }) {
+  const { navigate } = useAppStore()
   const deviceType = order.device?.type || ''
   const symptom = order.diagnosis?.findings || order.diagnosisText || ''
   const { data: suggestions = [], isLoading } = useRepairGuideSuggestions({
@@ -1544,14 +1547,32 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
   const [viewGuide, setViewGuide] = React.useState<any | null>(null)
 
   const list = (suggestions as any[]).slice(0, 4)
+  const hasDiagnosis = !!(order.diagnosis?.findings || order.diagnosisText)
+
+  const openGuide = (g: any) => {
+    setViewGuide(g)
+    update.mutate({ id: g.id, data: { action: 'increment_usage' } })
+  }
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <BookOpen className="size-4 text-violet-500" />
-          Base de conocimiento
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="size-4 text-violet-500" />
+            Base de conocimiento
+          </CardTitle>
+          {deviceType && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1 text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400"
+              onClick={() => navigate('guides')}
+            >
+              <BookOpen className="size-3.5" /> Ver base de conocimiento
+            </Button>
+          )}
+        </div>
         <CardDescription>
           Guías relacionadas con este equipo
         </CardDescription>
@@ -1571,7 +1592,7 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
             <p className="text-sm text-muted-foreground">
               Sin guías para este equipo todavía.
             </p>
-            {order.diagnosis && (
+            {hasDiagnosis && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1585,16 +1606,26 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
           </div>
         ) : (
           <div className="space-y-2">
-            {list.map((g: any) => {
+            {list.map((g: any, idx: number) => {
               const dt = (DEVICE_TYPES as any)[g.applianceType]
+              const match = g.match || {}
+              const highlight = idx === 0 && g.score > 0
               return (
                 <div
                   key={g.id}
-                  className="flex items-start justify-between gap-2 rounded-lg border p-2.5"
+                  className={cn(
+                    'flex items-start justify-between gap-2 rounded-lg border p-2.5',
+                    highlight && 'border-primary/40 bg-primary/5'
+                  )}
                 >
-                  <div className="min-w-0 space-y-0.5">
+                  <div className="min-w-0 space-y-1">
                     <p className="truncate text-sm font-medium">{g.title}</p>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {highlight && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          <Sparkles className="size-3" /> Más relevante
+                        </span>
+                      )}
                       {dt && <span>{dt.label}</span>}
                       {g.brand && (
                         <>
@@ -1609,79 +1640,58 @@ function KnowledgeBaseCard({ order, onCreateGuide }: { order: any; onCreateGuide
                         </>
                       )}
                     </div>
+                    {(match.brand || match.model || match.symptom) && (
+                      <div className="flex flex-wrap gap-1">
+                        {match.brand && (
+                          <Badge variant="outline" className="gap-0.5 border-sky-200 bg-sky-50 px-1.5 py-0 text-[10px] font-medium text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-400">
+                            <Sparkles className="size-2.5" /> Marca
+                          </Badge>
+                        )}
+                        {match.model && (
+                          <Badge variant="outline" className="gap-0.5 border-violet-200 bg-violet-50 px-1.5 py-0 text-[10px] font-medium text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-400">
+                            <Sparkles className="size-2.5" /> Modelo
+                          </Badge>
+                        )}
+                        {match.symptom && (
+                          <Badge variant="outline" className="gap-0.5 border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400">
+                            <Sparkles className="size-2.5" /> Síntoma
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="shrink-0 gap-1"
-                    onClick={() => {
-                      setViewGuide(g)
-                      update.mutate({ id: g.id, data: { action: 'increment_usage' } })
-                    }}
+                    onClick={() => openGuide(g)}
                   >
                     <Eye className="size-3.5" /> Ver
                   </Button>
                 </div>
               )
             })}
+            {hasDiagnosis && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={onCreateGuide}
+              >
+                <Sparkles className="size-3.5" />
+                Crear guía desde el diagnóstico
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
 
-      <KBGuideViewDialog
-        guide={viewGuide}
+      <RepairGuideDialog
+        open={!!viewGuide}
         onOpenChange={(v) => !v && setViewGuide(null)}
+        guide={viewGuide}
       />
     </Card>
-  )
-}
-
-function KBGuideViewDialog({
-  guide,
-  onOpenChange,
-}: {
-  guide: any
-  onOpenChange: (v: boolean) => void
-}) {
-  const open = !!guide
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
-        {guide && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="pr-8">{guide.title}</DialogTitle>
-              {guide.summary && (
-                <DialogDescription className="text-sm leading-relaxed">
-                  {guide.summary}
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            <ScrollArea className="flex-1 -mx-6 px-6 max-h-[55vh]">
-              <div className="space-y-4 pb-2">
-                {guide.symptoms && (
-                  <div>
-                    <p className="text-xs font-medium uppercase text-muted-foreground">Síntomas</p>
-                    <p className="text-sm">{guide.symptoms}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Procedimiento</p>
-                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-sm leading-relaxed">
-                    {guide.steps}
-                  </div>
-                </div>
-              </div>
-            </ScrollArea>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cerrar
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -1696,105 +1706,50 @@ function SaveAsGuideDialog({
   order: any
 }) {
   const { create } = useRepairGuideMutations()
-  const [title, setTitle] = React.useState('')
-  const [symptoms, setSymptoms] = React.useState('')
-  const [steps, setSteps] = React.useState('')
 
-  const deviceType = order.device?.type || 'other'
-  const dt = (DEVICE_TYPES as any)[deviceType]
-
-  React.useEffect(() => {
-    if (open && order) {
-      const diag = order.diagnosis
-      const base = diag
-        ? [diag.findings, diag.rootCause, diag.recommendation].filter(Boolean).join('\n\n')
-        : order.diagnosisText || ''
-      const brand = order.device?.brand ? ` ${order.device.brand}` : ''
-      setTitle(`Reparación${brand} ${dt?.label || 'equipo'}`.trim())
-      setSymptoms(diag?.findings || '')
-      setSteps(base)
-    }
-  }, [open, order, dt?.label])
-
-  const handleSubmit = () => {
-    if (!title.trim() || !steps.trim()) {
-      toast.error('Título y procedimiento son obligatorios')
-      return
-    }
-    create.mutate(
-      {
-        title: title.trim(),
-        summary: null,
-        applianceType: deviceType,
-        brand: order.device?.brand || null,
-        model: order.device?.model || null,
-        symptoms: symptoms
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        steps: steps.trim(),
-        difficulty: 'media',
-        estimatedHours: order.diagnosis?.laborHours || 1,
-        partsUsed: (order.partsUsed || []).map((m: any) => ({
-          partId: m.partId,
-          name: m.part?.name || 'Repuesto',
-          qty: m.quantity,
-        })),
-        status: 'draft',
-        sourceWorkOrderId: order.id,
-      },
-      { onSuccess: () => onOpenChange(false) }
+  const initial: Partial<GuideFormState> = React.useMemo(() => {
+    const deviceType = order.device?.type || 'other'
+    const dt = (DEVICE_TYPES as any)[deviceType]
+    const diag = order.diagnosis
+    const base = diag
+      ? [diag.findings, diag.rootCause, diag.recommendation].filter(Boolean).join('\n\n')
+      : order.diagnosisText || ''
+    const brand = order.device?.brand ? ` ${order.device.brand}` : ''
+    const partsText = formatPartsInput(
+      (order.partsUsed || []).map((m: any) => ({
+        partId: m.partId,
+        name: m.part?.name || 'Repuesto',
+        qty: m.quantity,
+      }))
     )
-  }
+    return {
+      title: `Reparación${brand} ${dt?.label || 'equipo'}`.trim(),
+      summary: '',
+      applianceType: deviceType,
+      brand: order.device?.brand || '',
+      model: order.device?.model || '',
+      symptomsText: diag?.findings || '',
+      steps: base,
+      difficulty: 'media',
+      estimatedHours: diag?.laborHours != null ? String(diag.laborHours) : '1',
+      partsText,
+      status: 'draft',
+    }
+  }, [open, order])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BookOpen className="size-5" />
-            Guardar como guía
-          </DialogTitle>
-          <DialogDescription>
-            Crea una guía de reparación reutilizable a partir del diagnóstico de esta orden. Se
-            guardará como borrador para que la revises antes de publicarla.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex-1 overflow-y-auto space-y-3">
-          <div className="space-y-1.5">
-            <Label>Título</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Síntomas (separados por coma)</Label>
-            <Input
-              value={symptoms}
-              onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="no desagua, hace ruido, no enciende"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Procedimiento</Label>
-            <Textarea
-              value={steps}
-              onChange={(e) => setSteps(e.target.value)}
-              rows={8}
-              placeholder="1. Desconectar el equipo.\n2. …"
-            />
-          </div>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={create.isPending} className="gap-2">
-            {create.isPending && <Loader2 className="size-4 animate-spin" />}
-            <BookmarkPlus className="size-4" />
-            Guardar guía
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <GuideFormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      initial={initial}
+      onSubmit={(data) =>
+        create.mutate(
+          { ...data, sourceWorkOrderId: order.id },
+          { onSuccess: () => onOpenChange(false) }
+        )
+      }
+      submitting={create.isPending}
+    />
   )
 }
 

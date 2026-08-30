@@ -36,24 +36,35 @@ export async function GET(req: NextRequest) {
     const scored = guides
       .map((g) => {
         let score = 0
+        const match: { brand?: boolean; model?: boolean; symptom?: boolean } = {}
         const gBrand = (g.brand || '').toLowerCase().trim()
         const gModel = (g.model || '').toLowerCase().trim()
         const symptomsRaw = `${g.symptoms || ''} ${g.title || ''}`.toLowerCase()
 
-        if (brand && gBrand === brand.toLowerCase().trim()) score += 4
-        else if (gBrand === 'universal') score += 1
+        if (brand && gBrand === brand.toLowerCase().trim()) {
+          score += 4
+          match.brand = true
+        } else if (gBrand === 'universal') score += 1
 
-        if (modelNeedle && gModel && gModel.includes(modelNeedle)) score += 3
+        if (modelNeedle && gModel && gModel.includes(modelNeedle)) {
+          score += 3
+          match.model = true
+        }
 
-        if (needle && symptomsRaw.includes(needle)) score += 2
-        else if (needle && needle.length > 3 && symptomsRaw.includes(needle.split(' ')[0])) score += 1
+        if (needle && symptomsRaw.includes(needle)) {
+          score += 2
+          match.symptom = true
+        } else if (needle && needle.length > 3 && symptomsRaw.includes(needle.split(' ')[0])) {
+          score += 1
+          match.symptom = true
+        }
 
-        return { ...g, _score: score }
+        return { ...g, _score: score, _match: match }
       })
       .filter((g) => (needle ? g._score > 0 : g._score >= 0))
       .sort((a, b) => b._score - a._score)
       .slice(0, 6)
-      .map(({ _score, ...rest }) => rest)
+      .map(({ _score, _match, ...rest }) => ({ ...rest, score: _score, match: _match }))
 
     return ok(scored)
   } catch (e) {
