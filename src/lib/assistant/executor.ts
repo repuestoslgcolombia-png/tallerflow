@@ -5,6 +5,8 @@ import {
   WORK_ORDER_STATUS,
   DEVICE_TYPES,
   REMINDER_TYPES,
+  getNextStatuses,
+  type WorkOrderStatusKey,
 } from '@/lib/constants'
 
 export type ExecResult = {
@@ -431,6 +433,13 @@ async function executeActualizarEstado(args: Record<string, unknown>): Promise<E
       data: { workOrderId: wo.id, workOrderCode: wo.code, status },
     }
   }
+  const allowed = getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType)
+  if (!allowed.includes(status as WorkOrderStatusKey)) {
+    const labels = allowed.map((s) => (WORK_ORDER_STATUS as Record<string, { label: string }>)[s].label).join(', ') || 'ninguno'
+    throw new Error(
+      `Transición inválida para la orden **${wo.code}** (${wo.serviceType || 'revision'}): de "${(WORK_ORDER_STATUS as Record<string, { label: string }>)[wo.status].label}" solo puedes pasar a ${labels}.`
+    )
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const u = await tx.workOrder.update({
@@ -628,20 +637,22 @@ async function executeCrearCotizacion(args: Record<string, unknown>): Promise<Ex
         toStatus: 'sent',
         description: `Cotización ${code} enviada al cliente`,
       })
-      await tx.workOrder.update({
-        where: { id: wo.id },
-        data: { status: 'quoted' },
-      })
-      await tx.workOrderEvent.create({
-        data: {
-          workOrderId: wo.id,
-          eventType: 'status_change',
-          fromStatus: wo.status,
-          toStatus: 'quoted',
-          title: 'Cotización enviada',
-          description: `Cotización ${code} enviada al cliente`,
-        },
-      })
+      if (getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType).includes('quoted')) {
+        await tx.workOrder.update({
+          where: { id: wo.id },
+          data: { status: 'quoted' },
+        })
+        await tx.workOrderEvent.create({
+          data: {
+            workOrderId: wo.id,
+            eventType: 'status_change',
+            fromStatus: wo.status,
+            toStatus: 'quoted',
+            title: 'Cotización enviada',
+            description: `Cotización ${code} enviada al cliente`,
+          },
+        })
+      }
     }
 
     await tx.auditLog.create({

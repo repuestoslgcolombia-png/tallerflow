@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
 import { randomUUID } from 'crypto'
 import { expireOverdueQuotes, logQuoteEvent } from '@/lib/quotes/history'
+import { getNextStatuses, type WorkOrderStatusKey } from '@/lib/constants'
 
 // GET /api/quotes
 export async function GET(req: NextRequest) {
@@ -118,8 +119,8 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Actualizar estado de la orden
-      if (body.sendImmediately) {
+      // Actualizar estado de la orden (solo si el flujo del servicio permite 'quoted')
+      if (body.sendImmediately && getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType).includes('quoted')) {
         await tx.workOrder.update({
           where: { id: body.workOrderId },
           data: { status: 'quoted' },

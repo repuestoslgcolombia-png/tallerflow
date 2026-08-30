@@ -245,6 +245,8 @@ export function WorkOrderDetailView() {
   const flowStages = getFlowStages(order.serviceType)
   // Servicios con flujo corto no manejan cotización
   const hasQuoteStage = flowStages.includes('quoted')
+  // Revisión usa aprobación manual directa: no se crean cotizaciones nuevas
+  const isRevision = order.serviceType === 'revision'
   const canDelete = ['received', 'cancelled'].includes(order.status)
   const balance = (order.totalAmount || 0) - (order.totalPaid || 0)
 
@@ -590,9 +592,11 @@ export function WorkOrderDetailView() {
                   {order.quotes?.length || 0} cotización(es) para esta orden
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
-                <Plus className="size-3.5" /> Nueva
-              </Button>
+              {!isRevision && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
+                  <Plus className="size-3.5" /> Nueva
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {!order.quotes || order.quotes.length === 0 ? (
@@ -602,13 +606,21 @@ export function WorkOrderDetailView() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">Sin cotizaciones</p>
-                    <p className="text-xs text-muted-foreground">
-                      Crea una para enviarla al cliente.
-                    </p>
+                    {isRevision ? (
+                      <p className="text-xs text-muted-foreground">
+                        Aprobación manual — esta orden avanza directamente de Recibida a Aprobada.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Crea una para enviarla al cliente.
+                      </p>
+                    )}
                   </div>
-                  <Button size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
-                    <Plus className="size-4" /> Crear cotización
-                  </Button>
+                  {!isRevision && (
+                    <Button size="sm" className="gap-1.5" onClick={() => setCreateQuoteOpen(true)}>
+                      <Plus className="size-4" /> Crear cotización
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">

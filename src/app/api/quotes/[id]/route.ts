@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { runTrigger } from '@/lib/automations'
 import { expireOverdueQuotes, logQuoteEvent } from '@/lib/quotes/history'
+import { getNextStatuses, type WorkOrderStatusKey } from '@/lib/constants'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -51,7 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           toStatus: 'sent',
           description: `Cotización ${existing.code} enviada al cliente`,
         })
-        if (wo && wo.status !== 'quoted') {
+        if (wo && getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType).includes('quoted')) {
           await tx.workOrder.update({
             where: { id: existing.workOrderId },
             data: { status: 'quoted' },
@@ -115,7 +116,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             ? `Cotización ${existing.code} reactivada y reenviada. Nueva validez: ${newValidUntil.toISOString().slice(0, 10)}`
             : `Cotización ${existing.code} reenviada al cliente`,
         })
-        if (wo && wo.status !== 'quoted') {
+        if (wo && getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType).includes('quoted')) {
           await tx.workOrder.update({
             where: { id: existing.workOrderId },
             data: { status: 'quoted' },

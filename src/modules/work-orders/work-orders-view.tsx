@@ -611,10 +611,12 @@ function CreateOrderDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-muted-foreground">
-                  {(serviceType === 'mantenimiento' || serviceType === 'instalacion')
-                    ? 'Flujo corto: Recibida → Lista → Entregada'
-                    : 'Flujo completo con diagnóstico y cotización'}
-                </p>
+                    {serviceType === 'revision'
+                      ? 'Flujo simplificado: Recibida → Aprobada → Entregada'
+                      : serviceType === 'mantenimiento' || serviceType === 'instalacion'
+                        ? 'Flujo corto: Recibida → Lista → Entregada'
+                        : 'Flujo completo con diagnóstico y cotización'}
+                  </p>
               </div>
 
               <div className="space-y-2">

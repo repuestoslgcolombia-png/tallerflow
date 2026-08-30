@@ -317,15 +317,31 @@ const SERVICE_FLOW_SHORT: Partial<Record<WorkOrderStatusKey, WorkOrderStatusKey[
   ready: ['delivered'],
 }
 
+// Revisión usa solo 3 estados (Recibida → Aprobada → Entregada). Los estados
+// intermedios legacy aún pueden avanzar hacia approved/delivered para no atascar órdenes antiguas.
+const SERVICE_FLOW_REVISION: Record<WorkOrderStatusKey, WorkOrderStatusKey[]> = {
+  received: ['approved', 'cancelled'],
+  diagnosing: ['approved', 'cancelled'],
+  quoted: ['approved', 'cancelled'],
+  approved: ['delivered', 'cancelled'],
+  in_progress: ['approved', 'delivered', 'cancelled'],
+  ready: ['approved', 'delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+}
+
 export function getNextStatuses(
   current: WorkOrderStatusKey,
   serviceType?: string | null
 ): WorkOrderStatusKey[] {
-  // Mantenimiento e instalación usan el flujo corto; revisión y otros, el completo
-  const flow =
-    serviceType === 'mantenimiento' || serviceType === 'instalacion'
-      ? { ...STATUS_FLOW, ...SERVICE_FLOW_SHORT }
-      : STATUS_FLOW
+  let flow: Record<WorkOrderStatusKey, WorkOrderStatusKey[]>
+  if (serviceType === 'revision') {
+    flow = SERVICE_FLOW_REVISION
+  } else if (serviceType === 'mantenimiento' || serviceType === 'instalacion') {
+    flow = { ...STATUS_FLOW, ...SERVICE_FLOW_SHORT }
+  } else {
+    flow = STATUS_FLOW
+  }
   const next = flow[current] || []
   // Guard defensivo: nunca retornar estados que no existan en WORK_ORDER_STATUS
   return next.filter((s) => !!WORK_ORDER_STATUS[s])
@@ -333,6 +349,9 @@ export function getNextStatuses(
 
 // Etapas visibles del flujo según servicio (para steppers/pipelines)
 export function getFlowStages(serviceType?: string | null): WorkOrderStatusKey[] {
+  if (serviceType === 'revision') {
+    return ['received', 'approved', 'delivered']
+  }
   if (serviceType === 'mantenimiento' || serviceType === 'instalacion') {
     return ['received', 'ready']
   }

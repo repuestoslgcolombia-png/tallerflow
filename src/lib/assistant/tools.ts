@@ -111,7 +111,7 @@ export const buscarOrdenes = tool({
     type: 'object',
     properties: {
       query: optString('Texto a buscar (código OT-YYYY-NNN o nombre de cliente)'),
-      status: optString('Filtrar por estado: received, diagnosing, quoted, approved, in_progress, ready, delivered, cancelled'),
+      status: optString('Filtrar por estado: received, diagnosing, quoted, approved, in_progress, ready, delivered, cancelled (las revisiones usan solo received, approved, delivered, cancelled)'),
       customerId: optString('Filtrar por id de cliente'),
     },
     additionalProperties: false,
