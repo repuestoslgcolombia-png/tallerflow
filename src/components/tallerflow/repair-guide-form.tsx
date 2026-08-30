@@ -147,6 +147,7 @@ export function GuideFormDialog({
   const [form, setForm] = React.useState<GuideFormState>(() =>
     guide ? guideToForm(guide) : { ...emptyGuideForm, ...(initial || {}) }
   )
+  const [errors, setErrors] = React.useState<Partial<GuideFormState>>({})
 
   React.useEffect(() => {
     if (open) setForm(guide ? guideToForm(guide) : { ...emptyGuideForm, ...(initial || {}) })
@@ -159,6 +160,7 @@ export function GuideFormDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title.trim() || !form.steps.trim()) {
+      setErrors({ title: 'El título es obligatorio', steps: 'El procedimiento es obligatorio' })
       toast.error('El título y el procedimiento son obligatorios')
       return
     }
@@ -167,7 +169,7 @@ export function GuideFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[100dvh] overflow-hidden flex flex-col rounded-none sm:rounded-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isEdit ? <Pencil className="size-5" /> : <Plus className="size-5" />}
@@ -181,11 +183,11 @@ export function GuideFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 -mx-6 px-6 max-h-[65vh]">
+          <ScrollArea className="flex-1 flex-1 -mx-4 px-4 sm:-mx-6 sm:px-6 max-h-[calc(100dvh-215px)]">
             <div className="space-y-5 pb-2">
-              {/* INFORMACIÓN BÁSICA */}
-              <FormSection title="Información básica" icon={<BookOpen className="size-4" />}>
-                <Field label="Título" required>
+               {/* INFORMACIÓN BÁSICA */}
+               <FormSection title="① Información básica" icon={<BookOpen className="size-4" />}>
+                 <Field label="Título" required>
                   <Input
                     value={form.title}
                     onChange={(e) => update('title', e.target.value)}
@@ -244,7 +246,7 @@ export function GuideFormDialog({
               </FormSection>
 
               {/* SÍNTOMAS */}
-              <FormSection title="Síntomas" icon={<Search className="size-4" />}>
+              <FormSection title="② Síntomas" icon={<Search className="size-4" />}>
                 <Field
                   label="Síntomas frecuentes"
                   hint="Separados por coma. Se usan para sugerir esta guía. Ej: no desagua, hace ruido, no enciende"
@@ -258,7 +260,7 @@ export function GuideFormDialog({
               </FormSection>
 
               {/* PROCEDIMIENTO */}
-              <FormSection title="Procedimiento" icon={<ListChecks className="size-4" />}>
+              <FormSection title="③ Procedimiento" icon={<ListChecks className="size-4" />}>
                 <Field
                   label="Pasos"
                   required
@@ -275,7 +277,7 @@ export function GuideFormDialog({
               </FormSection>
 
               {/* DETALLES */}
-              <FormSection title="Detalles" icon={<Clock className="size-4" />}>
+              <FormSection title="④ Detalles" icon={<Clock className="size-4" />}>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Field label="Dificultad">
                     <Select value={form.difficulty} onValueChange={(v) => update('difficulty', v)}>

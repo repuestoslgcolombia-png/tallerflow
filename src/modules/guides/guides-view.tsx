@@ -280,7 +280,7 @@ export function GuidesView() {
                     return (
                       <TableRow
                         key={guide.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={cn("cursor-pointer hover:bg-muted transition-colors", "active:scale-[0.98] transition-transform")}
                         onClick={() => setDetailGuide(guide)}
                       >
                         <TableCell>

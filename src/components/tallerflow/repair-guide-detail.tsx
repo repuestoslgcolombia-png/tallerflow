@@ -285,7 +285,7 @@ export function RepairGuideDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn('max-h-[90vh] overflow-hidden flex flex-col', w)}>
+      <DialogContent className={cn('max-h-[100dvh] sm:max-h-[90vh] overflow-hidden flex flex-col rounded-none sm:rounded-lg', w)}>
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2 pr-8">
             {dt && (
