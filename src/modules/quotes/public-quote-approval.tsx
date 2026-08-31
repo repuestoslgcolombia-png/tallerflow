@@ -245,7 +245,11 @@ export function PublicQuoteApproval({ quoteId, token }: { quoteId: string; token
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">IVA</span>
-                    <span className="tabular-nums">{formatCurrency(quote.tax || 0)}</span>
+                    {quote.tax > 0 ? (
+                      <span className="tabular-nums">{formatCurrency(quote.tax)}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Exento</span>
+                    )}
                   </div>
                   <Separator />
                   <div className="flex justify-between text-base font-semibold">

@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     // Calcular totales
     const taxRate = settings?.taxRate || 0
+    const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : true
     let subtotal = 0
     const items = body.items.map((it: any) => {
       const total = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
         partId: it.partId || null,
       }
     })
-    const taxAmount = subtotal * (taxRate / 100)
+    const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
     const total = subtotal + taxAmount
 
     const validUntil = body.validUntil

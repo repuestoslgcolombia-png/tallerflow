@@ -173,6 +173,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.items) {
       const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
       const taxRate = settings?.taxRate || 0
+      const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
       let subtotal = 0
       const itemsData = body.items.map((it: any) => {
         const total = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
@@ -186,7 +187,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           partId: it.partId || null,
         }
       })
-      const taxAmount = subtotal * (taxRate / 100)
+      const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
 
       // Borrar items existentes y recrear
       await db.quoteItem.deleteMany({ where: { quoteId: id } })

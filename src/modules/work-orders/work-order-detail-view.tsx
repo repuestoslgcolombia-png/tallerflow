@@ -1776,12 +1776,14 @@ function CreateQuoteDialog({
   ])
   const [notes, setNotes] = React.useState('')
   const [sendImmediately, setSendImmediately] = React.useState(false)
+  const [applyIva, setApplyIva] = React.useState(true)
 
   React.useEffect(() => {
     if (open) {
       setItems([{ itemType: 'labor', description: '', quantity: '1', unitPrice: '0' }])
       setNotes('')
       setSendImmediately(false)
+      setApplyIva(true)
     }
   }, [open])
 
@@ -1791,7 +1793,7 @@ function CreateQuoteDialog({
     (acc, it) => acc + (parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice) || 0),
     0
   )
-  const tax = subtotal * TAX_RATE
+  const tax = applyIva ? subtotal * TAX_RATE : 0
   const total = subtotal + tax
 
   const updateItem = (idx: number, patch: Partial<QuoteItemDraft>) => {
@@ -1825,6 +1827,7 @@ function CreateQuoteDialog({
         items: cleanItems,
         notes: notes.trim() || undefined,
         sendImmediately,
+        applyTax: applyIva,
       },
       { onSuccess: () => onOpenChange(false) }
     )
@@ -1836,7 +1839,7 @@ function CreateQuoteDialog({
         <DialogHeader>
           <DialogTitle>Crear cotización</DialogTitle>
           <DialogDescription>
-            Define los ítems (repuestos, mano de obra, otros). IVA 19% aplicado.
+            Define los ítems (repuestos, mano de obra, otros). El IVA es opcional.
           </DialogDescription>
         </DialogHeader>
 
@@ -1950,15 +1953,33 @@ function CreateQuoteDialog({
             Enviar inmediatamente al cliente
           </label>
 
+          {/* IVA opcional */}
+          <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="quote-apply-iva" className="text-sm">Aplicar IVA (19%)</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Desactívalo para cotizar sin impuesto
+              </p>
+            </div>
+            <Switch id="quote-apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+          </div>
+
           <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="tabular-nums">{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">IVA (19%)</span>
-              <span className="tabular-nums">{formatCurrency(tax)}</span>
-            </div>
+            {applyIva ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IVA (19%)</span>
+                <span className="tabular-nums">{formatCurrency(tax)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-muted-foreground">
+                <span>IVA</span>
+                <span>Exento</span>
+              </div>
+            )}
             <Separator className="my-1" />
             <div className="flex justify-between font-semibold">
               <span>Total</span>
@@ -2070,7 +2091,11 @@ function ViewQuoteDialog({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">IVA</span>
-                <span className="tabular-nums">{formatCurrency(quote.tax || 0)}</span>
+                {quote.tax > 0 ? (
+                  <span className="tabular-nums">{formatCurrency(quote.tax)}</span>
+                ) : (
+                  <span className="text-muted-foreground">Exento</span>
+                )}
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
