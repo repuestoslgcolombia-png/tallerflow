@@ -22,6 +22,7 @@ import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
 import { AutomationsView } from '@/modules/automations/automations-view'
 import { SettingsView } from '@/modules/settings/settings-view'
 import { QuickRegisterView } from '@/modules/quick-register/quick-register-view'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 export default function HomePage() {
   return (
@@ -40,7 +41,11 @@ function HomePageInner() {
     return <PublicQuoteApproval quoteId={publicQuoteId} token={publicToken} />
   }
 
-  return <AppShell />
+  return (
+    <ErrorBoundary>
+      <AppShell />
+    </ErrorBoundary>
+  )
 }
 
 function AppShell() {

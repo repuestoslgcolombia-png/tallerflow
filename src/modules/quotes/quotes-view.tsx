@@ -74,15 +74,18 @@ import {
 
 import { QuoteStatusBadge } from '@/components/tallerflow/badges'
 import { useAppStore } from '@/store/app-store'
-import { useQuotes, useQuote, useQuoteMutations, useSettings } from '@/lib/hooks/api'
+import { useQuotes, useQuote, useQuoteMutations, useSettings, useWorkOrders } from '@/lib/hooks/api'
 import {
   QUOTE_STATUS,
   formatCurrency,
   formatDate,
   timeAgo,
   fullName,
+  getFlowStages,
+  type WorkOrderStatusKey,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { CreateQuoteDialog } from './create-quote-dialog'
 
 type QuoteStatusKey = keyof typeof QUOTE_STATUS
 
@@ -111,6 +114,11 @@ export function QuotesView() {
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
   const [deleteQuote, setDeleteQuote] = React.useState<any | null>(null)
   const [rejectQuote, setRejectQuote] = React.useState<any | null>(null)
+  const [selectorOpen, setSelectorOpen] = React.useState(false)
+  const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
+  const [selectedWorkOrderId, setSelectedWorkOrderId] = React.useState<string | null>(null)
+
+  const { data: workOrders, isLoading: workOrdersLoading } = useWorkOrders({ status: 'all' })
 
   const status = statusFilter !== 'all' ? statusFilter : undefined
   const { data, isLoading, isError, refetch } = useQuotes({ status })
@@ -157,10 +165,15 @@ export function QuotesView() {
             Gestiona las cotizaciones enviadas a clientes.
           </p>
         </div>
-        <Button onClick={() => navigate('work-orders')} className="gap-2">
-          <Plus className="size-4" />
-          Crear desde una orden
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setSelectorOpen(true)} className="gap-2">
+            <Plus className="size-4" />
+            Crear nueva
+          </Button>
+          <Button variant="outline" onClick={() => navigate('work-orders')} className="gap-2">
+            Ver órdenes
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -409,7 +422,130 @@ export function QuotesView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Work Order Selector Dialog */}
+      <WorkOrderSelectorDialog
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        onSelect={setSelectedWorkOrderId}
+        workOrders={workOrders}
+        loading={workOrdersLoading}
+      />
+
+      {/* Create Quote Dialog */}
+      <CreateQuoteDialog
+        open={createQuoteOpen}
+        onOpenChange={setCreateQuoteOpen}
+        workOrderId={selectedWorkOrderId || ''}
+/>
     </div>
+  )
+}
+
+// ============== Work Order Selector Dialog ==============
+function WorkOrderSelectorDialog({
+  open,
+  onOpenChange,
+  onSelect,
+  workOrders,
+  loading,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onSelect: (id: string) => void
+  workOrders: any[] | undefined
+  loading: boolean
+}) {
+  const [search, setSearch] = React.useState('')
+
+  const filtered = (workOrders || [])
+    .filter((wo) => {
+      const stages = getFlowStages(wo.serviceType)
+      const hasQuoteStage = stages.includes('quoted')
+      const isTerminal = ['delivered', 'cancelled'].includes(wo.status)
+      return hasQuoteStage && !isTerminal
+    })
+    .filter((wo) => {
+      if (!search) return true
+      const s = search.toLowerCase()
+      const cust = wo.customer
+      return (
+        wo.code?.toLowerCase().includes(s) ||
+        `${cust?.firstName || ''} ${cust?.lastName || ''}`.toLowerCase().includes(s) ||
+        `${wo.device?.brand || ''} ${wo.device?.model || ''}`.toLowerCase().includes(s)
+      )
+    })
+
+  const handleSelect = (wo: any) => {
+    onSelect(wo.id)
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Seleccionar orden de trabajo</DialogTitle>
+          <DialogDescription>
+            Elige una orden para crear la cotización. Solo se muestran órdenes con flujo de cotización.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {loading ? (
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                <FileText className="size-6 text-muted-foreground" />
+              </div>
+              <p className="font-medium">No hay órdenes disponibles</p>
+              <p className="text-sm text-muted-foreground">
+                {search
+                  ? 'Intenta cambiar la búsqueda.'
+                  : 'No hay órdenes con flujo de cotización en estado activo.'}
+              </p>
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[50vh]">
+              <div className="space-y-2">
+                {filtered.map((wo) => (
+                  <button
+                    key={wo.id}
+                    onClick={() => handleSelect(wo)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex size-9 items-center justify-center rounded-md bg-muted">
+                        <FileText className="size-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-medium">{wo.code}</span>
+                          <span className="text-xs text-muted-foreground">({wo.serviceType})</span>
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {wo.customer?.firstName} {wo.customer?.lastName} · {wo.device?.brand} {wo.device?.model}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{wo.status}</span>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
