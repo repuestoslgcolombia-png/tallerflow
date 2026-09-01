@@ -31,6 +31,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await db.part.findUnique({ where: { id } })
     if (!existing) return notFound('Repuesto no encontrado')
 
+    if (body.action === 'revert_movement') {
+      // Revertir una salida de inventario vinculada a una orden:
+      // devuelve el stock y elimina el movimiento (solo salidas 'out' de la orden indicada)
+      const movementId = body.movementId
+      if (!movementId) return badRequest('movementId es obligatorio')
+
+      const movement = await db.inventoryMovement.findUnique({ where: { id: movementId } })
+      if (!movement) return notFound('Movimiento no encontrado')
+      if (movement.partId !== id) return badRequest('El movimiento no pertenece a este repuesto')
+      if (movement.movementType !== 'out') return badRequest('Solo se pueden revertir salidas (out)')
+      if (body.workOrderId && movement.workOrderId !== body.workOrderId) {
+        return badRequest('El movimiento no pertenece a esta orden')
+      }
+
+      const result = await db.$transaction(async (tx) => {
+        const updated = await tx.part.update({
+          where: { id },
+          data: { stock: { increment: movement.quantity } },
+        })
+        await tx.inventoryMovement.delete({ where: { id: movementId } })
+        return updated
+      })
+      return ok(result)
+    }
+
     if (body.action === 'adjust_stock') {
       // Ajuste de inventario
       const adjustment = Number(body.quantity)

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import * as React from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
@@ -43,6 +43,7 @@ import {
   Sparkles,
   BookmarkPlus,
   Search,
+  Undo2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -130,6 +131,7 @@ import {
   DEVICE_TYPES,
   QUOTE_STATUS,
   REMINDER_TYPES,
+  PART_CATEGORIES,
   getNextStatuses,
   getFlowStages,
   formatCurrency,
@@ -140,6 +142,7 @@ import {
   pluralizeUnit,
   type WorkOrderStatusKey,
   type PriorityKey,
+  type PartCategoryKey,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -184,6 +187,23 @@ export function WorkOrderDetailView() {
   const { update: updateQuote } = useQuoteMutations()
   const { data: settings } = useSettings()
   const { data: orderReminders } = useReminders({ workOrderId: selectedWorkOrderId || undefined })
+  const qc = useQueryClient()
+  const { update: updatePart } = usePartMutations()
+
+  const revertPart = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/parts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al revertir la salida')
+      }
+      return res.json()
+    },
+  })
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [createQuoteOpen, setCreateQuoteOpen] = React.useState(false)
@@ -194,6 +214,7 @@ export function WorkOrderDetailView() {
   const [createInvoiceOpen, setCreateInvoiceOpen] = React.useState(false)
   const [viewQuote, setViewQuote] = React.useState<any | null>(null)
   const [addPartOpen, setAddPartOpen] = React.useState(false)
+  const [movementToRevert, setMovementToRevert] = React.useState<any | null>(null)
   const [statusToConfirm, setStatusToConfirm] = React.useState<WorkOrderStatusKey | null>(null)
   const [deliverOpen, setDeliverOpen] = React.useState(false)
 
@@ -955,7 +976,7 @@ export function WorkOrderDetailView() {
                   Salidas del inventario vinculadas a esta orden
                 </CardDescription>
               </div>
-              <Button size="sm" variant="outline" className="gap-1 shrink-0" onClick={() => setAddPartOpen(true)}>
+              <Button size="sm" variant="outline" className="h-9 gap-1 shrink-0" onClick={() => setAddPartOpen(true)}>
                 <Plus className="size-4" /> Agregar
               </Button>
             </CardHeader>
@@ -964,9 +985,9 @@ export function WorkOrderDetailView() {
                 <button
                   type="button"
                   onClick={() => setAddPartOpen(true)}
-                  className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center transition-colors hover:bg-muted/50"
+                  className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors hover:bg-muted/50"
                 >
-                  <PackageSearch className="size-7 text-muted-foreground" />
+                  <PackageSearch className="size-8 text-muted-foreground" />
                   <span className="text-sm font-medium">No se han registrado salidas de repuestos</span>
                   <span className="text-xs text-muted-foreground">Haz clic para tomar repuestos del inventario</span>
                 </button>
@@ -974,23 +995,55 @@ export function WorkOrderDetailView() {
                 <>
                   <ul className="divide-y">
                     {order.partsUsed.map((m: any) => {
-                      const subtotal = (m.part?.unitPrice || m.part?.unitCost || 0) * (m.quantity || 0)
+                      const unitPrice = m.part?.unitPrice || m.part?.unitCost || 0
+                      const subtotal = unitPrice * (m.quantity || 0)
+                      const cat = m.part?.category ? PART_CATEGORIES[m.part.category as PartCategoryKey] : null
+                      const canRevert = m.movementType === 'out'
                       return (
-                        <li key={m.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                        <li
+                          key={m.id}
+                          className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
+                        >
+                          {/* Nombre + meta */}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium">{m.part?.name || 'Repuesto'}</p>
-                            <p className="font-mono text-xs text-muted-foreground">
-                              {m.part?.sku}
-                              {timeAgo(m.createdAt) && ` · ${timeAgo(m.createdAt)}`}
-                            </p>
+                            <p className="font-medium leading-snug">{m.part?.name || 'Repuesto'}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                              {m.part?.sku && <span className="font-mono">{m.part.sku}</span>}
+                              {m.part?.brand && <span>{m.part.brand}</span>}
+                              {cat && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className={cn('size-2 rounded-full border', cat.color)} aria-hidden />
+                                  {cat.label}
+                                </span>
+                              )}
+                              {timeAgo(m.createdAt) && <span>hace {timeAgo(m.createdAt)}</span>}
+                            </div>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
-                              −{m.quantity}
-                            </Badge>
-                            {subtotal > 0 && (
-                              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                                ≈ {formatCurrency(subtotal, settings?.currencySymbol || '$')}
+                          {/* Cantidad + precio + revertir */}
+                          <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start sm:gap-0.5 sm:text-right">
+                            <div className="flex items-center gap-2 sm:contents">
+                              <Badge variant="outline" className="bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                                −{m.quantity} {pluralizeUnit(m.part?.unit || 'unidad', m.quantity)}
+                              </Badge>
+                              {canRevert && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground hover:text-foreground"
+                                  aria-label="Revertir salida"
+                                  disabled={revertPart.isPending}
+                                  onClick={() => setMovementToRevert(m)}
+                                >
+                                  <Undo2 className="size-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                            {unitPrice > 0 && (
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                {m.quantity} × {formatCurrency(unitPrice, settings?.currencySymbol || '$')} ≈{' '}
+                                <span className="font-medium text-foreground">
+                                  {formatCurrency(subtotal, settings?.currencySymbol || '$')}
+                                </span>
                               </p>
                             )}
                           </div>
@@ -998,13 +1051,85 @@ export function WorkOrderDetailView() {
                       )
                     })}
                   </ul>
-                  <p className="mt-3 text-[11px] text-muted-foreground">
+                  <Separator className="my-3" />
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      {order.partsUsed.length} salida{order.partsUsed.length > 1 ? 's' : ''} ·{' '}
+                      {order.partsUsed.reduce((s: number, m: any) => s + (m.quantity || 0), 0)}{' '}
+                      {pluralizeUnit('unidad', order.partsUsed.reduce((s: number, m: any) => s + (m.quantity || 0), 0))}
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      ≈ {formatCurrency(
+                        order.partsUsed.reduce(
+                          (s: number, m: any) =>
+                            s + ((m.part?.unitPrice || m.part?.unitCost || 0) * (m.quantity || 0)),
+                          0
+                        ),
+                        settings?.currencySymbol || '$'
+                      )}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     El valor es referencial; la cobranza se gestiona vía cotización o factura.
                   </p>
                 </>
               )}
             </CardContent>
           </Card>
+
+          {/* Confirmación de reversión de salida de repuesto */}
+          <AlertDialog
+            open={!!movementToRevert}
+            onOpenChange={(o) => !o && setMovementToRevert(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Revertir salida de repuesto?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div>
+                    Se devolverán{' '}
+                    <strong>
+                      {movementToRevert?.quantity} × {movementToRevert?.part?.name || 'repuesto'}
+                    </strong>{' '}
+                    al inventario y la salida desaparecerá de esta orden. El stock quedará actualizado al confirmar.
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-600"
+                  disabled={revertPart.isPending}
+                  onClick={() => {
+                    if (!movementToRevert) return
+                    revertPart.mutate(
+                      {
+                        id: movementToRevert.partId,
+                        data: {
+                          action: 'revert_movement',
+                          movementId: movementToRevert.id,
+                          workOrderId: order.id,
+                        },
+                      },
+                      {
+                        onSuccess: () => {
+                          qc.invalidateQueries({ queryKey: ['work-orders'] })
+                          qc.invalidateQueries({ queryKey: ['part'] })
+                          qc.invalidateQueries({ queryKey: ['parts'] })
+                          toast.success('Salida revertida. Stock restaurado')
+                          setMovementToRevert(null)
+                        },
+                        onError: (e: Error) => toast.error(e.message),
+                      }
+                    )
+                  }}
+                >
+                  {revertPart.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Sí, revertir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -1842,7 +1967,9 @@ function ViewQuoteDialog({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">IVA</span>
                 {quote.tax > 0 ? (
-                  <span className="tabular-nums">{formatCurrency(quote.tax)}</span>
+                  <span className="tabular-nums">
+                    {formatCurrency(quote.tax)}{quote.taxRate ? ` (${quote.taxRate}%)` : ''}
+                  </span>
                 ) : (
                   <span className="text-muted-foreground">Exento</span>
                 )}
@@ -1903,11 +2030,13 @@ function CreateInvoiceFromOrderDialog({
   order: any
 }) {
   const { create } = useInvoiceMutations()
+  const { data: settings } = useSettings()
   const [items, setItems] = React.useState<any[]>([])
   const [paid, setPaid] = React.useState('0')
   const [paymentMethod, setPaymentMethod] = React.useState('cash')
   const [notes, setNotes] = React.useState('')
   const [applyIva, setApplyIva] = React.useState(true)
+  const [taxRateInput, setTaxRateInput] = React.useState(String(settings?.taxRate ?? 19))
 
   // Initialize items from approved quote or work order total
   React.useEffect(() => {
@@ -1934,10 +2063,11 @@ function CreateInvoiceFromOrderDialog({
     setPaymentMethod('cash')
     setNotes('')
     setApplyIva(true)
-  }, [open, order])
+    setTaxRateInput(String(settings?.taxRate ?? 19))
+  }, [open, order, settings?.taxRate])
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
-  const taxRate = 19
+  const taxRate = applyIva ? Math.min(Math.max(Number(taxRateInput) || 0, 0), 100) : 0
   const taxAmount = applyIva ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
   const paidAmount = Number(paid) || 0
@@ -1966,6 +2096,7 @@ function CreateInvoiceFromOrderDialog({
         paid: paidAmount,
         paymentMethod: paidAmount > 0 ? paymentMethod : null,
         applyTax: applyIva,
+        ...(applyIva ? { taxRate } : {}),
         notes: notes || null,
       },
       { onSuccess: () => onOpenChange(false) }
@@ -2051,14 +2182,29 @@ function CreateInvoiceFromOrderDialog({
           </div>
 
           {/* IVA opcional */}
-          <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2.5">
-            <div className="space-y-0.5">
-              <Label htmlFor="apply-iva" className="text-sm">Aplicar IVA (19%)</Label>
-              <p className="text-[11px] text-muted-foreground">
-                Desactívalo para facturar sin impuesto
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="apply-iva" className="text-sm">Aplicar IVA</Label>
+              <Switch id="apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+              {applyIva && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    className="h-8 w-20"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={taxRateInput}
+                    onChange={(e) => setTaxRateInput(e.target.value)}
+                    aria-label="Porcentaje de IVA"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              )}
             </div>
-            <Switch id="apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+            {applyIva && taxRate === 0 && (
+              <p className="text-[11px] text-amber-600">Define un % mayor que 0 para aplicar impuesto</p>
+            )}
           </div>
 
           {/* Totals */}
@@ -2069,7 +2215,7 @@ function CreateInvoiceFromOrderDialog({
             </div>
             {applyIva ? (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">IVA (19%)</span>
+                <span className="text-muted-foreground">IVA ({taxRate}%)</span>
                 <span>{formatCurrency(taxAmount)}</span>
               </div>
             ) : (
@@ -2291,7 +2437,7 @@ function AddPartDialog({
                               <p className="text-xs font-medium tabular-nums">
                                 Stock: {p.stock} {pluralizeUnit(p.unit, p.stock)}
                               </p>
-                              <p className="text-[11px] text-muted-foreground tabular-nums">
+                              <p className="text-xs text-muted-foreground tabular-nums">
                                 {formatCurrency(p.unitPrice, settings?.currencySymbol || '$')}
                               </p>
                             </>
@@ -2326,7 +2472,8 @@ function AddPartDialog({
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-8"
+                      className="size-8 sm:size-9"
+                      aria-label="Disminuir cantidad"
                       onClick={() => setQty(String(Math.max(1, quantity - 1)))}
                       disabled={quantity <= 1}
                     >
@@ -2335,17 +2482,19 @@ function AddPartDialog({
                     <Input
                       id="part-qty"
                       type="number"
+                      inputMode="numeric"
                       min={1}
                       max={stock}
                       value={qty}
                       onChange={(e) => setQty(e.target.value)}
-                      className="h-8 w-16 text-center font-mono"
+                      className="h-8 w-16 text-center font-mono sm:h-9"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-8"
+                      className="size-8 sm:size-9"
+                      aria-label="Aumentar cantidad"
                       onClick={() => setQty(String(Math.min(stock, quantity + 1)))}
                       disabled={quantity >= stock}
                     >
