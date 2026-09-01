@@ -172,8 +172,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Actualizar items
     if (body.items) {
       const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
-      const taxRate = settings?.taxRate || 0
       const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
+      const taxRate = applyTax
+        ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
+        : 0
       let subtotal = 0
       const itemsData = body.items.map((it: any) => {
         const total = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
@@ -198,6 +200,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             notes: body.notes !== undefined ? body.notes : undefined,
             subtotal,
             tax: taxAmount,
+            taxRate: applyTax ? taxRate : 0,
             total: subtotal + taxAmount,
             items: { create: itemsData },
           },

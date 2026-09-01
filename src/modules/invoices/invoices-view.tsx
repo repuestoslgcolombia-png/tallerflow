@@ -456,6 +456,9 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [paymentMethod, setPaymentMethod] = useState<string>('cash')
   const [notes, setNotes] = useState('')
   const [applyTax, setApplyTax] = useState<boolean>(true)
+  // null = sin edición manual: se muestra el % de Ajustes
+  const [taxRateEdited, setTaxRateEdited] = useState<string | null>(null)
+  const taxRateInput = taxRateEdited ?? String(settings?.taxRate ?? 19)
 
   // Load work orders that are ready/delivered for invoicing
   const { data: readyOrders } = useWorkOrders({})
@@ -475,7 +478,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   }
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
-  const taxRate = settings?.taxRate || 0
+  const taxRate = applyTax ? Math.min(Math.max(Number(taxRateInput) || 0, 0), 100) : 0
   const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
   const paidAmount = Number(paid) || 0
@@ -507,6 +510,7 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         paymentMethod: paidAmount > 0 ? paymentMethod : null,
         notes: notes || null,
         applyTax,
+        ...(applyTax ? { taxRate } : {}),
       },
       { onSuccess: () => onOpenChange(false) }
     )
@@ -609,18 +613,43 @@ function CreateInvoiceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
           {/* Totals */}
           <div className="rounded-lg border bg-muted/30 p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">Aplicar impuesto ({taxRate}%)</span>
-              <Switch checked={applyTax} onCheckedChange={setApplyTax} />
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">Aplicar IVA</span>
+                <Switch checked={applyTax} onCheckedChange={setApplyTax} aria-label="Aplicar IVA" />
+                {applyTax && (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      className="h-8 w-20"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={taxRateInput}
+                      onChange={(e) => setTaxRateEdited(e.target.value)}
+                      aria-label="Porcentaje de IVA"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                )}
+              </div>
+              {applyTax && taxRate === 0 && (
+                <p className="text-[11px] text-amber-600">Define un % mayor que 0 para aplicar impuesto</p>
+              )}
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal, settings?.currencySymbol || '$')}</span>
             </div>
-            {applyTax && (
+            {applyTax ? (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
+                <span className="text-muted-foreground">IVA ({taxRate}%)</span>
                 <span>{formatCurrency(taxAmount, settings?.currencySymbol || '$')}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>IVA</span>
+                <span>Exento</span>
               </div>
             )}
             <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">
@@ -791,10 +820,17 @@ function InvoiceDetailDialog({ invoice, onClose, onPay, onEdit }: { invoice: any
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(invoice.subtotal, symbol)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Impuesto</span>
-              <span>{formatCurrency(invoice.tax, symbol)}</span>
-            </div>
+            {invoice.tax > 0 ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IVA {invoice.taxRate ? `(${invoice.taxRate}%)` : ''}</span>
+                <span>{formatCurrency(invoice.tax, symbol)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-muted-foreground">
+                <span>IVA</span>
+                <span>Exento</span>
+              </div>
+            )}
             <div className="flex justify-between border-t pt-1 font-bold">
               <span>Total</span>
               <span>{formatCurrency(invoice.total, symbol)}</span>
@@ -971,7 +1007,6 @@ function PaymentDialog({ invoice, onClose }: { invoice: any; onClose: () => void
 function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => void }) {
   const { update } = useInvoiceMutations()
   const { data: settings } = useSettings()
-  const taxRate = settings?.taxRate || 19
   const symbol = settings?.currencySymbol || '$'
 
   // Estado de items
@@ -988,9 +1023,13 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
   const [paymentMethod, setPaymentMethod] = useState(invoice.paymentMethod || 'cash')
   const [status, setStatus] = useState(invoice.status || 'pending')
   const [applyTax, setApplyTax] = useState<boolean>(invoice.tax > 0)
+  const [taxRateInput, setTaxRateInput] = useState<string>(
+    String(invoice.taxRate > 0 ? invoice.taxRate : (settings?.taxRate ?? 19))
+  )
 
   // Cálculos
   const subtotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
+  const taxRate = applyTax ? Math.min(Math.max(Number(taxRateInput) || 0, 0), 100) : 0
   const taxAmount = applyTax ? subtotal * (taxRate / 100) : 0
   const total = subtotal + taxAmount
 
@@ -1023,6 +1062,7 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
         paymentMethod,
         status,
         applyTax,
+        ...(applyTax ? { taxRate } : {}),
       },
     }, {
       onSuccess: () => {
@@ -1114,18 +1154,43 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
 
           {/* Totales */}
           <div className="rounded-lg border bg-muted/30 p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">Aplicar impuesto ({taxRate}%)</span>
-              <Switch checked={applyTax} onCheckedChange={setApplyTax} />
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">Aplicar IVA</span>
+                <Switch checked={applyTax} onCheckedChange={setApplyTax} aria-label="Aplicar IVA" />
+                {applyTax && (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      className="h-8 w-20"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={taxRateInput}
+                      onChange={(e) => setTaxRateInput(e.target.value)}
+                      aria-label="Porcentaje de IVA"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                )}
+              </div>
+              {applyTax && taxRate === 0 && (
+                <p className="text-[11px] text-amber-600">Define un % mayor que 0 para aplicar impuesto</p>
+              )}
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatCurrency(subtotal, symbol)}</span>
             </div>
-            {applyTax && (
+            {applyTax ? (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Impuesto ({taxRate}%)</span>
+                <span className="text-muted-foreground">IVA ({taxRate}%)</span>
                 <span>{formatCurrency(taxAmount, symbol)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>IVA</span>
+                <span>Exento</span>
               </div>
             )}
             <div className="mt-1 flex justify-between border-t pt-1 text-base font-bold">

@@ -158,6 +158,7 @@ model Quote {
   validUntil   DateTime?
   subtotal     Float    @default(0)
   tax          Float    @default(0)
+  taxRate      Float    @default(0) // porcentaje de IVA aplicado
   total        Float    @default(0)
   sentAt       DateTime?
   viewedAt     DateTime?
@@ -302,6 +303,7 @@ model Invoice {
   customerId   String
   subtotal     Float    @default(0)
   tax          Float    @default(0)
+  taxRate      Float    @default(0) // porcentaje de IVA aplicado
   total        Float    @default(0)
   paid         Float    @default(0)
   paymentMethod String? // cash | card | transfer
@@ -509,7 +511,7 @@ model WorkshopSetting {
   phone         String?
   email         String?
   address       String?
-  taxRate       Float    @default(0) // porcentaje de impuesto
+  taxRate       Float    @default(19) // porcentaje de impuesto
   currency      String   @default("COP")
   currencySymbol String  @default("$")
   logoUrl       String?

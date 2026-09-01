@@ -107,8 +107,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.action === 'update_items') {
       // Recalcular totales desde los nuevos items
       const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
-      const taxRate = settings?.taxRate || 0
       const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
+      const taxRate = applyTax
+        ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
+        : 0
 
       let itemsData: any[] = []
       if (body.items && Array.isArray(body.items) && body.items.length > 0) {
@@ -149,6 +151,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data: {
           subtotal,
           tax: taxAmount,
+          taxRate: applyTax ? taxRate : 0,
           total,
           paid: nextPaid,
           status: nextStatus,

@@ -69,7 +69,7 @@ Hola *${customerName}*, aquí están los detalles de tu factura:
 
     message += `\n━━━━━━━━━━━━━━━
 *Subtotal:* ${formatCurrency(invoice.subtotal, symbol)}
-*Impuesto:* ${formatCurrency(invoice.tax, symbol)}
+*IVA${invoice.tax > 0 && invoice.taxRate ? ` (${invoice.taxRate}%)` : ''}:* ${formatCurrency(invoice.tax, symbol)}
 *TOTAL:* ${formatCurrency(invoice.total, symbol)}
 `
 

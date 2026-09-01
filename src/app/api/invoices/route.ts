@@ -64,8 +64,10 @@ export async function POST(req: NextRequest) {
     const code = `FAC-${year}-${String(nextNumber).padStart(3, '0')}`
 
     // Calcular totales desde items (o usar datos de la orden)
-    const taxRate = settings?.taxRate || 0
     const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : true
+    const taxRate = applyTax
+      ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
+      : 0
     let itemsData: any[] = []
 
     if (body.items && Array.isArray(body.items) && body.items.length > 0) {
@@ -131,6 +133,7 @@ export async function POST(req: NextRequest) {
           customerId: body.customerId,
           subtotal,
           tax: taxAmount,
+          taxRate: applyTax ? taxRate : 0,
           total,
           paid: initialPaid,
           paymentMethod: body.paymentMethod || null,

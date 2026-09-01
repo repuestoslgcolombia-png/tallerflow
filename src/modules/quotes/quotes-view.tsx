@@ -876,7 +876,9 @@ function QuoteDetailDialog({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">IVA</span>
                 {quote.tax > 0 ? (
-                  <span className="tabular-nums">{formatCurrency(quote.tax)}</span>
+                  <span className="tabular-nums">
+                    {formatCurrency(quote.tax)}{quote.taxRate ? ` (${quote.taxRate}%)` : ''}
+                  </span>
                 ) : (
                   <span className="text-muted-foreground">Exento</span>
                 )}

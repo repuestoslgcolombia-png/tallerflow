@@ -54,6 +54,7 @@ export function CreateQuoteDialog({ open, onOpenChange, workOrderId }: CreateQuo
   const [notes, setNotes] = React.useState('')
   const [sendImmediately, setSendImmediately] = React.useState(false)
   const [applyIva, setApplyIva] = React.useState(true)
+  const [taxRateInput, setTaxRateInput] = React.useState('')
 
   React.useEffect(() => {
     if (open) {
@@ -61,10 +62,11 @@ export function CreateQuoteDialog({ open, onOpenChange, workOrderId }: CreateQuo
       setNotes('')
       setSendImmediately(false)
       setApplyIva(true)
+      setTaxRateInput(String(settings?.taxRate ?? 19))
     }
-  }, [open])
+  }, [open, settings?.taxRate])
 
-  const taxRate = settings?.taxRate ?? 0
+  const taxRate = applyIva ? Math.min(Math.max(parseFloat(taxRateInput) || 0, 0), 100) : 0
   const subtotal = items.reduce(
     (acc, it) => acc + (parseFloat(it.quantity) || 0) * (parseFloat(it.unitPrice) || 0),
     0
@@ -104,6 +106,7 @@ export function CreateQuoteDialog({ open, onOpenChange, workOrderId }: CreateQuo
         notes: notes.trim() || undefined,
         sendImmediately,
         applyTax: applyIva,
+        ...(applyIva ? { taxRate } : {}),
       },
       { onSuccess: () => onOpenChange(false) }
     )
@@ -227,14 +230,29 @@ export function CreateQuoteDialog({ open, onOpenChange, workOrderId }: CreateQuo
           </label>
 
           {/* IVA opcional */}
-          <div className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2.5">
-            <div className="space-y-0.5">
-              <Label htmlFor="quote-apply-iva" className="text-sm">Aplicar IVA ({taxRate}%)</Label>
-              <p className="text-[11px] text-muted-foreground">
-                Desactívalo para cotizar sin impuesto
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="quote-apply-iva" className="text-sm">Aplicar IVA</Label>
+              <Switch id="quote-apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+              {applyIva && (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    className="h-8 w-20"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={taxRateInput}
+                    onChange={(e) => setTaxRateInput(e.target.value)}
+                    aria-label="Porcentaje de IVA"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              )}
             </div>
-            <Switch id="quote-apply-iva" checked={applyIva} onCheckedChange={setApplyIva} />
+            {applyIva && taxRate === 0 && (
+              <p className="text-[11px] text-amber-600">Define un % mayor que 0 para aplicar impuesto</p>
+            )}
           </div>
 
           <div className="rounded-lg border bg-muted/30 p-3 space-y-1 text-sm">

@@ -55,8 +55,10 @@ export async function POST(req: NextRequest) {
     const code = `COT-${year}-${String(nextNumber).padStart(3, '0')}`
 
     // Calcular totales
-    const taxRate = settings?.taxRate || 0
     const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : true
+    const taxRate = applyTax
+      ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
+      : 0
     let subtotal = 0
     const items = body.items.map((it: any) => {
       const total = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
           validUntil,
           subtotal,
           tax: taxAmount,
+          taxRate: applyTax ? taxRate : 0,
           total,
           ...(body.sendImmediately ? { sentAt: new Date() } : {}),
           items: { create: items },
