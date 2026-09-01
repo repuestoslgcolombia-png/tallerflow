@@ -97,7 +97,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table,
   TableBody,
@@ -1909,7 +1908,7 @@ function ViewQuoteDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] pr-2">
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain pr-2">
           <div className="space-y-4">
             <div className="rounded-md border p-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
@@ -2006,7 +2005,7 @@ function ViewQuoteDialog({
               </p>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={copyLink}>
@@ -2368,7 +2367,7 @@ function AddPartDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 space-y-3">
+        <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain">
           {/* Buscador */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2382,7 +2381,7 @@ function AddPartDialog({
           </div>
 
           {/* Resultados */}
-          <ScrollArea className="max-h-[240px] rounded-lg border sm:max-h-[280px]">
+          <div className="max-h-[240px] overflow-y-auto overscroll-contain rounded-lg border sm:max-h-[280px]">
             {isLoading ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -2449,7 +2448,7 @@ function AddPartDialog({
                 })}
               </ul>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Selección + cantidad */}
           {selected && (

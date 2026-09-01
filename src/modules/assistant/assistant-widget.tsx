@@ -517,6 +517,7 @@ export function AssistantWidget() {
         size="icon"
         onClick={() => setOpen((o) => !o)}
         title="Asistente Hermes"
+        data-slot="assistant-fab"
         className="fixed bottom-4 right-4 z-[60] h-12 w-12 rounded-full shadow-lg"
       >
         {open ? <X className="h-5 w-5" /> : <Bot className="h-5 w-5" />}

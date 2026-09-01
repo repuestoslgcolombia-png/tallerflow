@@ -211,3 +211,10 @@
     min-height: 40px;
   }
 }
+
+/* FAB del asistente (Hermes): ocultarlo mientras cualquier diálogo/sheet esté
+   abierto para que no tape botones de formularios en móvil. Radix marca el
+   body con data-scroll-locked al abrir overlays. */
+body[data-scroll-locked] [data-slot='assistant-fab'] {
+  display: none;
+}
