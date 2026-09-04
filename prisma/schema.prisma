@@ -317,6 +317,7 @@ model Invoice {
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
   customer  Customer  @relation(fields: [customerId], references: [id])
   items     InvoiceItem[]
+  payments  Payment[]
 
   @@index([customerId])
 }
@@ -334,6 +335,44 @@ model InvoiceItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+// ============== LIBRO DE PAGOS (contabilidad) ==============
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  amount    Float
+  method    String   @default("cash") // cash | card | transfer
+  notes     String?
+  paidAt    DateTime @default(now())
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([paidAt])
+}
+
+// ============== CONTABILIDAD MENSUAL ==============
+
+model MonthlyAccounting {
+  id          String    @id @default(cuid())
+  year        Int
+  month       Int // 1-12
+  invoiced    Float     @default(0)
+  collected   Float     @default(0)
+  outstanding Float     @default(0)
+  expenses    Float     @default(0)
+  profit      Float     @default(0)
+  status      String    @default("open") // open | closed
+  closedAt    DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([year, month])
 }
 
 // ============== RECORDATORIOS POST-SERVICIO ==============

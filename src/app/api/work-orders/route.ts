@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
           diagnosisText: body.diagnosisText || null,
           internalNotes: body.internalNotes || null,
           estimatedDoneAt: body.estimatedDoneAt ? new Date(body.estimatedDoneAt) : null,
+          scheduledVisitAt: body.scheduledVisitAt ? new Date(body.scheduledVisitAt) : null,
           timeline: {
             create: {
               eventType: 'status_change',

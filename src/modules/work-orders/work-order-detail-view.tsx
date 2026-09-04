@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import * as React from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -29,6 +29,7 @@ import {
   Tv,
   Clock,
   Calendar,
+  CalendarClock,
   User as UserIcon,
   Wrench,
   DollarSign,
@@ -461,12 +462,17 @@ export function WorkOrderDetailView() {
               )}
 
               <Separator />
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <DateField icon={<Calendar className="size-3.5" />} label="Recibida" value={formatDate(order.receivedAt)} />
                 <DateField
                   icon={<Clock className="size-3.5" />}
                   label="Estimada"
                   value={order.estimatedDoneAt ? formatDate(order.estimatedDoneAt) : '—'}
+                />
+                <DateField
+                  icon={<CalendarClock className="size-3.5" />}
+                  label="Visita"
+                  value={order.scheduledVisitAt ? formatDateTime(order.scheduledVisitAt) : 'Sin programar'}
                 />
                 <DateField
                   icon={<Check className="size-3.5" />}
@@ -1271,6 +1277,12 @@ function DateField({
 }
 
 // ============== Edit Dialog ==============
+function toDateTimeLocal(date: string | Date): string {
+  const d = new Date(date)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function EditOrderDialog({
   open,
   onOpenChange,
@@ -1287,6 +1299,7 @@ function EditOrderDialog({
   const [internalNotes, setInternalNotes] = React.useState('')
   const [priority, setPriority] = React.useState<PriorityKey>('normal')
   const [estimatedDoneAt, setEstimatedDoneAt] = React.useState('')
+  const [scheduledVisitAt, setScheduledVisitAt] = React.useState('')
   const [technicianId, setTechnicianId] = React.useState('')
 
   React.useEffect(() => {
@@ -1298,6 +1311,7 @@ function EditOrderDialog({
       setEstimatedDoneAt(
         order.estimatedDoneAt ? order.estimatedDoneAt.split('T')[0].slice(0, 10) : ''
       )
+      setScheduledVisitAt(order.scheduledVisitAt ? toDateTimeLocal(order.scheduledVisitAt) : '')
     }
   }, [open, order])
 
@@ -1313,6 +1327,9 @@ function EditOrderDialog({
       technicianId: technicianId || null,
       estimatedDoneAt: estimatedDoneAt
         ? new Date(estimatedDoneAt).toISOString()
+        : null,
+      scheduledVisitAt: scheduledVisitAt
+        ? new Date(scheduledVisitAt).toISOString()
         : null,
     }
     update.mutate(
@@ -1380,6 +1397,17 @@ function EditOrderDialog({
               value={estimatedDoneAt}
               onChange={(e) => setEstimatedDoneAt(e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Visita técnica programada</Label>
+            <Input
+              type="datetime-local"
+              value={scheduledVisitAt}
+              onChange={(e) => setScheduledVisitAt(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Déjalo vacío para quitar la visita programada.
+            </p>
           </div>
         </div>
         <DialogFooter>

@@ -15,6 +15,7 @@ import {
   Banknote,
   Landmark,
   Calendar,
+  CalendarDays,
   User as UserIcon,
   Wallet,
   TrendingUp,
@@ -29,7 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useInvoices, useInvoiceMutations, useWorkOrders, useSettings, useSendInvoiceWhatsApp } from '@/lib/hooks/api'
+import { useInvoices, useInvoiceMutations, useWorkOrders, useSettings, useSendInvoiceWhatsApp, useAccounting, useAccountingMutation } from '@/lib/hooks/api'
 import { useAppStore } from '@/store/app-store'
 import {
   INVOICE_STATUS,
@@ -77,6 +78,8 @@ export function InvoicesView() {
   const { update: updateInvoice, remove: removeInvoice } = useInvoiceMutations()
   const { data: settings } = useSettings()
   const sendWhatsApp = useSendInvoiceWhatsApp()
+  const { data: accounting } = useAccounting()
+  const { update: updateAccounting } = useAccountingMutation()
 
   // Stats from all invoices
   const { data: allInvoices } = useInvoices({})
@@ -101,11 +104,13 @@ export function InvoicesView() {
     ),
   }
 
+  const monthRevenue = accounting?.current?.collected ?? stats.monthRevenue
+
   const financeCards = [
     { label: 'Total facturado', value: formatCurrency(stats.totalBilled, symbol), icon: Receipt, color: 'bg-slate-100 text-slate-600' },
     { label: 'Total cobrado', value: formatCurrency(stats.totalCollected, symbol), icon: Wallet, color: 'bg-emerald-100 text-emerald-600' },
     { label: 'Saldo por cobrar', value: formatCurrency(stats.outstanding, symbol), icon: AlertCircle, color: 'bg-amber-100 text-amber-600', highlight: stats.outstanding > 0 },
-    { label: 'Ingresos del mes', value: formatCurrency(stats.monthRevenue, symbol), icon: TrendingUp, color: 'bg-violet-100 text-violet-600', hint: 'Incluye abonos' },
+    { label: 'Ingresos del mes', value: formatCurrency(monthRevenue, symbol), icon: TrendingUp, color: 'bg-violet-100 text-violet-600', hint: 'Mes en curso' },
   ]
   const countCards = [
     { key: 'all', label: 'Total de facturas', value: stats.total, icon: Receipt, color: 'bg-slate-100 text-slate-600' },
@@ -130,6 +135,16 @@ export function InvoicesView() {
           <Plus className="size-4" /> Nueva factura
         </Button>
       </div>
+
+      {/* Contabilidad mensual */}
+      {accounting?.current && (
+        <MonthlyAccountingPanel
+          key={`${accounting.current.year}-${accounting.current.month}`}
+          data={accounting}
+          symbol={symbol}
+          onSaveExpenses={(expenses) => updateAccounting.mutate({ expenses })}
+        />
+      )}
 
       {/* Métricas financieras */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1268,5 +1283,153 @@ function EditInvoiceDialog({ invoice, onClose }: { invoice: any; onClose: () => 
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ============== Contabilidad mensual ==============
+function MonthlyAccountingPanel({
+  data,
+  symbol,
+  onSaveExpenses,
+}: {
+  data: any
+  symbol: string
+  onSaveExpenses: (expenses: number) => void
+}) {
+  const current = data.current
+  const history: any[] = data.history || []
+  const [expenses, setExpenses] = useState<string>(String(current?.expenses ?? 0))
+  const [saving, setSaving] = useState(false)
+
+  if (!current) return null
+
+  const handleSave = () => {
+    const n = Number(expenses)
+    if (Number.isNaN(n) || n < 0) return
+    setSaving(true)
+    onSaveExpenses(n)
+    setTimeout(() => setSaving(false), 800)
+  }
+
+  const metrics = [
+    { label: 'Ingresos', value: formatCurrency(current.collected, symbol), tone: 'text-emerald-600 dark:text-emerald-400', icon: TrendingUp },
+    { label: 'Facturado', value: formatCurrency(current.invoiced, symbol), tone: 'text-sky-600 dark:text-sky-400', icon: Receipt },
+    { label: 'Por cobrar', value: formatCurrency(current.outstanding, symbol), tone: 'text-amber-600 dark:text-amber-400', icon: AlertCircle },
+    { label: 'Utilidad', value: formatCurrency(current.profit, symbol), tone: 'text-violet-600 dark:text-violet-400', icon: Wallet },
+  ]
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base capitalize">
+            <CalendarDays className="size-4 text-emerald-500" />
+            {current.label}
+          </CardTitle>
+          <Badge
+            variant="outline"
+            className={cn(
+              'px-2 py-0.5 text-[11px]',
+              current.status === 'open'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400'
+                : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-400'
+            )}
+          >
+            {current.status === 'open' ? `Cierra en ${data.daysToClose}d` : 'Mes cerrado'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Métricas del mes */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {metrics.map((m) => {
+            const Icon = m.icon
+            return (
+              <div key={m.label} className="rounded-xl border bg-muted/20 p-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Icon className="size-3.5" />
+                  {m.label}
+                </div>
+                <p className={cn('mt-1 text-lg font-bold tabular-nums', m.tone)}>{m.value}</p>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Gastos editables */}
+        <div className="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-end">
+          <div className="grid flex-1 gap-1.5">
+            <Label htmlFor="monthly-expenses" className="text-xs">Gastos del mes</Label>
+            <Input
+              id="monthly-expenses"
+              type="number"
+              min="0"
+              step="0.01"
+              value={expenses}
+              onChange={(e) => setExpenses(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Guardar gastos
+          </Button>
+        </div>
+
+        {/* Historial */}
+        {history.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Historial reciente</p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead>Mes</TableHead>
+                    <TableHead className="text-right">Ingresos</TableHead>
+                    <TableHead className="text-right">Gastos</TableHead>
+                    <TableHead className="text-right">Utilidad</TableHead>
+                    <TableHead className="text-right">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((h: any) => (
+                    <TableRow
+                      key={`${h.year}-${h.month}`}
+                      className={cn(h.isCurrent && 'bg-emerald-50/40 dark:bg-emerald-950/20')}
+                    >
+                      <TableCell className="font-medium capitalize">{h.label}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(h.collected, symbol)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(h.expenses, symbol)}</TableCell>
+                      <TableCell className={cn('text-right font-semibold tabular-nums', h.profit >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
+                        {formatCurrency(h.profit, symbol)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px]',
+                            h.isCurrent
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-400'
+                          )}
+                        >
+                          {h.isCurrent ? 'En curso' : 'Cerrado'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

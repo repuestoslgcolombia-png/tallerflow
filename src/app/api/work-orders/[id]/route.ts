@@ -111,6 +111,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         estimatedDoneAt: body.estimatedDoneAt !== undefined
           ? body.estimatedDoneAt ? new Date(body.estimatedDoneAt) : null
           : undefined,
+        scheduledVisitAt: body.scheduledVisitAt !== undefined
+          ? body.scheduledVisitAt ? new Date(body.scheduledVisitAt) : null
+          : undefined,
       },
       include: {
         customer: true,

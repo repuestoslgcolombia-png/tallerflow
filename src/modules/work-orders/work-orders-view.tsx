@@ -438,6 +438,7 @@ function CreateOrderDialog({
   const [reportedIssue, setReportedIssue] = React.useState('')
   const [internalNotes, setInternalNotes] = React.useState('')
   const [estimatedDoneAt, setEstimatedDoneAt] = React.useState('')
+  const [scheduledVisitAt, setScheduledVisitAt] = React.useState('')
 
   const { data: customers } = useCustomers()
   const { data: devices } = useDevices(customerId ? { customerId } : {})
@@ -459,6 +460,7 @@ function CreateOrderDialog({
     setReportedIssue('')
     setInternalNotes('')
     setEstimatedDoneAt('')
+    setScheduledVisitAt('')
   }
 
   React.useEffect(() => {
@@ -482,6 +484,7 @@ function CreateOrderDialog({
       reportedIssue: reportedIssue.trim(),
       internalNotes: internalNotes.trim() || undefined,
       estimatedDoneAt: estimatedDoneAt ? new Date(estimatedDoneAt).toISOString() : undefined,
+      scheduledVisitAt: scheduledVisitAt ? new Date(scheduledVisitAt).toISOString() : undefined,
     }
     if (technicianId) payload.technicianId = technicianId
 
@@ -684,6 +687,19 @@ function CreateOrderDialog({
                 value={estimatedDoneAt}
                 onChange={(e) => setEstimatedDoneAt(e.target.value)}
               />
+            </div>
+
+            {/* Visita programada */}
+            <div className="space-y-2">
+              <Label>Visita técnica programada (opcional)</Label>
+              <Input
+                type="datetime-local"
+                value={scheduledVisitAt}
+                onChange={(e) => setScheduledVisitAt(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aparecerá en Servicios programados y generará alertas.
+              </p>
             </div>
           </div>
         </ScrollArea>

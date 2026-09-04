@@ -18,6 +18,7 @@ import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
 import { GuidesView } from '@/modules/guides/guides-view'
 import { RemindersView } from '@/modules/reminders/reminders-view'
+import { ScheduledServicesView } from '@/modules/scheduled-services/scheduled-services-view'
 import { WhatsAppView } from '@/modules/whatsapp/whatsapp-view'
 import { AutomationsView } from '@/modules/automations/automations-view'
 import { SettingsView } from '@/modules/settings/settings-view'
@@ -70,6 +71,7 @@ function AppShell() {
             {currentView === 'inventory' && <InventoryView />}
             {currentView === 'guides' && <GuidesView />}
             {currentView === 'reminders' && <RemindersView />}
+            {currentView === 'scheduled-services' && <ScheduledServicesView />}
             {currentView === 'whatsapp' && <WhatsAppView />}
             {currentView === 'automations' && <AutomationsView />}
             {currentView === 'settings' && <SettingsView />}

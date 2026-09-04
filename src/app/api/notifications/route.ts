@@ -252,6 +252,64 @@ export async function GET(_req: NextRequest) {
       })
     })
 
+    // ============== 9. VISITAS TÉCNICAS PROGRAMADAS ==============
+    const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+    const activeVisitStatuses = ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready']
+
+    const visitsToday = await db.workOrder.findMany({
+      where: {
+        scheduledVisitAt: { gte: startOfToday, lt: endOfToday },
+        status: { in: activeVisitStatuses },
+      },
+      include: { customer: true, device: true },
+      orderBy: { scheduledVisitAt: 'asc' },
+      take: 5,
+    })
+
+    visitsToday.forEach((o) => {
+      notifications.push({
+        id: `visit-today-${o.id}`,
+        type: 'visit_today',
+        priority: 'high',
+        icon: 'CalendarClock',
+        color: 'violet',
+        title: `Visita hoy: ${o.code}`,
+        description: `${o.customer.firstName} ${o.customer.lastName} · ${o.device?.brand} ${o.device?.model} · ${o.scheduledVisitAt ? o.scheduledVisitAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+        actionLabel: 'Ver orden',
+        actionView: 'work-order-detail',
+        actionViewId: o.id,
+        timestamp: o.scheduledVisitAt!,
+        entityId: o.id,
+      })
+    })
+
+    const visitsUpcoming = await db.workOrder.findMany({
+      where: {
+        scheduledVisitAt: { gte: endOfToday, lt: next48h },
+        status: { in: activeVisitStatuses },
+      },
+      include: { customer: true, device: true },
+      orderBy: { scheduledVisitAt: 'asc' },
+      take: 3,
+    })
+
+    visitsUpcoming.forEach((o) => {
+      notifications.push({
+        id: `visit-upcoming-${o.id}`,
+        type: 'visit_upcoming',
+        priority: 'medium',
+        icon: 'CalendarClock',
+        color: 'sky',
+        title: `Próxima visita: ${o.code}`,
+        description: `${o.customer.firstName} ${o.customer.lastName} · ${o.scheduledVisitAt ? o.scheduledVisitAt.toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`,
+        actionLabel: 'Ver orden',
+        actionView: 'work-order-detail',
+        actionViewId: o.id,
+        timestamp: o.scheduledVisitAt!,
+        entityId: o.id,
+      })
+    })
+
     // Ordenar por prioridad y timestamp
     const priorityOrder = { high: 0, medium: 1, low: 2 }
     notifications.sort((a, b) => {

@@ -24,6 +24,7 @@ import {
   Package,
   Bell,
   MessageCircle,
+  CalendarClock,
   Settings,
   BookOpen,
 } from 'lucide-react'
@@ -42,6 +43,7 @@ const VIEW_TITLES: Record<View, { title: string; subtitle: string }> = {
   inventory: { title: 'Inventario', subtitle: 'Control de repuestos y stock' },
   guides: { title: 'Base de conocimiento', subtitle: 'Guías de reparación reutilizables' },
   reminders: { title: 'Recordatorios', subtitle: 'Seguimiento postservicio a clientes' },
+  'scheduled-services': { title: 'Servicios programados', subtitle: 'Visitas técnicas y mantenimientos agendados' },
   whatsapp: { title: 'WhatsApp', subtitle: 'Mensajería y plantillas de comunicación' },
   automations: { title: 'Automatizaciones', subtitle: 'Mensajes y recordatorios automáticos' },
   settings: { title: 'Configuración', subtitle: 'Ajustes del taller' },
@@ -58,6 +60,7 @@ const QUICK_NAV = [
   { view: 'inventory' as View, label: 'Inventario', icon: Package, hint: 'Control de repuestos y stock' },
   { view: 'guides' as View, label: 'Base de conocimiento', icon: BookOpen, hint: 'Guías de reparación' },
   { view: 'reminders' as View, label: 'Recordatorios', icon: Bell, hint: 'Seguimiento postservicio' },
+  { view: 'scheduled-services' as View, label: 'Servicios programados', icon: CalendarClock, hint: 'Visitas y mantenimientos' },
   { view: 'whatsapp' as View, label: 'WhatsApp', icon: MessageCircle, hint: 'Mensajería y plantillas' },
   { view: 'automations' as View, label: 'Automatizaciones', icon: Zap, hint: 'Mensajes y recordatorios automáticos' },
   { view: 'settings' as View, label: 'Configuración', icon: Settings, hint: 'Ajustes del taller' },

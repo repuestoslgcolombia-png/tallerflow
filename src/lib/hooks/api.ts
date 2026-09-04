@@ -1109,6 +1109,59 @@ export function useDailyTaskMutations() {
   return { create, update, remove }
 }
 
+// ============== CONTABILIDAD MENSUAL ==============
+export function useAccounting() {
+  return useQuery({
+    queryKey: ['accounting'],
+    queryFn: async () => {
+      const res = await fetch('/api/accounting')
+      if (!res.ok) throw new Error('Error al cargar contabilidad')
+      return res.json()
+    },
+    refetchInterval: 60 * 1000,
+  })
+}
+
+export function useAccountingMutation() {
+  const qc = useQueryClient()
+  const update = useMutation({
+    mutationFn: async (data: { expenses?: number; notes?: string | null }) => {
+      const res = await fetch('/api/accounting', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al guardar contabilidad')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['accounting'] })
+      qc.invalidateQueries({ queryKey: ['daily-agenda'] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Contabilidad actualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { update }
+}
+
+// ============== SERVICIOS PROGRAMADOS ==============
+export function useScheduledServices() {
+  return useQuery({
+    queryKey: ['scheduled-services'],
+    queryFn: async () => {
+      const res = await fetch('/api/scheduled-services')
+      if (!res.ok) throw new Error('Error al cargar servicios programados')
+      return res.json()
+    },
+    refetchInterval: 60 * 1000,
+  })
+}
+
 // ============== BASE DE CONOCIMIENTO (GUÍAS) ==============
 export function useRepairGuides(params: {
   search?: string

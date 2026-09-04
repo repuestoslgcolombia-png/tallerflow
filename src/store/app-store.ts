@@ -14,6 +14,7 @@ export type View =
   | 'inventory'
   | 'guides'
   | 'reminders'
+  | 'scheduled-services'
   | 'whatsapp'
   | 'automations'
   | 'settings'

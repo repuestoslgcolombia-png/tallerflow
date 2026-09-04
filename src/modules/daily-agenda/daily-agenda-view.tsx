@@ -19,7 +19,8 @@ import {
   Sun, Moon, ListChecks, ClipboardList, Bell, Package, AlertTriangle, Clock, ArrowRight,
   CheckCircle2, X, Plus, Loader2, AlertCircle, Wrench, User,
   Tv, Refrigerator, WashingMachine, Snowflake, Flame, Wind, FlameKindling, Sparkles,
-  CalendarDays, MessageSquare, Phone, Mail, Star, ShieldCheck, ShoppingBag,
+  CalendarDays, CalendarClock, MessageSquare, Phone, Mail, Star, ShieldCheck, ShoppingBag,
+  TrendingUp, Wallet,
 } from 'lucide-react'
 
 function getDeviceIcon(type: string) {
@@ -95,6 +96,8 @@ export function DailyAgendaView() {
   const pendingInvoices = data?.pendingInvoices || []
   const overdueInvoices = data?.overdueInvoices || []
   const dailyTasks = data?.dailyTasks || []
+  const scheduledVisits = data?.scheduledVisits || []
+  const accounting = data?.accounting || null
   const today = new Date()
 
   function handleToggleTask(task: any) {
@@ -406,6 +409,20 @@ export function DailyAgendaView() {
 
         {/* Right column: Reminders + Ready Orders + Alerts */}
         <div className="space-y-6">
+          {/* Contabilidad del mes */}
+          {accounting && <AccountingCard accounting={accounting} onOpen={() => navigate('invoices')} />}
+
+          {/* Servicios programados */}
+          <ScheduledServicesCard
+            visits={scheduledVisits}
+            reminders={[...overdueReminders, ...remindersToday].filter((r: any) =>
+              ['maintenance', 'warranty_check'].includes(r.type)
+            )}
+            onOpenAll={() => navigate('scheduled-services')}
+            onOpenVisit={(id: string) => navigate('work-order-detail', { workOrderId: id })}
+            onOpenReminder={() => navigate('reminders')}
+          />
+
           {/* Reminders Today */}
           {(remindersToday.length > 0 || overdueReminders.length > 0) && (
             <Card className="p-0 overflow-hidden">
@@ -739,6 +756,175 @@ function CompletedTodayCard({
           })}
         </div>
       )}
+    </Card>
+  )
+}
+
+// ============== Contabilidad del mes ==============
+function AccountingCard({ accounting, onOpen }: { accounting: any; onOpen: () => void }) {
+  const monthLabel = new Date(accounting.year, accounting.month - 1, 1).toLocaleDateString('es-CO', {
+    month: 'long',
+    year: 'numeric',
+  })
+  const isOpen = accounting.status === 'open'
+  const rows = [
+    { label: 'Ingresos', value: formatCurrency(accounting.collected), tone: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'Facturado', value: formatCurrency(accounting.invoiced), tone: 'text-sky-600 dark:text-sky-400' },
+    { label: 'Por cobrar', value: formatCurrency(accounting.outstanding), tone: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Utilidad', value: formatCurrency(accounting.profit), tone: 'text-violet-600 dark:text-violet-400' },
+  ]
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-emerald-500" />
+          <h2 className="text-sm font-medium">Contabilidad del mes</h2>
+        </div>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onOpen}>
+          Ver <ArrowRight className="ml-1 h-3 w-3" />
+        </Button>
+      </div>
+      <div className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <span className="text-sm font-medium capitalize">{monthLabel}</span>
+          <Badge
+            variant="outline"
+            className={cn(
+              'px-1.5 py-0 text-[10px]',
+              isOpen
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400'
+                : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-400'
+            )}
+          >
+            {isOpen ? 'En curso' : 'Cerrado'}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {rows.map((r) => (
+            <div key={r.label} className="rounded-lg border bg-muted/20 p-2">
+              <p className="text-[11px] text-muted-foreground">{r.label}</p>
+              <p className={cn('text-sm font-bold tabular-nums', r.tone)}>{r.value}</p>
+            </div>
+          ))}
+        </div>
+        {isOpen && (
+          <p className="mt-2.5 text-[11px] text-muted-foreground">
+            <TrendingUp className="mr-1 inline h-3 w-3 text-emerald-500" />
+            {accounting.daysToClose > 0
+              ? `Se cierra automáticamente en ${accounting.daysToClose} día(s)`
+              : 'Último día del mes'}
+          </p>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ============== Servicios programados (visitas + mantenimientos) ==============
+function ScheduledServicesCard({
+  visits,
+  reminders,
+  onOpenAll,
+  onOpenVisit,
+  onOpenReminder,
+}: {
+  visits: any[]
+  reminders: any[]
+  onOpenAll: () => void
+  onOpenVisit: (id: string) => void
+  onOpenReminder: () => void
+}) {
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+
+  const items = [
+    ...visits.map((v) => {
+      const device = v.device || {}
+      return {
+        kind: 'visit',
+        id: v.id,
+        date: v.scheduledVisitAt,
+        code: v.code,
+        customer: v.customer,
+        deviceText: [device.brand, device.model].filter(Boolean).join(' '),
+      }
+    }),
+    ...reminders.map((r) => {
+      const device = r.workOrder?.device || {}
+      return {
+        kind: r.type === 'warranty_check' ? 'warranty' : 'maintenance',
+        id: r.id,
+        date: r.dueDate,
+        title: r.title,
+        customer: r.customer,
+        deviceText: [device.brand, device.model].filter(Boolean).join(' '),
+      }
+    }),
+  ]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 4)
+
+  if (items.length === 0) return null
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-violet-500" />
+          <h2 className="text-sm font-medium">Servicios programados</h2>
+          <Badge variant="outline" className="ml-1 text-xs">{items.length}</Badge>
+        </div>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onOpenAll}>
+          Ver todos <ArrowRight className="ml-1 h-3 w-3" />
+        </Button>
+      </div>
+      <div className="divide-y">
+        {items.map((it) => {
+          const d = new Date(it.date)
+          const isOverdue = d < todayStart
+          const isToday = !isOverdue && d.toDateString() === todayStart.toDateString()
+          const Icon = it.kind === 'visit' ? CalendarClock : it.kind === 'warranty' ? ShieldCheck : Wrench
+          return (
+            <div
+              key={`${it.kind}-${it.id}`}
+              className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50"
+              onClick={() => (it.kind === 'visit' ? onOpenVisit(it.id) : onOpenReminder())}
+            >
+              <div
+                className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  isOverdue
+                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400'
+                    : isToday
+                      ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
+                      : 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400'
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {it.kind === 'visit' ? it.code : it.title}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {it.customer?.firstName} {it.customer?.lastName}
+                  {it.deviceText ? ` · ${it.deviceText}` : ''}
+                </p>
+                <p
+                  className={cn(
+                    'text-[11px]',
+                    isOverdue ? 'font-medium text-rose-600 dark:text-rose-400' : 'text-muted-foreground'
+                  )}
+                >
+                  {isOverdue ? 'Vencido' : isToday ? 'Hoy' : formatDate(it.date)} · {formatTime(it.date)}
+                </p>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </div>
+          )
+        })}
+      </div>
     </Card>
   )
 }

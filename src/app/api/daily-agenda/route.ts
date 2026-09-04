@@ -2,11 +2,14 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, serverError } from '@/lib/api'
 import { sweepDueReminders } from '@/lib/automations'
+import { ensureAccountingPeriods, daysToMonthEnd } from '@/lib/accounting'
 
 export async function GET(_req: NextRequest) {
   try {
     // "Cron" ligero: al abrir la app se envían los WhatsApp de recordatorios vencidos
     await sweepDueReminders()
+    // Cierre/rollover de contabilidad mensual (meses vencidos → closed, mes actual → open)
+    const accounting = await ensureAccountingPeriods()
 
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -25,6 +28,7 @@ export async function GET(_req: NextRequest) {
       dailyTasks,
       completedToday,
       workshopFlowRaw,
+      scheduledVisitsRaw,
     ] = await Promise.all([
       db.workOrder.findMany({
         where: {
@@ -90,6 +94,18 @@ export async function GET(_req: NextRequest) {
         _count: true,
         where: { status: { notIn: ['delivered', 'cancelled'] } },
       }),
+      db.workOrder.findMany({
+        where: {
+          scheduledVisitAt: {
+            gte: startOfToday,
+            lt: new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000),
+          },
+          status: { in: ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready'] },
+        },
+        include: { customer: true, device: true, technician: true },
+        orderBy: { scheduledVisitAt: 'asc' },
+        take: 10,
+      }),
     ])
 
     // Marcar el origen de cada orden del día: recibida hoy o visita programada hoy
@@ -115,6 +131,17 @@ export async function GET(_req: NextRequest) {
       where: { active: true },
     })
     const nearMinStock = partsNearMinStock.filter((p) => p.stock > 0 && p.stock <= p.minStock)
+
+    const scheduledVisits = scheduledVisitsRaw.map((wo) => ({
+      id: wo.id,
+      code: wo.code,
+      scheduledVisitAt: wo.scheduledVisitAt,
+      status: wo.status,
+      priority: wo.priority,
+      customer: wo.customer,
+      device: wo.device,
+      technician: wo.technician,
+    }))
 
     return ok({
       workOrdersToday,
@@ -156,6 +183,18 @@ export async function GET(_req: NextRequest) {
         dailyTasksTotal: dailyTasks.length,
         dailyTasksDone: dailyTasks.filter((t) => t.isCompleted).length,
         urgentOrders,
+      },
+      scheduledVisits,
+      accounting: {
+        year: accounting.year,
+        month: accounting.month,
+        invoiced: accounting.invoiced,
+        collected: accounting.collected,
+        outstanding: accounting.outstanding,
+        expenses: accounting.expenses,
+        profit: accounting.profit,
+        status: accounting.status,
+        daysToClose: daysToMonthEnd(),
       },
       date: startOfToday.toISOString(),
     })

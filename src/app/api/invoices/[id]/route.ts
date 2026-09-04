@@ -32,28 +32,44 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Acción: registrar pago
     if (body.action === 'register_payment') {
       const paidAmount = Number(body.paid) || 0
+      if (paidAmount <= 0) return badRequest('El monto del pago debe ser mayor que cero')
       const totalPaid = existing.paid + paidAmount
       const isFullyPaid = totalPaid >= existing.total
 
-      const invoice = await db.invoice.update({
-        where: { id },
-        data: {
-          paid: totalPaid,
-          status: isFullyPaid ? 'paid' : 'partial',
-          paymentMethod: body.paymentMethod || existing.paymentMethod,
-          paidAt: isFullyPaid && !existing.paidAt ? new Date() : existing.paidAt,
-          notes: body.notes !== undefined ? body.notes : undefined,
-        },
-        include: { customer: true, workOrder: { include: { device: true } }, items: true },
-      })
-
-      // Actualizar total pagado en la orden
-      if (existing.workOrderId) {
-        await db.workOrder.update({
-          where: { id: existing.workOrderId },
-          data: { totalPaid },
+      const invoice = await db.$transaction(async (tx) => {
+        const inv = await tx.invoice.update({
+          where: { id },
+          data: {
+            paid: totalPaid,
+            status: isFullyPaid ? 'paid' : 'partial',
+            paymentMethod: body.paymentMethod || existing.paymentMethod,
+            paidAt: isFullyPaid && !existing.paidAt ? new Date() : existing.paidAt,
+          },
+          include: { customer: true, workOrder: { include: { device: true } }, items: true },
         })
-      }
+
+        // Registrar el abono en el libro de pagos (atribuye ingreso al mes correcto)
+        await tx.payment.create({
+          data: {
+            invoiceId: id,
+            amount: paidAmount,
+            method: body.paymentMethod || existing.paymentMethod || 'cash',
+            notes: body.notes ? String(body.notes) : null,
+            paidAt: new Date(),
+            createdBy: body.createdBy || null,
+          },
+        })
+
+        // Actualizar total pagado en la orden
+        if (existing.workOrderId) {
+          await tx.workOrder.update({
+            where: { id: existing.workOrderId },
+            data: { totalPaid },
+          })
+        }
+
+        return inv
+      })
 
       await runTrigger('payment_received', {
         workOrderId: existing.workOrderId || undefined,
@@ -76,23 +92,42 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Acción: marcar como pagada
     if (body.action === 'mark_paid') {
-      const invoice = await db.invoice.update({
-        where: { id },
-        data: {
-          status: 'paid',
-          paid: existing.total,
-          paidAt: existing.paidAt || new Date(),
-          paymentMethod: body.paymentMethod || existing.paymentMethod,
-        },
-        include: { customer: true, workOrder: { include: { device: true } }, items: true },
-      })
+      const remaining = Math.max(0, existing.total - existing.paid)
 
-      if (existing.workOrderId) {
-        await db.workOrder.update({
-          where: { id: existing.workOrderId },
-          data: { totalPaid: existing.total },
+      const invoice = await db.$transaction(async (tx) => {
+        const inv = await tx.invoice.update({
+          where: { id },
+          data: {
+            status: 'paid',
+            paid: existing.total,
+            paidAt: existing.paidAt || new Date(),
+            paymentMethod: body.paymentMethod || existing.paymentMethod,
+          },
+          include: { customer: true, workOrder: { include: { device: true } }, items: true },
         })
-      }
+
+        // Registrar en el libro de pagos el saldo restante cobrado
+        if (remaining > 0) {
+          await tx.payment.create({
+            data: {
+              invoiceId: id,
+              amount: remaining,
+              method: body.paymentMethod || existing.paymentMethod || 'cash',
+              paidAt: new Date(),
+              createdBy: body.createdBy || null,
+            },
+          })
+        }
+
+        if (existing.workOrderId) {
+          await tx.workOrder.update({
+            where: { id: existing.workOrderId },
+            data: { totalPaid: existing.total },
+          })
+        }
+
+        return inv
+      })
 
       await runTrigger('payment_received', {
         workOrderId: existing.workOrderId || undefined,
@@ -191,19 +226,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data.paidAt = null
     }
 
-    const invoice = await db.invoice.update({
-      where: { id },
-      data,
-      include: { customer: true, workOrder: { include: { device: true } }, items: true },
+    const becomingPaid = nextStatus === 'paid' && existing.status !== 'paid'
+    const remaining = Math.max(0, existing.total - existing.paid)
+
+    const invoice = await db.$transaction(async (tx) => {
+      const inv = await tx.invoice.update({
+        where: { id },
+        data,
+        include: { customer: true, workOrder: { include: { device: true } }, items: true },
+      })
+
+      if (becomingPaid && remaining > 0) {
+        await tx.payment.create({
+          data: {
+            invoiceId: id,
+            amount: remaining,
+            method: data.paymentMethod || existing.paymentMethod || 'cash',
+            paidAt: new Date(),
+            createdBy: body.createdBy || null,
+          },
+        })
+      }
+
+      // Sincronizar la orden vinculada
+      if (existing.workOrderId && data.paid !== undefined) {
+        await tx.workOrder.update({
+          where: { id: existing.workOrderId },
+          data: { totalPaid: data.paid },
+        })
+      }
+
+      return inv
     })
 
-    // Sincronizar la orden vinculada
-    if (existing.workOrderId && data.paid !== undefined) {
-      await db.workOrder.update({
-        where: { id: existing.workOrderId },
-        data: { totalPaid: data.paid },
-      })
-    }
     return ok(invoice)
   } catch (e) {
     return serverError('Error al actualizar factura', e)

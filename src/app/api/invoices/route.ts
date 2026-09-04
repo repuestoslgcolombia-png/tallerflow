@@ -141,6 +141,18 @@ export async function POST(req: NextRequest) {
           notes: body.notes || null,
           paidAt: status === 'paid' ? new Date() : null,
           items: { create: itemsData },
+          payments:
+            initialPaid > 0
+              ? {
+                  create: [
+                    {
+                      amount: initialPaid,
+                      method: body.paymentMethod || 'cash',
+                      paidAt: new Date(),
+                    },
+                  ],
+                }
+              : undefined,
         },
         include: {
           customer: true,
