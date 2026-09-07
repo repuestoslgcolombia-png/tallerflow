@@ -1,11 +1,21 @@
 import { NextRequest } from 'next/server'
 import { chatStreamResponse, type ChatMessage } from '@/lib/assistant/agent'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 20 mensajes por IP por minuto (protege costos del LLM)
+    const rl = await checkRateLimit(`assistant:${getClientIp(req)}`, 20, 60)
+    if (!rl.allowed) {
+      return Response.json(
+        { error: 'Has enviado demasiados mensajes. Espera un momento.' },
+        { status: 429 }
+      )
+    }
+
     const body = await req.json()
     const messages = body?.messages
     if (!Array.isArray(messages)) {

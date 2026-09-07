@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
-process.env.DATABASE_URL = 'postgresql://neondb_owner:npg_Zt3qk0ulpYfR@ep-broad-flower-ay0fe5d0.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require'
-process.env.DIRECT_URL = 'postgresql://neondb_owner:npg_Zt3qk0ulpYfR@ep-broad-flower-ay0fe5d0.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require'
+// Credenciales SOLO desde variables de entorno (nunca hardcodeadas).
+// Ver .env.example para las variables requeridas (DATABASE_URL, DIRECT_URL).
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

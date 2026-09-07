@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Menu, Search, Plus, Command, Zap } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Menu, Search, Plus, Command, Zap, LogOut } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { toast } from 'sonner'
 import { useAppStore, type View } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   LayoutDashboard,
   ClipboardList,
@@ -67,11 +77,24 @@ const QUICK_NAV = [
 ]
 
 export function Header() {
+  const router = useRouter()
   const { currentView, toggleSidebar, navigate } = useAppStore()
   const info = VIEW_TITLES[currentView]
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [search, setSearch] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      toast.success('Sesión cerrada')
+      router.push('/login')
+      router.refresh()
+    } catch {
+      toast.error('No se pudo cerrar la sesión')
+    }
+  }
 
   // Atajo de teclado: Cmd/Ctrl + K abre la paleta de comandos
   useEffect(() => {
@@ -173,11 +196,28 @@ export function Header() {
             <span className="hidden sm:inline">Nueva Orden</span>
           </Button>
 
-          <Avatar className="hidden size-9 border sm:flex">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-              CM
-            </AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button aria-label="Menú de usuario" className="hidden shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:block">
+                <Avatar className="size-9 border">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                    TU
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate('settings')} className="gap-2">
+                <Settings className="size-4" />
+                Configuración
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="gap-2 text-rose-600 focus:text-rose-600 dark:text-rose-400 dark:focus:text-rose-400">
+                <LogOut className="size-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
