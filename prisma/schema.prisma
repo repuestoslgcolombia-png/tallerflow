@@ -49,6 +49,7 @@ model Customer {
   invoices   Invoice[]
   reminders  Reminder[]
   messages   WhatsAppMessage[]
+  portalTokens PortalToken[]
 
   @@index([lastName])
 }
@@ -546,7 +547,7 @@ model AutomationLog {
 
 model WorkshopSetting {
   id            String   @id @default("default")
-  name          String   @default("TallerFlow Demo")
+  name          String  @default("TallerFlow Demo")
   phone         String?
   email         String?
   address       String?
@@ -559,4 +560,19 @@ model WorkshopSetting {
   counterQuote  Int      @default(0)
   counterInvoice Int     @default(0)
   updatedAt     DateTime @updatedAt
+}
+
+// ============== PORTAL DEL CLIENTE ==============
+
+model PortalToken {
+  id          String   @id @default(cuid())
+  customerId  String
+  token       String   @unique
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  lastAccessAt DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
 }

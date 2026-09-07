@@ -61,3 +61,17 @@ skills-lock.json
 # backups y assets fuente locales (no versionar)
 actualizacion-1/
 logo/
+
+# GitNexus: grafo local de contexto (367MB, regenerable con `bunx gitnexus analyze`)
+.gitnexus/
+
+# clon local de GitNexus para referencia (regenerable con git clone)
+download/
+
+# workspace de respaldo local y adjuntos de sesiones (no versionar)
+mejoras glm/
+.opencode/
+.smoke-dev.pid
+db-push.log
+
+

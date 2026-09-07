@@ -173,14 +173,17 @@ async function flowQuote() {
     fail('FLUJO 3', 'no hay usuarios disponibles')
   }
 
+  // Flujo de revisión (serviceType=revision): received → approved → delivered
+  // El diagnóstico y la asignación no aplican en este flujo simplificado.
   const st = await request('PATCH', `/api/work-orders/${state.workOrderId}`, {
     action: 'change_status',
-    status: 'diagnosing',
-    note: `Diagnostico de prueba ${tag}`,
+    status: 'approved',
+    note: `Aprobación de prueba ${tag}`,
     createdBy: 'SmokeTest',
   })
-  check('FLUJO 3', 'orden pasa a "diagnosing"', st.status === 200 && st.data?.status === 'diagnosing', `HTTP ${st.status}`)
+  check('FLUJO 3', 'orden pasa a "approved" (flujo revisión)', st.status === 200 && st.data?.status === 'approved', `HTTP ${st.status}`)
 
+  // La asignación de técnico sigue disponible en cualquier estado
   if (state.techId) {
     const at = await request('PATCH', `/api/work-orders/${state.workOrderId}`, {
       action: 'assign_technician',
@@ -474,11 +477,11 @@ async function flowCleanup() {
     await clean('borrar factura', () => request('DELETE', `/api/invoices/${state.invoiceId}`))
   }
 
-  // Orden: revertir a "received" (solo se borran recibidas o canceladas) y eliminar
+  // Orden: cancelar (transición válida desde approved) y eliminar en cascada.
   // El delete en cascada borra cotizaciones (incl. aprobada), items y eventos
   if (state.workOrderId) {
-    await clean('revertir orden a "received"', () =>
-      request('PATCH', `/api/work-orders/${state.workOrderId}`, { action: 'change_status', status: 'received', note: `Limpieza ${tag}` }))
+    await clean('cancelar orden', () =>
+      request('PATCH', `/api/work-orders/${state.workOrderId}`, { action: 'change_status', status: 'cancelled', note: `Limpieza ${tag}` }))
     await clean('borrar orden (cascada)', () => request('DELETE', `/api/work-orders/${state.workOrderId}`))
   }
 

@@ -14,6 +14,7 @@ import { WorkOrdersView } from '@/modules/work-orders/work-orders-view'
 import { WorkOrderDetailView } from '@/modules/work-orders/work-order-detail-view'
 import { QuotesView } from '@/modules/quotes/quotes-view'
 import { PublicQuoteApproval } from '@/modules/quotes/public-quote-approval'
+import { PublicCustomerPortal } from '@/modules/customers/public-customer-portal'
 import { InvoicesView } from '@/modules/invoices/invoices-view'
 import { InventoryView } from '@/modules/inventory/inventory-view'
 import { GuidesView } from '@/modules/guides/guides-view'
@@ -40,6 +41,12 @@ function HomePageInner() {
   const publicToken = searchParams.get('token')
   if (publicQuoteId && publicToken) {
     return <PublicQuoteApproval quoteId={publicQuoteId} token={publicToken} />
+  }
+
+  // Portal público del cliente: /?portal=<token>
+  const portalToken = searchParams.get('portal')
+  if (portalToken) {
+    return <PublicCustomerPortal token={portalToken} />
   }
 
   return (

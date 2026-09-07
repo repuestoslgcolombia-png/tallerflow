@@ -21,8 +21,13 @@ import {
   Wind,
   Tv,
   Receipt,
+  ExternalLink,
+  Copy,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { useCustomer } from '@/lib/hooks/api'
+import { toast } from 'sonner'
 import { useAppStore } from '@/store/app-store'
 import {
   fullName,
@@ -68,6 +73,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // ============== Device icon helper ==============
 
@@ -219,6 +234,48 @@ export function CustomerDetailView() {
   const { data: customer, isLoading } = useCustomer(selectedCustomerId)
   const [editOpen, setEditOpen] = useState(false)
   const [deviceDialog, setDeviceDialog] = useState<any | null>(null)
+  const [portalOpen, setPortalOpen] = useState(false)
+  const [portalUrl, setPortalUrl] = useState('')
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalRegenerating, setPortalRegenerating] = useState(false)
+  const [portalRegenConfirm, setPortalRegenConfirm] = useState(false)
+
+  const openPortal = async () => {
+    if (!selectedCustomerId) return
+    setPortalLoading(true)
+    try {
+      const res = await fetch(`/api/portal?customerId=${selectedCustomerId}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Error al generar link')
+      setPortalUrl(`${window.location.origin}/?portal=${data.token}`)
+      setPortalOpen(true)
+    } catch (e: any) {
+      toast.error(e.message || 'Error al generar link del portal')
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
+  const regeneratePortal = async () => {
+    if (!selectedCustomerId) return
+    setPortalRegenerating(true)
+    try {
+      const res = await fetch('/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: selectedCustomerId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Error al regenerar link')
+      setPortalUrl(`${window.location.origin}/?portal=${data.token}`)
+      toast.success('Link regenerado. El anterior quedó invalidado.')
+      setPortalRegenConfirm(false)
+    } catch (e: any) {
+      toast.error(e.message || 'Error al regenerar link del portal')
+    } finally {
+      setPortalRegenerating(false)
+    }
+  }
 
   if (!selectedCustomerId) {
     return (
@@ -316,6 +373,20 @@ export function CustomerDetailView() {
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                onClick={openPortal}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="size-4" />
+                )}{' '}
+                Portal del cliente
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -631,6 +702,110 @@ export function CustomerDetailView() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Portal dialog */}
+      <Dialog open={portalOpen} onOpenChange={setPortalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ExternalLink className="size-5 text-emerald-500" />
+              Portal del Cliente
+            </DialogTitle>
+            <DialogDescription>
+              Comparte este link con {customer.firstName} para que consulte el estado de sus
+              equipos, órdenes y facturas en cualquier momento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3">
+              <p className="mb-1 text-[11px] font-medium uppercase text-muted-foreground">
+                Link del portal
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded bg-background p-2 text-xs">
+                  {portalUrl}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1"
+                  onClick={() => {
+                    navigator.clipboard.writeText(portalUrl)
+                    toast.success('Link copiado')
+                  }}
+                >
+                  <Copy className="size-3.5" /> Copiar
+                </Button>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 gap-1.5"
+                onClick={() => {
+                  navigator.clipboard.writeText(portalUrl)
+                  toast.success('Link copiado')
+                }}
+              >
+                <Copy className="size-4" /> Copiar link
+              </Button>
+              <Button
+                className="flex-1 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => window.open(portalUrl, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="size-4" /> Abrir portal
+              </Button>
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                ¿Link comprometido o compartido por error? Genera uno nuevo; el actual dejará de
+                funcionar.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/30"
+                onClick={() => setPortalRegenConfirm(true)}
+                disabled={portalRegenerating}
+              >
+                <RefreshCw className={`size-3.5 ${portalRegenerating ? 'animate-spin' : ''}`} />
+                Regenerar
+              </Button>
+            </div>
+            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-800 dark:bg-sky-950/30">
+              <p className="text-xs text-sky-800 dark:text-sky-300">
+                El cliente puede guardar este link en su navegador para consultar el estado de sus
+                reparaciones en cualquier momento, sin necesidad de llamar al taller.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm regenerate portal link */}
+      <AlertDialog open={portalRegenConfirm} onOpenChange={setPortalRegenConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Regenerar link del portal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creará un nuevo enlace y el link actual quedará invalidado de inmediato. El
+              cliente deberá usar el nuevo link que le compartas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={(e) => {
+                e.preventDefault()
+                regeneratePortal()
+              }}
+            >
+              Regenerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit dialog */}
       <CustomerFormDialog
