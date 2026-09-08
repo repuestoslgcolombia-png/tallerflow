@@ -24,6 +24,9 @@ interface AppState {
   currentView: View
   sidebarOpen: boolean
 
+  // Taller activo (multi-tenant)
+  tenantName: string | null
+
   // IDs seleccionados (para vistas detalle)
   selectedCustomerId: string | null
   selectedWorkOrderId: string | null
@@ -42,6 +45,7 @@ interface AppState {
   navigate: (view: View, opts?: NavigateOptions) => void
   toggleSidebar: () => void
   setSidebar: (open: boolean) => void
+  setTenantName: (name: string | null) => void
 }
 
 interface NavigateOptions {
@@ -58,6 +62,8 @@ interface NavigateOptions {
 export const useAppStore = create<AppState>((set) => ({
   currentView: 'dashboard',
   sidebarOpen: false,
+
+  tenantName: null,
 
   selectedCustomerId: null,
   selectedWorkOrderId: null,
@@ -87,4 +93,5 @@ export const useAppStore = create<AppState>((set) => ({
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebar: (open) => set({ sidebarOpen: open }),
+  setTenantName: (name) => set({ tenantName: name }),
 }))
