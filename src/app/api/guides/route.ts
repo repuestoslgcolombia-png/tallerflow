@@ -1,17 +1,19 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created } from '@/lib/api'
 
 // GET /api/guides - listar guías de la base de conocimiento
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const applianceType = searchParams.get('applianceType')
     const brand = searchParams.get('brand')
     const status = searchParams.get('status')
 
-    const guides = await db.repairGuide.findMany({
+    const guides = await tdb.repairGuide.findMany({
       where: {
         ...(applianceType ? { applianceType } : {}),
         ...(brand ? { brand } : {}),
@@ -38,6 +40,9 @@ export async function GET(req: NextRequest) {
 
     return ok(guides)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar guías', e)
   }
 }
@@ -45,6 +50,8 @@ export async function GET(req: NextRequest) {
 // POST /api/guides - crear guía de reparación
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.title) return badRequest('El título es obligatorio')
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Sin autenticación: asignar el primer usuario activo como autor por defecto
     let authorId = body.authorId || null
     if (!authorId) {
-      const firstUser = await db.user.findFirst({
+      const firstUser = await tdb.user.findFirst({
         where: { active: true },
         orderBy: { name: 'asc' },
         select: { id: true },
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
     if (!authorId) return badRequest('No hay usuarios activos para asignar como autor')
 
-    const guide = await db.repairGuide.create({
+    const guide = await tdb.repairGuide.create({
       data: {
         title: body.title,
         summary: body.summary || null,
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
         status: body.status || 'draft',
         authorId,
         sourceWorkOrderId: body.sourceWorkOrderId || null,
-      },
+      } as any,
       include: {
         author: { select: { id: true, name: true } },
         sourceWorkOrder: { select: { id: true, code: true } },
@@ -91,6 +98,9 @@ export async function POST(req: NextRequest) {
 
     return created(guide)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear guía', e)
   }
 }

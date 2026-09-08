@@ -1,18 +1,20 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
 import { runTrigger } from '@/lib/automations'
 
 // GET /api/invoices - listar facturas
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const customerId = searchParams.get('customerId')
     const workOrderId = searchParams.get('workOrderId')
     const search = searchParams.get('search') || ''
 
-    const invoices = await db.invoice.findMany({
+    const invoices = await tdb.invoice.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(customerId ? { customerId } : {}),
@@ -37,6 +39,9 @@ export async function GET(req: NextRequest) {
 
     return ok(invoices)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar facturas', e)
   }
 }
@@ -44,13 +49,15 @@ export async function GET(req: NextRequest) {
 // POST /api/invoices - crear factura (generalmente desde una orden de trabajo)
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.workOrderId) return badRequest('Orden de trabajo es obligatoria')
     if (!body.customerId) return badRequest('Cliente es obligatorio')
 
     // Verificar que la orden exista y no tenga ya una factura
-    const wo = await db.workOrder.findUnique({
+    const wo = await tdb.workOrder.findUnique({
       where: { id: body.workOrderId },
       include: { invoice: true, quotes: { include: { items: true }, where: { status: 'approved' } } },
     })
@@ -58,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (wo.invoice) return badRequest('Esta orden ya tiene una factura asociada')
 
     // Generar código correlativo
-    const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+    const settings = await tdb.workshopSetting.findFirst()
     const nextNumber = (settings?.counterInvoice || 0) + 1
     const year = new Date().getFullYear()
     const code = `FAC-${year}-${String(nextNumber).padStart(3, '0')}`
@@ -120,13 +127,18 @@ export async function POST(req: NextRequest) {
       status = 'partial'
     }
 
-    const invoice = await db.$transaction(async (tx) => {
-      await tx.workshopSetting.update({
-        where: { id: 'default' },
-        data: { counterInvoice: nextNumber },
-      })
+    const invoice = await tdb.$transaction(async (tx) => {
+      // Settings del taller (1 por tenant, id ya no es 'default')
+      const ws = await tx.workshopSetting.findFirst()
+      if (ws) {
+        await tx.workshopSetting.update({
+          where: { id: ws.id },
+          data: { counterInvoice: nextNumber },
+        })
+      }
 
       const inv = await tx.invoice.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           code,
           workOrderId: body.workOrderId,
@@ -153,7 +165,7 @@ export async function POST(req: NextRequest) {
                   ],
                 }
               : undefined,
-        },
+        } as any,
         include: {
           customer: true,
           workOrder: { include: { device: true } },
@@ -177,6 +189,7 @@ export async function POST(req: NextRequest) {
       workOrderId: body.workOrderId,
       customerId: body.customerId,
       invoiceId: invoice.id,
+      tenantId: session.tenantId,
     })
 
     if (invoice.status === 'paid') {
@@ -184,11 +197,15 @@ export async function POST(req: NextRequest) {
         workOrderId: body.workOrderId,
         customerId: body.customerId,
         invoiceId: invoice.id,
+        tenantId: session.tenantId,
       })
     }
 
     return created(invoice)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear factura', e)
   }
 }

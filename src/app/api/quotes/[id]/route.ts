@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { runTrigger } from '@/lib/automations'
 import { expireOverdueQuotes, logQuoteEvent } from '@/lib/quotes/history'
@@ -7,10 +8,12 @@ import { getNextStatuses, type WorkOrderStatusKey } from '@/lib/constants'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     await expireOverdueQuotes()
 
-    const quote = await db.quote.findUnique({
+    const quote = await tdb.quote.findUnique({
       where: { id },
       include: {
         workOrder: {
@@ -23,6 +26,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!quote) return notFound('Cotización no encontrada')
     return ok(quote)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener cotización', e)
   }
 }
@@ -30,16 +36,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // Actualizar cotización (items, notas, enviar)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.quote.findUnique({ where: { id } })
+    const existing = await tdb.quote.findUnique({ where: { id } })
     if (!existing) return notFound('Cotización no encontrada')
 
     if (body.action === 'send') {
       // Enviar cotización al cliente
-      const wo = await db.workOrder.findUnique({ where: { id: existing.workOrderId } })
-      const quote = await db.$transaction(async (tx) => {
+      const wo = await tdb.workOrder.findUnique({ where: { id: existing.workOrderId } })
+      const quote = await tdb.$transaction(async (tx) => {
         const q = await tx.quote.update({
           where: { id },
           data: { status: 'sent', sentAt: new Date() },
@@ -71,9 +79,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return q
       })
 
-      await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id })
+      await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id, tenantId: session.tenantId })
 
-      const refreshed = await db.quote.findUnique({
+      const refreshed = await tdb.quote.findUnique({
         where: { id },
         include: {
           workOrder: { include: { customer: true, device: true } },
@@ -96,8 +104,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
           : existing.validUntil
 
-      const wo = await db.workOrder.findUnique({ where: { id: existing.workOrderId } })
-      const quote = await db.$transaction(async (tx) => {
+      const wo = await tdb.workOrder.findUnique({ where: { id: existing.workOrderId } })
+      const quote = await tdb.$transaction(async (tx) => {
         const q = await tx.quote.update({
           where: { id },
           data: {
@@ -113,7 +121,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           fromStatus: existing.status,
           toStatus: 'sent',
           description: wasExpired
-            ? `Cotización ${existing.code} reactivada y reenviada. Nueva validez: ${newValidUntil.toISOString().slice(0, 10)}`
+            ? `Cotización ${existing.code} reactivada y reenviada. Nueva validez: ${(newValidUntil as Date).toISOString().slice(0, 10)}`
             : `Cotización ${existing.code} reenviada al cliente`,
         })
         if (wo && getNextStatuses(wo.status as WorkOrderStatusKey, wo.serviceType).includes('quoted')) {
@@ -135,9 +143,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return q
       })
 
-      await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id })
+      await runTrigger('quote_sent', { workOrderId: existing.workOrderId, quoteId: id, tenantId: session.tenantId })
 
-      const refreshed = await db.quote.findUnique({
+      const refreshed = await tdb.quote.findUnique({
         where: { id },
         include: {
           workOrder: { include: { customer: true, device: true } },
@@ -149,7 +157,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     if (body.action === 'reject') {
-      const quote = await db.$transaction(async (tx) => {
+      const quote = await tdb.$transaction(async (tx) => {
         const q = await tx.quote.update({
           where: { id },
           data: {
@@ -171,7 +179,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Actualizar items
     if (body.items) {
-      const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+      const settings = await tdb.workshopSetting.findFirst()
       const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
       const taxRate = applyTax
         ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
@@ -193,7 +201,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       // Borrar items existentes y recrear
       await db.quoteItem.deleteMany({ where: { quoteId: id } })
-      const quote = await db.$transaction(async (tx) => {
+      const quote = await tdb.$transaction(async (tx) => {
         const q = await tx.quote.update({
           where: { id },
           data: {
@@ -218,23 +226,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return badRequest('Acción no válida')
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar cotización', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.quote.findUnique({ where: { id } })
+    const existing = await tdb.quote.findUnique({ where: { id } })
     if (!existing) return notFound('Cotización no encontrada')
 
     if (existing.status === 'approved') {
       return badRequest('No se puede eliminar una cotización aprobada')
     }
 
-    await db.quote.delete({ where: { id } })
+    await tdb.quote.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar cotización', e)
   }
 }

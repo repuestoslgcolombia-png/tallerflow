@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, serverError } from '@/lib/api'
 
 // GET /api/scheduled-services - consolida visitas técnicas y mantenimientos programados
 export async function GET(_req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const endOfToday = new Date(startOfToday)
@@ -14,7 +16,7 @@ export async function GET(_req: NextRequest) {
     const overdueWindow = new Date(startOfToday.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     // 1) Visitas técnicas programadas (órdenes activas con fecha de visita)
-    const visits = await db.workOrder.findMany({
+    const visits = await tdb.workOrder.findMany({
       where: {
         scheduledVisitAt: { not: null },
         status: { in: ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready'] },
@@ -24,7 +26,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // 2) Mantenimientos / garantías programados (recordatorios pendientes)
-    const reminders = await db.reminder.findMany({
+    const reminders = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         type: { in: ['maintenance', 'warranty_check'] },
@@ -81,7 +83,7 @@ export async function GET(_req: NextRequest) {
         title: r.title,
         alert: classify(r.dueDate),
       })),
-    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    ].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     const stats = {
       overdue: items.filter((i) => i.alert === 'overdue').length,
@@ -92,6 +94,9 @@ export async function GET(_req: NextRequest) {
 
     return ok({ items, stats })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 401 })
+    }
     return serverError('Error al obtener servicios programados', e)
   }
 }

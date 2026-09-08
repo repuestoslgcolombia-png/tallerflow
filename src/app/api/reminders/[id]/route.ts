@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const reminder = await db.reminder.findUnique({
+    const reminder = await tdb.reminder.findUnique({
       where: { id },
       include: {
         customer: true,
@@ -15,21 +17,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!reminder) return notFound('Recordatorio no encontrado')
     return ok(reminder)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener recordatorio', e)
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.reminder.findUnique({ where: { id } })
+    const existing = await tdb.reminder.findUnique({ where: { id } })
     if (!existing) return notFound('Recordatorio no encontrado')
 
     // Acción: marcar como completado
     if (body.action === 'complete') {
-      const reminder = await db.reminder.update({
+      const reminder = await tdb.reminder.update({
         where: { id },
         data: {
           status: 'done',
@@ -45,7 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Acción: posponer
     if (body.action === 'snooze') {
       if (!body.snoozeUntil) return badRequest('Fecha de posposición requerida')
-      const reminder = await db.reminder.update({
+      const reminder = await tdb.reminder.update({
         where: { id },
         data: {
           status: 'snoozed',
@@ -58,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Acción: cancelar
     if (body.action === 'cancel') {
-      const reminder = await db.reminder.update({
+      const reminder = await tdb.reminder.update({
         where: { id },
         data: { status: 'cancelled' },
         include: { customer: true, workOrder: { include: { device: true } } },
@@ -68,7 +75,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Acción: reactivar (de snoozed/cancelled a pending)
     if (body.action === 'reactivate') {
-      const reminder = await db.reminder.update({
+      const reminder = await tdb.reminder.update({
         where: { id },
         data: {
           status: 'pending',
@@ -80,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // Actualización normal de campos
-    const reminder = await db.reminder.update({
+    const reminder = await tdb.reminder.update({
       where: { id },
       data: {
         title: body.title || undefined,
@@ -95,19 +102,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
     return ok(reminder)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar recordatorio', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.reminder.findUnique({ where: { id } })
+    const existing = await tdb.reminder.findUnique({ where: { id } })
     if (!existing) return notFound('Recordatorio no encontrado')
 
-    await db.reminder.delete({ where: { id } })
+    await tdb.reminder.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar recordatorio', e)
   }
 }

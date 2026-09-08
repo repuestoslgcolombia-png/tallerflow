@@ -1,16 +1,25 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError } from '@/lib/api'
 import QRCode from 'qrcode'
 import { randomBytes, randomInt } from 'crypto'
 
+// Helper: conexión del taller (1 por tenant, id cuid — ya no existe 'default')
+async function getOrCreateConnection(tdb: any) {
+  let conn = await tdb.whatsAppConnection.findFirst()
+  if (!conn) {
+    // tenantId lo inyecta dbFor() en runtime
+    conn = await tdb.whatsAppConnection.create({ data: {} as any })
+  }
+  return conn
+}
+
 // GET /api/whatsapp/connection - obtener estado de conexión
 export async function GET() {
   try {
-    let conn = await db.whatsAppConnection.findUnique({ where: { id: 'default' } })
-    if (!conn) {
-      conn = await db.whatsAppConnection.create({ data: { id: 'default' } })
-    }
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
+    let conn = await getOrCreateConnection(tdb)
 
     let qr: string | null = null
 
@@ -18,8 +27,8 @@ export async function GET() {
     if (conn.status === 'pairing' && conn.qrToken && conn.qrExpiresAt) {
       if (new Date() > conn.qrExpiresAt) {
         // QR expirado, limpiar
-        await db.whatsAppConnection.update({
-          where: { id: 'default' },
+        await tdb.whatsAppConnection.update({
+          where: { id: conn.id },
           data: { status: 'disconnected', pairingCode: null, qrToken: null, qrExpiresAt: null },
         })
         conn = { ...conn, status: 'disconnected', pairingCode: null, qrToken: null, qrExpiresAt: null }
@@ -55,6 +64,9 @@ export async function GET() {
       lastSeenAt: conn.lastSeenAt,
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener conexión', e)
   }
 }
@@ -63,13 +75,12 @@ export async function GET() {
 // Body: { action: 'pair' | 'connect' | 'disconnect', phone?, displayName?, businessName? }
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
     const { action } = body
 
-    let conn = await db.whatsAppConnection.findUnique({ where: { id: 'default' } })
-    if (!conn) {
-      conn = await db.whatsAppConnection.create({ data: { id: 'default' } })
-    }
+    const conn = await getOrCreateConnection(tdb)
 
     // ============== GENERAR QR DE EMPAREJAMIENTO ==============
     if (action === 'pair') {
@@ -97,8 +108,8 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      const updated = await db.whatsAppConnection.update({
-        where: { id: 'default' },
+      await tdb.whatsAppConnection.update({
+        where: { id: conn.id },
         data: {
           status: 'pairing',
           pairingCode,
@@ -124,8 +135,8 @@ export async function POST(req: NextRequest) {
         return badRequest('El código QR ha expirado. Genera uno nuevo.')
       }
 
-      const updated = await db.whatsAppConnection.update({
-        where: { id: 'default' },
+      const updated = await tdb.whatsAppConnection.update({
+        where: { id: conn.id },
         data: {
           status: 'connected',
           phone: body.phone,
@@ -150,8 +161,8 @@ export async function POST(req: NextRequest) {
 
     // ============== DESCONECTAR ==============
     if (action === 'disconnect') {
-      await db.whatsAppConnection.update({
-        where: { id: 'default' },
+      await tdb.whatsAppConnection.update({
+        where: { id: conn.id },
         data: {
           status: 'disconnected',
           phone: null,
@@ -169,8 +180,8 @@ export async function POST(req: NextRequest) {
 
     // ============== ACTUALIZAR PERFIL DE NEGOCIO ==============
     if (action === 'update_profile') {
-      const updated = await db.whatsAppConnection.update({
-        where: { id: 'default' },
+      const updated = await tdb.whatsAppConnection.update({
+        where: { id: conn.id },
         data: {
           displayName: body.displayName !== undefined ? body.displayName : undefined,
           businessName: body.businessName !== undefined ? body.businessName : undefined,
@@ -181,6 +192,9 @@ export async function POST(req: NextRequest) {
 
     return badRequest(`Acción no soportada: ${action}`)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error en conexión WhatsApp', e)
   }
 }

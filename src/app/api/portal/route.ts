@@ -1,17 +1,23 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { randomBytes } from 'crypto'
 
 // GET /api/portal?customerId=xxx - obtener token activo del cliente o crear uno nuevo
+// PortalToken NO es tenant-scoped (se resuelve por token único), pero la gestión
+// exige sesión y verifica que el cliente pertenece al taller de la sesión.
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const customerId = searchParams.get('customerId')
 
     if (!customerId) return badRequest('customerId es obligatorio')
 
-    const customer = await db.customer.findUnique({ where: { id: customerId } })
+    // findUnique en tdb verifica pertenencia al taller (404 si es de otro tenant)
+    const customer = await tdb.customer.findUnique({ where: { id: customerId } })
     if (!customer) return notFound('Cliente no encontrado')
 
     // Buscar token activo existente o crear uno nuevo
@@ -36,6 +42,9 @@ export async function GET(req: NextRequest) {
       lastAccessAt: portal.lastAccessAt,
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener portal', e)
   }
 }
@@ -43,12 +52,14 @@ export async function GET(req: NextRequest) {
 // POST /api/portal - regenerar token (revoca el anterior)
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
     const { customerId } = body
 
     if (!customerId) return badRequest('customerId es obligatorio')
 
-    const customer = await db.customer.findUnique({ where: { id: customerId } })
+    const customer = await tdb.customer.findUnique({ where: { id: customerId } })
     if (!customer) return notFound('Cliente no encontrado')
 
     // Revocar tokens anteriores
@@ -71,6 +82,9 @@ export async function POST(req: NextRequest) {
       message: 'Nuevo link de portal generado. El link anterior quedó invalidado.',
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al regenerar portal', e)
   }
 }

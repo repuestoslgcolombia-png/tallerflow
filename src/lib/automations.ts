@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
+import { dbFor } from '@/lib/tenant/db-for'
 
 // ============== AUTOMATIZACIONES WHATSAPP ==============
 // Motor de disparo síncrono: se invoca desde los handlers cuando ocurre un evento.
 // Nunca lanza excepciones hacia el handler llamador; los errores quedan en AutomationLog.
+// Multi-tenant: si TriggerContext trae tenantId, todo queda dentro del taller (dbFor).
 
 export interface TriggerContext {
   workOrderId?: string
@@ -11,6 +13,8 @@ export interface TriggerContext {
   quoteId?: string
   // Si la UI ya creó los recordatorios al entregar, omitir reglas create_reminder
   skipAutoReminders?: boolean
+  // Taller dentro del cual correr las automatizaciones (recomendado en handlers autenticados)
+  tenantId?: string
 }
 
 const DEFAULT_RULES: Array<{
@@ -57,20 +61,31 @@ export const ACTION_LABELS: Record<string, string> = {
   create_reminder: 'Crear recordatorio',
 }
 
+// Cliente según tenant del contexto (o global si no viene)
+function clientFor(ctx: TriggerContext) {
+  return ctx.tenantId ? dbFor(ctx.tenantId) : db
+}
+
 // Crea las reglas por defecto que falten (seed idempotente; no sobrescribe cambios del usuario)
-export async function ensureDefaultRules() {
+// Multi-tenant: con tenantId crea las reglas del taller
+export async function ensureDefaultRules(tenantId?: string) {
+  const tdb = tenantId ? dbFor(tenantId) : db
   for (const rule of DEFAULT_RULES) {
-    await db.automationRule.upsert({
-      where: { trigger_action: { trigger: rule.trigger, action: rule.action } },
-      update: {},
-      create: {
+    // unique compuesto tenantId_trigger_action: dedupe manual
+    const existing = await tdb.automationRule.findFirst({
+      where: { trigger: rule.trigger, action: rule.action },
+    })
+    if (existing) continue
+    await tdb.automationRule.create({
+      // tenantId lo inyecta dbFor() en runtime
+      data: {
         trigger: rule.trigger,
         action: rule.action,
         enabled: true,
         templateCode: rule.templateCode || null,
         daysOffset: rule.daysOffset ?? null,
         reminderType: rule.reminderType || null,
-      },
+      } as any,
     })
   }
 }
@@ -87,6 +102,7 @@ interface AutomationContext {
 }
 
 async function loadContext(ctx: TriggerContext): Promise<AutomationContext | null> {
+  const tdb = clientFor(ctx)
   let customerName = ''
   let phone = ''
   let customerId = ctx.customerId || null
@@ -97,14 +113,14 @@ async function loadContext(ctx: TriggerContext): Promise<AutomationContext | nul
   let fecha = ''
 
   const workOrder = workOrderId
-    ? await db.workOrder.findUnique({
+    ? await tdb.workOrder.findUnique({
         where: { id: workOrderId },
         include: { customer: true, device: true, invoice: true },
       })
     : null
 
   let invoice = ctx.invoiceId
-    ? await db.invoice.findUnique({
+    ? await tdb.invoice.findUnique({
         where: { id: ctx.invoiceId },
         include: { customer: true, workOrder: { include: { device: true } } },
       })
@@ -140,7 +156,7 @@ async function loadContext(ctx: TriggerContext): Promise<AutomationContext | nul
       : ''
   }
 
-  const customer = customerId ? await db.customer.findUnique({ where: { id: customerId } }) : null
+  const customer = customerId ? await tdb.customer.findUnique({ where: { id: customerId } }) : null
   if (customer) {
     customerName = `${customer.firstName} ${customer.lastName}`
     phone = customer.phone || ''
@@ -208,7 +224,8 @@ async function logAutomation(params: {
 // Punto de entrada: ejecuta todas las reglas activas para un trigger
 export async function runTrigger(trigger: string, ctx: TriggerContext = {}) {
   try {
-    const rules = await db.automationRule.findMany({
+    const tdb = clientFor(ctx)
+    const rules = await tdb.automationRule.findMany({
       where: { trigger, enabled: true },
     })
     if (rules.length === 0) return
@@ -216,14 +233,14 @@ export async function runTrigger(trigger: string, ctx: TriggerContext = {}) {
     const context = await loadContext(ctx)
     if (!context) return
 
-      for (const rule of rules) {
+    for (const rule of rules) {
       try {
         if (rule.action === 'send_whatsapp') {
-          await executeSendWhatsApp(rule, context, trigger)
+          await executeSendWhatsApp(tdb, rule, context, trigger)
         } else if (rule.action === 'create_reminder') {
           // La UI ya creó los recordatorios al entregar: no duplicar
           if (ctx.skipAutoReminders) continue
-          await executeCreateReminder(rule, context, trigger)
+          await executeCreateReminder(tdb, rule, context, trigger)
         }
       } catch (e) {
         await logAutomation({
@@ -244,6 +261,7 @@ export async function runTrigger(trigger: string, ctx: TriggerContext = {}) {
 }
 
 async function executeSendWhatsApp(
+  tdb: any,
   rule: { id: string; templateCode: string | null; delayMinutes: number },
   context: AutomationContext,
   trigger: string
@@ -262,7 +280,8 @@ async function executeSendWhatsApp(
     return
   }
 
-  const template = await db.whatsAppTemplate.findUnique({ where: { code: rule.templateCode } })
+  // unique compuesto tenantId_code: findFirst plano (la extensión filtra tenant)
+  const template = await tdb.whatsAppTemplate.findFirst({ where: { code: rule.templateCode } })
   if (!template || !template.active) {
     await logAutomation({
       ruleId: rule.id,
@@ -293,7 +312,7 @@ async function executeSendWhatsApp(
 
   const message = renderTemplate(template.body, context)
 
-  await db.whatsAppMessage.create({
+  await tdb.whatsAppMessage.create({
     data: {
       customerId: context.customerId,
       workOrderId: context.workOrderId,
@@ -319,6 +338,7 @@ async function executeSendWhatsApp(
 }
 
 async function executeCreateReminder(
+  tdb: any,
   rule: { id: string; reminderType: string | null; daysOffset: number | null; templateCode: string | null },
   context: AutomationContext,
   trigger: string
@@ -341,7 +361,7 @@ async function executeCreateReminder(
   }
 
   // Dedupe: no recrear si ya existe un recordatorio del mismo tipo para esta orden
-  const existing = await db.reminder.findFirst({
+  const existing = await tdb.reminder.findFirst({
     where: { workOrderId: context.workOrderId, type },
   })
   if (existing) return
@@ -359,7 +379,8 @@ async function executeCreateReminder(
     maintenance: `Recordar mantenimiento de ${context.equipo || 'equipo'} a ${context.customerName} (${context.code}).`,
   }
 
-  await db.reminder.create({
+  await tdb.reminder.create({
+    // tenantId lo inyecta dbFor() en runtime
     data: {
       customerId: context.customerId,
       workOrderId: context.workOrderId,
@@ -371,7 +392,7 @@ async function executeCreateReminder(
       status: 'pending',
       priority: 'normal',
       daysAfter: days,
-    },
+    } as any,
   })
 
   await logAutomation({
@@ -395,12 +416,14 @@ export interface SweepResult {
 
 // Envía WhatsApp por cada recordatorio pendiente cuya fecha ya venció.
 // Se invoca al cargar la app (GET /api/daily-agenda) como "cron" ligero.
-export async function sweepDueReminders(): Promise<SweepResult> {
+// Multi-tenant: con tenantId el sweep queda dentro del taller
+export async function sweepDueReminders(tenantId?: string): Promise<SweepResult> {
+  const tdb = tenantId ? dbFor(tenantId) : db
   const result: SweepResult = { checked: 0, sent: 0, skipped: 0 }
 
   try {
     const now = new Date()
-    const due = await db.reminder.findMany({
+    const due = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         channel: 'whatsapp',
@@ -419,7 +442,7 @@ export async function sweepDueReminders(): Promise<SweepResult> {
       let ruleId: string | undefined
       try {
         // Buscar la regla activa que creó este tipo de recordatorio (define la plantilla)
-        const rule = await db.automationRule.findFirst({
+        const rule = await tdb.automationRule.findFirst({
           where: {
             action: 'create_reminder',
             reminderType: reminder.type,
@@ -433,7 +456,8 @@ export async function sweepDueReminders(): Promise<SweepResult> {
           continue
         }
 
-        const template = await db.whatsAppTemplate.findUnique({
+        // unique compuesto tenantId_code: findFirst plano (la extensión filtra tenant)
+        const template = await tdb.whatsAppTemplate.findFirst({
           where: { code: rule.templateCode },
         })
         if (!template || !template.active) {
@@ -460,7 +484,7 @@ export async function sweepDueReminders(): Promise<SweepResult> {
         const message = renderTemplate(template.body, context)
 
         // Dedupe: reminderId es @unique, si ya hay mensaje enviado no duplicar
-        const alreadySent = await db.whatsAppMessage.findUnique({
+        const alreadySent = await tdb.whatsAppMessage.findUnique({
           where: { reminderId: reminder.id },
         })
         if (alreadySent) {
@@ -468,7 +492,7 @@ export async function sweepDueReminders(): Promise<SweepResult> {
           continue
         }
 
-        await db.whatsAppMessage.create({
+        await tdb.whatsAppMessage.create({
           data: {
             customerId: reminder.customerId,
             workOrderId: reminder.workOrderId,

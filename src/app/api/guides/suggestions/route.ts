@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { ok, serverError } from '@/lib/api'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
+import { ok, badRequest, serverError } from '@/lib/api'
 
 // GET /api/guides/suggestions?applianceType=&brand=&model=&symptom=
 // Devuelve guías activas relevantes para un equipo en particular.
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const applianceType = searchParams.get('applianceType')
     const brand = searchParams.get('brand')
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (brand) where.brand = brand
 
     // Traer candidatos y ordenarlos por relevancia en memoria
-    const guides = await db.repairGuide.findMany({
+    const guides = await tdb.repairGuide.findMany({
       where,
       include: {
         author: { select: { id: true, name: true } },
@@ -68,6 +70,9 @@ export async function GET(req: NextRequest) {
 
     return ok(scored)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al buscar sugerencias', e)
   }
 }

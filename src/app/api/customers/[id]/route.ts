@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 // GET /api/customers/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const customer = await db.customer.findUnique({
+    const customer = await tdb.customer.findUnique({
       where: { id },
       include: {
         devices: { orderBy: { createdAt: 'desc' } },
@@ -21,6 +23,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!customer) return notFound('Cliente no encontrado')
     return ok(customer)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener cliente', e)
   }
 }
@@ -28,6 +33,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // PUT /api/customers/[id]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
@@ -35,7 +42,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return badRequest('Nombre y apellido son obligatorios')
     }
 
-    const customer = await db.customer.update({
+    const customer = await tdb.customer.update({
       where: { id },
       data: {
         firstName: body.firstName,
@@ -51,6 +58,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return ok(customer)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar cliente', e)
   }
 }
@@ -58,19 +68,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 // DELETE /api/customers/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.customer.findUnique({ where: { id } })
+    const existing = await tdb.customer.findUnique({ where: { id } })
     if (!existing) return notFound('Cliente no encontrado')
 
     // Verificar si tiene órdenes - no eliminar si tiene
-    const workOrders = await db.workOrder.count({ where: { customerId: id } })
+    const workOrders = await tdb.workOrder.count({ where: { customerId: id } })
     if (workOrders > 0) {
       return badRequest(`No se puede eliminar: el cliente tiene ${workOrders} orden(es) de trabajo`)
     }
 
-    await db.customer.delete({ where: { id } })
+    await tdb.customer.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar cliente', e)
   }
 }

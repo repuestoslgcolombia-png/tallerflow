@@ -17,9 +17,9 @@ export async function GET() {
       return ok({ user: null, tenant: null })
     }
 
-    // Resuelve el tenant del usuario (memoria de F2: TenantUser)
-    const membership = await (db as any).tenantUser?.findFirst({
-      where: { userId: user.id },
+    // Resuelve el tenant del usuario (multi-tenant: TenantUser)
+    const membership = await db.tenantUser.findFirst({
+      where: { userId: user.id, status: 'active' },
       include: { tenant: true },
     })
 

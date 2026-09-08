@@ -1,13 +1,15 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, serverError } from '@/lib/api'
 import { sweepDueReminders } from '@/lib/automations'
 import { ensureAccountingPeriods, daysToMonthEnd } from '@/lib/accounting'
 
 export async function GET(_req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     // "Cron" ligero: al abrir la app se envían los WhatsApp de recordatorios vencidos
-    await sweepDueReminders()
+    await sweepDueReminders(session.tenantId)
     // Cierre/rollover de contabilidad mensual (meses vencidos → closed, mes actual → open)
     const accounting = await ensureAccountingPeriods()
 
@@ -30,7 +32,7 @@ export async function GET(_req: NextRequest) {
       workshopFlowRaw,
       scheduledVisitsRaw,
     ] = await Promise.all([
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: {
           OR: [
             { createdAt: { gte: startOfToday, lt: endOfToday } },
@@ -40,36 +42,36 @@ export async function GET(_req: NextRequest) {
         include: { customer: true, device: true, technician: true },
         orderBy: { createdAt: 'desc' },
       }),
-      db.reminder.findMany({
+      tdb.reminder.findMany({
         where: { status: 'pending', dueDate: { gte: startOfToday, lt: endOfToday } },
         include: { customer: true, workOrder: { include: { device: true } } },
         orderBy: { dueDate: 'asc' },
       }),
-      db.reminder.findMany({
+      tdb.reminder.findMany({
         where: { status: 'pending', dueDate: { lt: startOfToday } },
         include: { customer: true, workOrder: { include: { device: true } } },
         orderBy: { dueDate: 'asc' },
       }),
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: { status: 'ready' },
         include: { customer: true, device: true },
         orderBy: { updatedAt: 'desc' },
       }),
-      db.part.findMany({
+      tdb.part.findMany({
         where: { active: true, stock: { lte: 0 } },
         orderBy: { name: 'asc' },
       }),
-      db.quote.findMany({
+      tdb.quote.findMany({
         where: { status: 'sent' },
         include: { workOrder: { include: { customer: true } } },
         orderBy: { createdAt: 'desc' },
       }),
-      db.invoice.findMany({
+      tdb.invoice.findMany({
         where: { status: 'pending' },
         include: { customer: true, workOrder: true },
         orderBy: { issuedAt: 'desc' },
       }),
-      db.invoice.findMany({
+      tdb.invoice.findMany({
         where: {
           OR: [
             { status: 'pending', issuedAt: { lt: startOfToday } },
@@ -79,22 +81,22 @@ export async function GET(_req: NextRequest) {
         include: { customer: true, workOrder: true },
         orderBy: { issuedAt: 'asc' },
       }),
-      db.dailyTask.findMany({
+      tdb.dailyTask.findMany({
         where: { taskDate: { gte: startOfToday, lt: endOfToday } },
         include: { assignee: true },
         orderBy: [{ isCompleted: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       }),
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: { deliveredAt: { gte: startOfToday, lt: endOfToday } },
         include: { customer: true, device: true, technician: true },
         orderBy: { deliveredAt: 'desc' },
       }),
-      db.workOrder.groupBy({
+      tdb.workOrder.groupBy({
         by: ['status'],
         _count: true,
         where: { status: { notIn: ['delivered', 'cancelled'] } },
       }),
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: {
           scheduledVisitAt: {
             gte: startOfToday,
@@ -120,14 +122,14 @@ export async function GET(_req: NextRequest) {
 
     const workshopFlow = workshopFlowRaw.map((g) => ({ status: g.status, count: g._count }))
 
-    const urgentOrders = await db.workOrder.count({
+    const urgentOrders = await tdb.workOrder.count({
       where: {
         priority: 'urgent',
         status: { in: ['received', 'diagnosing', 'approved', 'in_progress'] },
       },
     })
 
-    const partsNearMinStock = await db.part.findMany({
+    const partsNearMinStock = await tdb.part.findMany({
       where: { active: true },
     })
     const nearMinStock = partsNearMinStock.filter((p) => p.stock > 0 && p.stock <= p.minStock)
@@ -199,6 +201,9 @@ export async function GET(_req: NextRequest) {
       date: startOfToday.toISOString(),
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 401 })
+    }
     return serverError('Error al obtener agenda diaria', e)
   }
 }

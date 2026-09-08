@@ -1,14 +1,17 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { ensureDefaultRules, TRIGGER_LABELS, ACTION_LABELS } from '@/lib/automations'
 
 // GET /api/whatsapp/automations - listar reglas de automatización (con seed inicial)
 export async function GET(_req: NextRequest) {
   try {
-    await ensureDefaultRules()
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
+    await ensureDefaultRules(session.tenantId)
 
-    const rules = await db.automationRule.findMany({
+    const rules = await tdb.automationRule.findMany({
       orderBy: [{ trigger: 'asc' }, { action: 'asc' }],
     })
 
@@ -20,6 +23,9 @@ export async function GET(_req: NextRequest) {
       }))
     )
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar automatizaciones', e)
   }
 }
@@ -27,6 +33,8 @@ export async function GET(_req: NextRequest) {
 // POST /api/whatsapp/automations - acciones: test
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
     const { action } = body
 
@@ -34,11 +42,11 @@ export async function POST(req: NextRequest) {
       const { ruleId, phone } = body
       if (!phone) return badRequest('Teléfono es obligatorio para la prueba')
 
-      const rule = await db.automationRule.findUnique({ where: { id: ruleId } })
+      const rule = await tdb.automationRule.findUnique({ where: { id: ruleId } })
       if (!rule) return notFound('Automatización no encontrada')
       if (!rule.templateCode) return badRequest('Esta automatización no tiene plantilla configurada')
 
-      const template = await db.whatsAppTemplate.findUnique({ where: { code: rule.templateCode } })
+      const template = await tdb.whatsAppTemplate.findFirst({ where: { code: rule.templateCode } })
       if (!template) return notFound('Plantilla no encontrada')
 
       const cleanPhone = String(phone).replace(/[^0-9]/g, '')
@@ -79,6 +87,9 @@ export async function POST(req: NextRequest) {
 
     return badRequest(`Acción no soportada: ${action}`)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error en automatización', e)
   }
 }

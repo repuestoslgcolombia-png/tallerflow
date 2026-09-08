@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const guide = await db.repairGuide.findUnique({
+    const guide = await tdb.repairGuide.findUnique({
       where: { id },
       include: {
         author: { select: { id: true, name: true } },
@@ -15,21 +17,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!guide) return notFound('Guía no encontrada')
     return ok(guide)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener guía', e)
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.repairGuide.findUnique({ where: { id } })
+    const existing = await tdb.repairGuide.findUnique({ where: { id } })
     if (!existing) return notFound('Guía no encontrada')
 
     // Acción: incrementar uso (sugerencia consultada desde una orden)
     if (body.action === 'increment_usage') {
-      const updated = await db.repairGuide.update({
+      const updated = await tdb.repairGuide.update({
         where: { id },
         data: { usageCount: { increment: 1 } },
       })
@@ -43,13 +50,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (existing.status === 'active') {
         data.version = { increment: 1 }
       }
-      const updated = await db.repairGuide.update({ where: { id }, data })
+      const updated = await tdb.repairGuide.update({ where: { id }, data })
       return ok(updated)
     }
 
     // Acción: archivar (soft delete)
     if (body.action === 'archive') {
-      const updated = await db.repairGuide.update({
+      const updated = await tdb.repairGuide.update({
         where: { id },
         data: { status: 'retired' },
       })
@@ -76,7 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       version = existing.version + 1
     }
 
-    const guide = await db.repairGuide.update({
+    const guide = await tdb.repairGuide.update({
       where: { id },
       data: {
         title: body.title !== undefined ? body.title : undefined,
@@ -103,23 +110,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
     return ok(guide)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar guía', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.repairGuide.findUnique({ where: { id } })
+    const existing = await tdb.repairGuide.findUnique({ where: { id } })
     if (!existing) return notFound('Guía no encontrada')
 
     // Soft delete: archivar en lugar de borrar
-    const guide = await db.repairGuide.update({
+    const guide = await tdb.repairGuide.update({
       where: { id },
       data: { status: 'retired' },
     })
     return ok(guide)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al archivar guía', e)
   }
 }

@@ -1,13 +1,15 @@
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { WORK_ORDER_STATUS, getNextStatuses, WorkOrderStatusKey, REMINDER_TYPES } from '@/lib/constants'
 import { runTrigger } from '@/lib/automations'
 
 // Crea recordatorios de entrega (mantenimiento, referencia, etc.) con dedupe por orden+tipo
+// (la tx viene de tdb.$transaction: hereda el filtro de tenant)
 async function createDeliveryReminders(
-  tx: Prisma.TransactionClient,
+  tx: any,
   workOrderId: string,
   customerId: string,
   reminders: Array<{ type?: string; daysAfter?: number; channel?: string }>
@@ -53,6 +55,7 @@ async function createDeliveryReminders(
     }
 
     await tx.reminder.create({
+      // tenantId lo inyecta la extensión del cliente transaccional
       data: {
         customerId,
         workOrderId,
@@ -64,15 +67,17 @@ async function createDeliveryReminders(
         status: 'pending',
         priority: 'normal',
         daysAfter: days,
-      },
+      } as any,
     })
   }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const workOrder = await db.workOrder.findUnique({
+    const workOrder = await tdb.workOrder.findUnique({
       where: { id },
       include: {
         customer: true,
@@ -88,19 +93,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!workOrder) return notFound('Orden no encontrada')
     return ok(workOrder)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener orden', e)
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.workOrder.findUnique({ where: { id } })
+    const existing = await tdb.workOrder.findUnique({ where: { id } })
     if (!existing) return notFound('Orden no encontrada')
 
-    const workOrder = await db.workOrder.update({
+    const workOrder = await tdb.workOrder.update({
       where: { id },
       data: {
         technicianId: body.technicianId !== undefined ? body.technicianId : undefined,
@@ -124,6 +134,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return ok(workOrder)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar orden', e)
   }
 }
@@ -131,11 +144,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 // Cambiar estado de la orden
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
     const { action, ...rest } = body
 
-    const existing = await db.workOrder.findUnique({ where: { id } })
+    const existing = await tdb.workOrder.findUnique({ where: { id } })
     if (!existing) return notFound('Orden no encontrada')
 
     if (action === 'change_status') {
@@ -152,7 +167,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         )
       }
 
-      const workOrder = await db.$transaction(async (tx) => {
+      const workOrder = await tdb.$transaction(async (tx) => {
         const wo = await tx.workOrder.update({
           where: { id },
           data: {
@@ -187,6 +202,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           workOrderId: id,
           // Si la UI ya creó los recordatorios, no duplicar con las reglas automáticas
           skipAutoReminders: newStatus === 'delivered' && body.skipAutoReminders === true,
+          tenantId: session.tenantId,
         })
       }
 
@@ -207,7 +223,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     if (action === 'assign_technician') {
-      const workOrder = await db.$transaction(async (tx) => {
+      const workOrder = await tdb.$transaction(async (tx) => {
         const wo = await tx.workOrder.update({
           where: { id },
           data: { technicianId: body.technicianId || null },
@@ -231,14 +247,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     return badRequest(`Acción no soportada: ${action}`)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar orden', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.workOrder.findUnique({ where: { id } })
+    const existing = await tdb.workOrder.findUnique({ where: { id } })
     if (!existing) return notFound('Orden no encontrada')
 
     // Solo se pueden eliminar órdenes en estado recibida o cancelada
@@ -246,9 +267,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return badRequest('Solo se pueden eliminar órdenes en estado Recibida o Cancelada')
     }
 
-    await db.workOrder.delete({ where: { id } })
+    await tdb.workOrder.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar orden', e)
   }
 }

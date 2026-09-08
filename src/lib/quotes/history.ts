@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { dbFor } from '@/lib/tenant/db-for'
 import type { Prisma } from '@prisma/client'
 
 export const QUOTE_EVENT_TITLES: Record<string, string> = {
@@ -22,8 +23,9 @@ type EventInput = {
   createdBy?: string | null
 }
 
+// tx: TransactionClient (db) O cliente transaccional de la extensión dbFor
 export async function logQuoteEvent(
-  tx: Prisma.TransactionClient | typeof db,
+  tx: any,
   input: EventInput
 ) {
   return tx.quoteEvent.create({
@@ -41,15 +43,17 @@ export async function logQuoteEvent(
 
 // Vencimiento lazy: marca como expired las cotizaciones enviadas cuya
 // validez ya pasó. Se llama en los GET de cotizaciones (sin cron).
-export async function expireOverdueQuotes(): Promise<number> {
+// Multi-tenant: con tenantId opera dentro del taller (dbFor).
+export async function expireOverdueQuotes(tenantId?: string): Promise<number> {
+  const tdb: any = tenantId ? dbFor(tenantId) : db
   const now = new Date()
-  const overdue = await db.quote.findMany({
+  const overdue = await tdb.quote.findMany({
     where: { status: 'sent', validUntil: { lt: now } },
     select: { id: true, code: true },
   })
   if (overdue.length === 0) return 0
 
-  await db.$transaction(async (tx) => {
+  await tdb.$transaction(async (tx) => {
     await tx.quote.updateMany({
       where: { id: { in: overdue.map((q) => q.id) }, status: 'sent' },
       data: { status: 'expired' },

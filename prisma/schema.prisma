@@ -13,9 +13,57 @@ datasource db {
 
 // ============== USUARIOS Y TÉCNICOS ==============
 
+// Tenant = taller. Cada taller aísla sus datos (multi-tenant real del SaaS).
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String // nombre del taller
+  slug      String   @unique // URL-amigable: mi-taller
+  plan      String   @default("early_access") // early_access | pro (fase 2 pagos)
+  status    String   @default("active") // active | suspended
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           TenantUser[]
+  staffUsers      User[]
+  customers       Customer[]
+  devices         Device[]
+  workOrders      WorkOrder[]
+  parts           Part[]
+  repairGuides    RepairGuide[]
+  reminders       Reminder[]
+  dailyTasks      DailyTask[]
+  invoices        Invoice[]
+  monthlyAccounting MonthlyAccounting[]
+  settings        WorkshopSetting[]
+  whatsappTemplates WhatsAppTemplate[]
+  whatsappConnection WhatsAppConnection[]
+  automations     AutomationRule[]
+}
+
+// Membresía usuario↔taller con rol (el user.id es el uuid de Supabase Auth)
+model TenantUser {
+  id        String   @id @default(cuid())
+  userId    String // Supabase auth.users.id (uuid)
+  tenantId  String
+  role      String   @default("owner") // owner | admin | technician | receptionist
+  status    String   @default("active") // active | invited
+  email     String? // email de invitación (antes de aceptar)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Relación "loose": userId referencia auth.users de Supabase (fuera de Prisma), sin FK física.
+  // Se valida en app-layer: requireTenantSession() resuelve membresía activa.
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
+  tenantId  String
+  email     String
   name      String
   role      String   @default("admin") // admin | technician | receptionist
   phone     String?
@@ -23,17 +71,22 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
   workOrders WorkOrder[] @relation("AssignedTechnician")
   diagnoses  Diagnosis[] @relation("DiagnosisAuthor")
   auditLogs  AuditLog[]
   dailyTasks DailyTask[]
   repairGuides RepairGuide[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
 }
 
 // ============== CLIENTES ==============
 
 model Customer {
   id          String   @id @default(cuid())
+  tenantId    String
   firstName   String
   lastName    String
   documentId  String? // Cédula/RUT/DNI
@@ -50,14 +103,17 @@ model Customer {
   reminders  Reminder[]
   messages   WhatsAppMessage[]
   portalTokens PortalToken[]
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([lastName])
+  @@index([tenantId])
 }
 
 // ============== EQUIPOS / DISPOSITIVOS ==============
 
 model Device {
   id          String   @id @default(cuid())
+  tenantId    String
   customerId  String
   type        String // washing_machine | refrigerator | freezer | gas_dryer | air_conditioner | tv | microwave | oven | stove | water_heater | other
   brand       String?
@@ -70,15 +126,18 @@ model Device {
 
   customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workOrders WorkOrder[]
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
 
   @@index([customerId])
+  @@index([tenantId])
 }
 
 // ============== ÓRDENES DE TRABAJO ==============
 
 model WorkOrder {
   id              String   @id @default(cuid())
-  code            String   @unique // OT-2024-001
+  tenantId        String
+  code            String // OT-2024-001 (único POR TALLER)
   customerId      String
   deviceId        String
   technicianId    String?
@@ -100,6 +159,7 @@ model WorkOrder {
   customer    Customer    @relation(fields: [customerId], references: [id])
   device      Device      @relation(fields: [deviceId], references: [id])
   technician  User?       @relation("AssignedTechnician", fields: [technicianId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
   timeline    WorkOrderEvent[]
   quotes      Quote[]
   invoice     Invoice?
@@ -113,6 +173,9 @@ model WorkOrder {
   @@index([deviceId])
   @@index([technicianId])
   @@index([status])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@unique([tenantId, code])
 }
 
 model WorkOrderEvent {
@@ -151,8 +214,9 @@ model Diagnosis {
 
 model Quote {
   id           String   @id @default(cuid())
+  tenantId     String
   workOrderId  String
-  code         String   @unique // COT-2024-001
+  code         String // COT-2024-001 (único POR TALLER)
   status       String   @default("draft") // draft | sent | approved | rejected | expired
   approvalToken String  @unique
   notes        String?
@@ -175,6 +239,8 @@ model Quote {
 
   @@index([workOrderId])
   @@index([status])
+  @@index([tenantId])
+  @@unique([tenantId, code])
 }
 
 model QuoteItem {
@@ -214,7 +280,8 @@ model QuoteEvent {
 
 model Part {
   id               String   @id @default(cuid())
-  sku              String   @unique
+  tenantId         String
+  sku              String // único POR TALLER
   name             String
   description      String?
   category         String? // washing_machine | refrigerator | freezer | gas_dryer | air_conditioner | tv | refrigeration | tools | other
@@ -239,10 +306,13 @@ model Part {
 
   movements        InventoryMovement[]
   quoteItems       QuoteItem[]
+  tenant           Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([category])
   @@index([name])
   @@index([brand])
+  @@index([tenantId])
+  @@unique([tenantId, sku])
 }
 
 model InventoryMovement {
@@ -267,6 +337,7 @@ model InventoryMovement {
 
 model RepairGuide {
   id               String   @id @default(cuid())
+  tenantId         String
   title            String
   summary          String?
   applianceType    String // reutiliza keys de DEVICE_TYPES (washing_machine, refrigerator, ...)
@@ -287,19 +358,22 @@ model RepairGuide {
 
   author         User      @relation(fields: [authorId], references: [id])
   sourceWorkOrder WorkOrder? @relation(fields: [sourceWorkOrderId], references: [id])
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([applianceType])
   @@index([brand, model])
   @@index([status])
   @@index([authorId])
   @@index([sourceWorkOrderId])
+  @@index([tenantId])
 }
 
 // ============== FACTURACIÓN ==============
 
 model Invoice {
   id           String   @id @default(cuid())
-  code         String   @unique // FAC-2024-001
+  tenantId     String
+  code         String // FAC-2024-001 (único POR TALLER)
   workOrderId  String   @unique
   customerId   String
   subtotal     Float    @default(0)
@@ -317,10 +391,13 @@ model Invoice {
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
   customer  Customer  @relation(fields: [customerId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
   items     InvoiceItem[]
   payments  Payment[]
 
   @@index([customerId])
+  @@index([tenantId])
+  @@unique([tenantId, code])
 }
 
 model InvoiceItem {
@@ -360,6 +437,7 @@ model Payment {
 
 model MonthlyAccounting {
   id          String    @id @default(cuid())
+  tenantId    String
   year        Int
   month       Int // 1-12
   invoiced    Float     @default(0)
@@ -373,13 +451,16 @@ model MonthlyAccounting {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([year, month])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, year, month])
 }
 
 // ============== RECORDATORIOS POST-SERVICIO ==============
 
 model Reminder {
   id           String   @id @default(cuid())
+  tenantId     String
   customerId   String
   workOrderId  String?
   type         String   @default("follow_up") // follow_up | warranty_check | service_review | maintenance | custom
@@ -400,16 +481,19 @@ model Reminder {
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id])
   whatsApp  WhatsAppMessage?
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([customerId])
   @@index([workOrderId])
   @@index([status, dueDate])
+  @@index([tenantId])
 }
 
 // ============== TAREAS DIARIAS / CHECKLIST ==============
 
 model DailyTask {
   id             String    @id @default(cuid())
+  tenantId       String
   title          String
   description    String?
   assigneeId     String?
@@ -425,16 +509,19 @@ model DailyTask {
   updatedAt      DateTime  @updatedAt
 
   assignee User? @relation(fields: [assigneeId], references: [id])
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([taskDate])
   @@index([assigneeId])
   @@index([isCompleted, taskDate])
+  @@index([tenantId])
 }
 
 // ============== MENSAJES WHATSAPP ==============
 
 model WhatsAppConnection {
-  id            String   @id @default("default")
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
   phone         String?  // número de WhatsApp Business enlazado
   displayName   String?  // nombre visible del negocio
   status        String   @default("disconnected") // disconnected | pairing | connected
@@ -447,11 +534,14 @@ model WhatsAppConnection {
   apiKey        String?  // para futura integración con Cloud API
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 model WhatsAppTemplate {
   id          String   @id @default(cuid())
-  code        String   @unique // quote_sent | order_ready | follow_up | etc.
+  tenantId    String
+  code        String // quote_sent | order_ready | follow_up | etc. (único POR TALLER)
   name        String
   category    String   @default("general") // general | quotes | orders | reminders | marketing
   subject     String?  // asunto corto para referencia
@@ -462,9 +552,12 @@ model WhatsAppTemplate {
   updatedAt   DateTime @updatedAt
 
   messages WhatsAppMessage[]
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([category])
   @@index([active])
+  @@index([tenantId])
+  @@unique([tenantId, code])
 }
 
 model WhatsAppMessage {
@@ -513,6 +606,7 @@ model AuditLog {
 
 model AutomationRule {
   id           String   @id @default(cuid())
+  tenantId     String
   trigger      String // order_received | quote_sent | quote_approved | order_ready | order_delivered | payment_received | invoice_created
   action       String   @default("send_whatsapp") // send_whatsapp | create_reminder
   enabled      Boolean  @default(true)
@@ -523,7 +617,9 @@ model AutomationRule {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@unique([trigger, action])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, trigger, action])
 }
 
 model AutomationLog {
@@ -546,7 +642,8 @@ model AutomationLog {
 // ============== CONFIGURACIÓN DEL TALLER ==============
 
 model WorkshopSetting {
-  id            String   @id @default("default")
+  id            String   @id @default(cuid())
+  tenantId      String   @unique
   name          String  @default("TallerFlow Demo")
   phone         String?
   email         String?
@@ -560,6 +657,8 @@ model WorkshopSetting {
   counterQuote  Int      @default(0)
   counterInvoice Int     @default(0)
   updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
 // ============== PORTAL DEL CLIENTE ==============

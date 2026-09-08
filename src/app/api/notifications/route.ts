@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, serverError } from '@/lib/api'
 import { formatCurrency } from '@/lib/constants'
 
 // GET /api/notifications - consolida notificaciones de todos los módulos
 export async function GET(_req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const endOfToday = new Date(startOfToday)
@@ -15,7 +17,7 @@ export async function GET(_req: NextRequest) {
     const notifications: any[] = []
 
     // ============== 1. RECORDATORIOS VENCIDOS ==============
-    const overdueReminders = await db.reminder.findMany({
+    const overdueReminders = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         dueDate: { lt: startOfToday },
@@ -43,7 +45,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 2. RECORDATORIOS DE HOY ==============
-    const todayReminders = await db.reminder.findMany({
+    const todayReminders = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         dueDate: { gte: startOfToday, lt: endOfToday },
@@ -70,7 +72,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 3. STOCK BAJO ==============
-    const lowStockParts = await db.part.findMany({
+    const lowStockParts = await tdb.part.findMany({
       where: {
         active: true,
         stock: { lte: 0 },
@@ -78,7 +80,7 @@ export async function GET(_req: NextRequest) {
       take: 5,
     })
 
-    const nearMinStockParts = await db.part.findMany({
+    const nearMinStockParts = await tdb.part.findMany({
       where: {
         active: true,
         stock: { gt: 0 },
@@ -119,7 +121,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 4. COTIZACIONES POR APROBAR ==============
-    const pendingQuotes = await db.quote.findMany({
+    const pendingQuotes = await tdb.quote.findMany({
       where: { status: 'sent' },
       include: { workOrder: { include: { customer: true, device: true } } },
       orderBy: { createdAt: 'desc' },
@@ -144,7 +146,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 5. FACTURAS PENDIENTES DE PAGO ==============
-    const pendingInvoices = await db.invoice.findMany({
+    const pendingInvoices = await tdb.invoice.findMany({
       where: { status: { in: ['pending', 'partial'] } },
       include: { customer: true, workOrder: true },
       orderBy: { issuedAt: 'asc' },
@@ -170,7 +172,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 6. ÓRDENES LISTAS PARA ENTREGA ==============
-    const readyOrders = await db.workOrder.findMany({
+    const readyOrders = await tdb.workOrder.findMany({
       where: { status: 'ready' },
       include: { customer: true, device: true },
       orderBy: { updatedAt: 'desc' },
@@ -196,7 +198,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 7. ÓRDENES URGENTES EN PROCESO ==============
-    const urgentOrders = await db.workOrder.findMany({
+    const urgentOrders = await tdb.workOrder.findMany({
       where: {
         status: { in: ['received', 'diagnosing', 'in_progress'] },
         priority: 'urgent',
@@ -225,7 +227,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // ============== 8. RECORDATORIOS PRÓXIMOS (7 días) ==============
-    const upcomingReminders = await db.reminder.findMany({
+    const upcomingReminders = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         dueDate: { gte: endOfToday, lte: next7Days },
@@ -256,7 +258,7 @@ export async function GET(_req: NextRequest) {
     const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
     const activeVisitStatuses = ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready']
 
-    const visitsToday = await db.workOrder.findMany({
+    const visitsToday = await tdb.workOrder.findMany({
       where: {
         scheduledVisitAt: { gte: startOfToday, lt: endOfToday },
         status: { in: activeVisitStatuses },
@@ -283,7 +285,7 @@ export async function GET(_req: NextRequest) {
       })
     })
 
-    const visitsUpcoming = await db.workOrder.findMany({
+    const visitsUpcoming = await tdb.workOrder.findMany({
       where: {
         scheduledVisitAt: { gte: endOfToday, lt: next48h },
         status: { in: activeVisitStatuses },
@@ -336,6 +338,9 @@ export async function GET(_req: NextRequest) {
 
     return ok({ notifications, stats })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 401 })
+    }
     return serverError('Error al obtener notificaciones', e)
   }
 }

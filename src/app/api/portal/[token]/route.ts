@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor } from '@/lib/tenant'
 import { ok, notFound, serverError } from '@/lib/api'
 
 // GET /api/portal/[token] - datos públicos del cliente (sin autenticación)
@@ -24,23 +25,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
     const customer = portal.customer
 
+    // Aislamiento: todas las consultas del portal se hacen dentro del taller
+    // del cliente (el token es global/único, los datos NO cruzan tenants)
+    const tdb = dbFor(customer.tenantId)
+
     const [devices, workOrders, invoices, settings] = await Promise.all([
-      db.device.findMany({
+      tdb.device.findMany({
         where: { customerId: customer.id },
         orderBy: { createdAt: 'desc' },
       }),
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: { customerId: customer.id },
         include: { device: true, technician: true },
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
-      db.invoice.findMany({
+      tdb.invoice.findMany({
         where: { customerId: customer.id },
         orderBy: { issuedAt: 'desc' },
         take: 20,
       }),
-      db.workshopSetting.findUnique({ where: { id: 'default' } }),
+      tdb.workshopSetting.findFirst(),
     ])
 
     const symbol = settings?.currencySymbol || '$'

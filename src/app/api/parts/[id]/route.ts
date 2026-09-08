@@ -1,11 +1,14 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const part = await db.part.findUnique({
+    const part = await tdb.part.findUnique({
       where: { id },
       include: {
         movements: {
@@ -19,16 +22,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!part) return notFound('Repuesto no encontrado')
     return ok(part)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener repuesto', e)
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.part.findUnique({ where: { id } })
+    const existing = await tdb.part.findUnique({ where: { id } })
     if (!existing) return notFound('Repuesto no encontrado')
 
     if (body.action === 'revert_movement') {
@@ -45,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return badRequest('El movimiento no pertenece a esta orden')
       }
 
-      const result = await db.$transaction(async (tx) => {
+      const result = await tdb.$transaction(async (tx) => {
         const updated = await tx.part.update({
           where: { id },
           data: { stock: { increment: movement.quantity } },
@@ -64,7 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return badRequest('Stock resultante no puede ser negativo')
       }
 
-      const result = await db.$transaction(async (tx) => {
+      const result = await tdb.$transaction(async (tx) => {
         const updated = await tx.part.update({
           where: { id },
           data: { stock: newStock },
@@ -86,7 +94,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // Actualización normal
-    const part = await db.part.update({
+    const part = await tdb.part.update({
       where: { id },
       data: {
         name: body.name || undefined,
@@ -113,23 +121,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
     return ok(part)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar repuesto', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.part.findUnique({ where: { id } })
+    const existing = await tdb.part.findUnique({ where: { id } })
     if (!existing) return notFound('Repuesto no encontrado')
 
     // Soft delete: marcar como inactivo en lugar de borrar
-    const part = await db.part.update({
+    const part = await tdb.part.update({
       where: { id },
       data: { active: false },
     })
     return ok(part)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al desactivar repuesto', e)
   }
 }

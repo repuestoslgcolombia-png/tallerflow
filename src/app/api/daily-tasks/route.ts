@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created } from '@/lib/api'
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const date = searchParams.get('date')
     const assigneeId = searchParams.get('assigneeId')
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
     const endOfDay = new Date(startOfDay)
     endOfDay.setDate(endOfDay.getDate() + 1)
 
-    const tasks = await db.dailyTask.findMany({
+    const tasks = await tdb.dailyTask.findMany({
       where: {
         taskDate: { gte: startOfDay, lt: endOfDay },
         ...(assigneeId ? { assigneeId } : {}),
@@ -31,12 +33,17 @@ export async function GET(req: NextRequest) {
 
     return ok(tasks)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar tareas', e)
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.title) return badRequest('Título es obligatorio')
@@ -46,12 +53,12 @@ export async function POST(req: NextRequest) {
       ? new Date(body.taskDate)
       : new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    const maxSort = await db.dailyTask.aggregate({
+    const maxSort = await tdb.dailyTask.aggregate({
       _max: { sortOrder: true },
       where: { taskDate: { gte: taskDate, lt: new Date(taskDate.getTime() + 86400000) } },
     })
 
-    const task = await db.dailyTask.create({
+    const task = await tdb.dailyTask.create({
       data: {
         title: body.title,
         description: body.description || null,
@@ -61,12 +68,15 @@ export async function POST(req: NextRequest) {
         isRecurring: body.isRecurring || false,
         recurringRule: body.recurringRule || null,
         sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-      },
+      } as any,
       include: { assignee: true },
     })
 
     return created(task)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear tarea', e)
   }
 }

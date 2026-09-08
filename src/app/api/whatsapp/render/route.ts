@@ -1,16 +1,19 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 // POST /api/whatsapp/render - renderizar una plantilla con variables
 // Body: { templateCode, customerId, workOrderId?, customVars? }
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.templateCode) return badRequest('Código de plantilla es obligatorio')
 
-    const template = await db.whatsAppTemplate.findUnique({
+    // unique compuesto tenantId_code: findFirst plano (la extensión filtra tenant)
+    const template = await tdb.whatsAppTemplate.findFirst({
       where: { code: body.templateCode },
     })
     if (!template) return notFound('Plantilla no encontrada')
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.customerId) {
-      const customer = await db.customer.findUnique({ where: { id: body.customerId } })
+      const customer = await tdb.customer.findUnique({ where: { id: body.customerId } })
       if (customer) {
         vars.cliente = `${customer.firstName} ${customer.lastName}`
         vars.telefono = customer.phone || ''
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.workOrderId) {
-      const wo = await db.workOrder.findUnique({
+      const wo = await tdb.workOrder.findUnique({
         where: { id: body.workOrderId },
         include: { device: true, quotes: { where: { status: 'approved' }, take: 1 } },
       })
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
       variables: vars,
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al renderizar plantilla', e)
   }
 }

@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created } from '@/lib/api'
 
 // GET /api/parts - listar repuestos
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const category = searchParams.get('category')
@@ -12,7 +14,7 @@ export async function GET(req: NextRequest) {
     const applianceType = searchParams.get('applianceType')
     const lowStock = searchParams.get('lowStock') === 'true'
 
-    const parts = await db.part.findMany({
+    const parts = await tdb.part.findMany({
       where: {
         ...(category ? { category } : {}),
         ...(brand ? { brand } : {}),
@@ -43,6 +45,9 @@ export async function GET(req: NextRequest) {
 
     return ok(result)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar repuestos', e)
   }
 }
@@ -50,16 +55,21 @@ export async function GET(req: NextRequest) {
 // POST /api/parts - crear repuesto
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.name) return badRequest('Nombre es obligatorio')
     if (!body.sku) return badRequest('SKU es obligatorio')
 
-    const existing = await db.part.findUnique({ where: { sku: body.sku } })
+    // SKU único por taller: la extensión ya filtra por tenant, pero el
+    // where único compuesto exige findFirst plano
+    const existing = await tdb.part.findFirst({ where: { sku: body.sku } })
     if (existing) return badRequest('Ya existe un repuesto con ese SKU')
 
-    const part = await db.$transaction(async (tx) => {
+    const part = await tdb.$transaction(async (tx) => {
       const p = await tx.part.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           sku: body.sku,
           name: body.name,
@@ -80,7 +90,7 @@ export async function POST(req: NextRequest) {
           unitCost: Number(body.unitCost) || 0,
           unitPrice: Number(body.unitPrice) || 0,
           location: body.location || null,
-        },
+        } as any,
       })
 
       // Si hay stock inicial, crear movimiento de entrada
@@ -101,6 +111,9 @@ export async function POST(req: NextRequest) {
 
     return created(part)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear repuesto', e)
   }
 }

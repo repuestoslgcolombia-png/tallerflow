@@ -1,6 +1,6 @@
 import { streamText, isStepCount, type CoreMessage } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
-import { assistantTools, proponerAccion } from './tools'
+import { buildAssistantTools, proponerAccion } from './tools'
 import { logL0 } from '@/lib/redis'
 
 export function getModel() {
@@ -55,12 +55,17 @@ export type ChatMessage = {
   content: string
 }
 
-export async function chatStreamResponse(messages: CoreMessage[]): Promise<Response> {
+export async function chatStreamResponse(messages: CoreMessage[], tenantId?: string): Promise<Response> {
+  // Multi-tenant: sin tenantId usa db global (solo compatibilidad); con él,
+  // las herramientas de lectura quedan dentro del taller
+  const tools = tenantId
+    ? { ...buildAssistantTools(tenantId), proponerAccion }
+    : { proponerAccion }
   const result = streamText({
     model: getModel(),
     system: buildSystemPrompt(),
     messages,
-    tools: { ...assistantTools, proponerAccion },
+    tools,
     stopWhen: isStepCount(10),
   })
 

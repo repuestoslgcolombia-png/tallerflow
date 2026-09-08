@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { runTrigger } from '@/lib/automations'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const invoice = await db.invoice.findUnique({
+    const invoice = await tdb.invoice.findUnique({
       where: { id },
       include: {
         customer: true,
@@ -17,16 +20,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!invoice) return notFound('Factura no encontrada')
     return ok(invoice)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al obtener factura', e)
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.invoice.findUnique({ where: { id } })
+    const existing = await tdb.invoice.findUnique({ where: { id } })
     if (!existing) return notFound('Factura no encontrada')
 
     // Acción: registrar pago
@@ -36,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const totalPaid = existing.paid + paidAmount
       const isFullyPaid = totalPaid >= existing.total
 
-      const invoice = await db.$transaction(async (tx) => {
+      const invoice = await tdb.$transaction(async (tx) => {
         const inv = await tx.invoice.update({
           where: { id },
           data: {
@@ -75,6 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         workOrderId: existing.workOrderId || undefined,
         customerId: existing.customerId,
         invoiceId: id,
+        tenantId: session.tenantId,
       })
 
       return ok(invoice)
@@ -82,7 +91,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Acción: anular factura
     if (body.action === 'cancel') {
-      const invoice = await db.invoice.update({
+      const invoice = await tdb.invoice.update({
         where: { id },
         data: { status: 'cancelled' },
         include: { customer: true, workOrder: { include: { device: true } }, items: true },
@@ -94,7 +103,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.action === 'mark_paid') {
       const remaining = Math.max(0, existing.total - existing.paid)
 
-      const invoice = await db.$transaction(async (tx) => {
+      const invoice = await tdb.$transaction(async (tx) => {
         const inv = await tx.invoice.update({
           where: { id },
           data: {
@@ -133,6 +142,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         workOrderId: existing.workOrderId || undefined,
         customerId: existing.customerId,
         invoiceId: id,
+        tenantId: session.tenantId,
       })
 
       return ok(invoice)
@@ -141,7 +151,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Acción: actualizar items, notas y campos generales
     if (body.action === 'update_items') {
       // Recalcular totales desde los nuevos items
-      const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+      const settings = await tdb.workshopSetting.findFirst()
       const applyTax = body.applyTax !== undefined ? Boolean(body.applyTax) : existing.tax > 0
       const taxRate = applyTax
         ? Math.min(Math.max(Number(body.taxRate ?? settings?.taxRate ?? 0) || 0, 0), 100)
@@ -181,7 +191,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // Borrar items existentes y recrear
       await db.invoiceItem.deleteMany({ where: { invoiceId: id } })
 
-      const invoice = await db.invoice.update({
+      const invoice = await tdb.invoice.update({
         where: { id },
         data: {
           subtotal,
@@ -201,7 +211,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       // Actualizar el totalAmount de la orden vinculada
       if (existing.workOrderId) {
-        await db.workOrder.update({
+        await tdb.workOrder.update({
           where: { id: existing.workOrderId },
           data: { totalAmount: total },
         })
@@ -229,7 +239,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const becomingPaid = nextStatus === 'paid' && existing.status !== 'paid'
     const remaining = Math.max(0, existing.total - existing.paid)
 
-    const invoice = await db.$transaction(async (tx) => {
+    const invoice = await tdb.$transaction(async (tx) => {
       const inv = await tx.invoice.update({
         where: { id },
         data,
@@ -261,14 +271,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return ok(invoice)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar factura', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.invoice.findUnique({ where: { id } })
+    const existing = await tdb.invoice.findUnique({ where: { id } })
     if (!existing) return notFound('Factura no encontrada')
 
     // Solo se pueden eliminar facturas pendientes o anuladas
@@ -276,9 +291,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return badRequest('Solo se pueden eliminar facturas pendientes o anuladas')
     }
 
-    await db.invoice.delete({ where: { id } })
+    await tdb.invoice.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar factura', e)
   }
 }

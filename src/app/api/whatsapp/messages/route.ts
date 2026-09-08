@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
 
 // GET /api/whatsapp/messages - listar mensajes enviados
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const customerId = searchParams.get('customerId')
     const workOrderId = searchParams.get('workOrderId')
@@ -26,6 +29,9 @@ export async function GET(req: NextRequest) {
 
     return ok(messages)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar mensajes', e)
   }
 }
@@ -33,13 +39,15 @@ export async function GET(req: NextRequest) {
 // POST /api/whatsapp/messages - registrar envío de mensaje
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.customerId) return badRequest('Cliente es obligatorio')
     if (!body.message) return badRequest('Mensaje es obligatorio')
     if (!body.toPhone) return badRequest('Teléfono de destino es obligatorio')
 
-    const customer = await db.customer.findUnique({ where: { id: body.customerId } })
+    const customer = await tdb.customer.findUnique({ where: { id: body.customerId } })
     if (!customer) return notFound('Cliente no encontrado')
 
     const message = await db.whatsAppMessage.create({
@@ -64,6 +72,9 @@ export async function POST(req: NextRequest) {
 
     return created(message)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al registrar mensaje', e)
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 import { formatCurrency } from '@/lib/constants'
 
@@ -8,10 +9,12 @@ import { formatCurrency } from '@/lib/constants'
 // El frontend usará la URL devuelta para abrir wa.me
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const invoice = await db.invoice.findUnique({
+    const invoice = await tdb.invoice.findUnique({
       where: { id },
       include: {
         customer: true,
@@ -22,13 +25,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!invoice) return notFound('Factura no encontrada')
 
     // Obtener configuración del taller para el nombre y moneda
-    const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+    const settings = await tdb.workshopSetting.findFirst()
     const tallerName = settings?.name || 'TallerFlow'
     const symbol = settings?.currencySymbol || '$'
     const warrantyPolicy = settings?.warrantyPolicy || ''
 
-    // Verificar conexión de WhatsApp
-    const conn = await db.whatsAppConnection.findUnique({ where: { id: 'default' } })
+    // Verificar conexión de WhatsApp (1 por tenant)
+    const conn = await tdb.whatsAppConnection.findFirst()
 
     // Construir el mensaje de factura
     const customerName = `${invoice.customer.firstName} ${invoice.customer.lastName}`
@@ -108,7 +111,7 @@ ${warrantyPolicy}
     const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`
 
     // Registrar el mensaje en el historial
-    const template = await db.whatsAppTemplate.findUnique({ where: { code: 'invoice_sent' } })
+    const template = await tdb.whatsAppTemplate.findFirst({ where: { code: 'invoice_sent' } })
 
     const messageRecord = await db.whatsAppMessage.create({
       data: {
@@ -137,6 +140,9 @@ ${warrantyPolicy}
       businessName: conn?.businessName || tallerName,
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al enviar factura por WhatsApp', e)
   }
 }

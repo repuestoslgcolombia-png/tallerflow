@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, serverError } from '@/lib/api'
 
 // GET /api/whatsapp/automations/logs - últimas ejecuciones de automatizaciones
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const trigger = searchParams.get('trigger')
     const status = searchParams.get('status')
@@ -24,11 +27,11 @@ export async function GET(req: NextRequest) {
     const workOrderIds = [...new Set(logs.map((l) => l.workOrderId).filter(Boolean))] as string[]
 
     const [customers, workOrders] = await Promise.all([
-      db.customer.findMany({
+      tdb.customer.findMany({
         where: { id: { in: customerIds } },
         select: { id: true, firstName: true, lastName: true, phone: true },
       }),
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: { id: { in: workOrderIds } },
         select: { id: true, code: true },
       }),
@@ -45,6 +48,9 @@ export async function GET(req: NextRequest) {
       }))
     )
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 401 })
+    }
     return serverError('Error al listar registros de automatizaciones', e)
   }
 }

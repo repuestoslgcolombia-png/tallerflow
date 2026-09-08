@@ -1,13 +1,15 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, notFound, serverError } from '@/lib/api'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.dailyTask.findUnique({ where: { id } })
+    const existing = await tdb.dailyTask.findUnique({ where: { id } })
     if (!existing) return notFound('Tarea no encontrada')
 
     const data: Record<string, unknown> = {}
@@ -25,7 +27,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data.completedBy = body.isCompleted ? (body.completedBy || null) : null
     }
 
-    const task = await db.dailyTask.update({
+    const task = await tdb.dailyTask.update({
       where: { id },
       data,
       include: { assignee: true },
@@ -33,20 +35,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return ok(task)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar tarea', e)
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
 
-    const existing = await db.dailyTask.findUnique({ where: { id } })
+    const existing = await tdb.dailyTask.findUnique({ where: { id } })
     if (!existing) return notFound('Tarea no encontrada')
 
-    await db.dailyTask.delete({ where: { id } })
+    await tdb.dailyTask.delete({ where: { id } })
     return ok({ deleted: true })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar tarea', e)
   }
 }

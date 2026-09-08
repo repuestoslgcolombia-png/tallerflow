@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.firstName || !body.lastName) return badRequest('Nombre y apellido son obligatorios')
@@ -24,9 +26,11 @@ export async function POST(req: NextRequest) {
       scheduledVisitAt.setHours(hours, minutes, 0, 0)
     }
 
-    const result = await db.$transaction(async (tx) => {
+    const result = await tdb.$transaction(async (tx) => {
+      // Settings del taller (id ya no es 'default': 1 por tenant)
+      const ws = await tx.workshopSetting.findFirst()
       const updated = await tx.workshopSetting.update({
-        where: { id: 'default' },
+        where: { id: ws!.id },
         data: { counterWorkOrder: { increment: 1 } },
       })
       const nextNumber = updated.counterWorkOrder
@@ -35,6 +39,7 @@ export async function POST(req: NextRequest) {
       let customer = await tx.customer.findFirst({ where: { phone: body.phone } })
       if (!customer) {
         customer = await tx.customer.create({
+          // tenantId lo inyecta dbFor() en runtime
           data: {
             firstName: body.firstName,
             lastName: body.lastName,
@@ -42,17 +47,18 @@ export async function POST(req: NextRequest) {
             phone: body.phone,
             email: body.email || null,
             address: body.address,
-          },
+          } as any,
         })
       }
 
       const device = await tx.device.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           customerId: customer.id,
           type: body.deviceType,
           brand: body.deviceBrand || null,
           model: body.deviceModel || null,
-        },
+        } as any,
       })
 
       const serviceTypeLabel: Record<string, string> = {
@@ -62,6 +68,7 @@ export async function POST(req: NextRequest) {
       }
 
       const workOrder = await tx.workOrder.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           code,
           customerId: customer.id,
@@ -79,7 +86,7 @@ export async function POST(req: NextRequest) {
               description: `Cliente: ${body.firstName} ${body.lastName} | Equipo: ${body.deviceType} | ${body.reportedIssue}`,
             },
           },
-        },
+        } as any,
         include: {
           customer: true,
           device: true,
@@ -99,6 +106,7 @@ export async function POST(req: NextRequest) {
       const followUpDate = new Date()
       followUpDate.setDate(followUpDate.getDate() + 7)
       await tx.reminder.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           customerId: customer.id,
           workOrderId: workOrder.id,
@@ -110,7 +118,7 @@ export async function POST(req: NextRequest) {
           status: 'pending',
           priority: 'normal',
           daysAfter: 7,
-        },
+        } as any,
       })
 
       return { customer, device, workOrder }
@@ -118,6 +126,9 @@ export async function POST(req: NextRequest) {
 
     return created(result)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al registrar', e)
   }
 }

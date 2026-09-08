@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created } from '@/lib/api'
 
 // GET /api/reminders - listar recordatorios con filtros
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const customerId = searchParams.get('customerId')
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
     const endOfToday = new Date(startOfToday)
     endOfToday.setDate(endOfToday.getDate() + 1)
 
-    const reminders = await db.reminder.findMany({
+    const reminders = await tdb.reminder.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(customerId ? { customerId } : {}),
@@ -46,6 +48,9 @@ export async function GET(req: NextRequest) {
 
     return ok(reminders)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar recordatorios', e)
   }
 }
@@ -53,13 +58,15 @@ export async function GET(req: NextRequest) {
 // POST /api/reminders - crear recordatorio
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.customerId) return badRequest('Cliente es obligatorio')
     if (!body.title) return badRequest('Título es obligatorio')
     if (!body.dueDate) return badRequest('Fecha del recordatorio es obligatoria')
 
-    const reminder = await db.reminder.create({
+    const reminder = await tdb.reminder.create({
       data: {
         customerId: body.customerId,
         workOrderId: body.workOrderId || null,
@@ -71,7 +78,7 @@ export async function POST(req: NextRequest) {
         status: 'pending',
         priority: body.priority || 'normal',
         daysAfter: body.daysAfter !== undefined ? Number(body.daysAfter) : null,
-      },
+      } as any,
       include: {
         customer: true,
         workOrder: { include: { device: true } },
@@ -80,6 +87,9 @@ export async function POST(req: NextRequest) {
 
     return created(reminder)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear recordatorio', e)
   }
 }

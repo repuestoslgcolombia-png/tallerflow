@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, created, notFound } from '@/lib/api'
 import { randomUUID } from 'crypto'
 import { expireOverdueQuotes, logQuoteEvent } from '@/lib/quotes/history'
@@ -8,14 +8,16 @@ import { getNextStatuses, type WorkOrderStatusKey } from '@/lib/constants'
 // GET /api/quotes
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     // Vencimiento lazy antes de listar
-    await expireOverdueQuotes()
+    await expireOverdueQuotes(session.tenantId)
 
     const { searchParams } = new URL(req.url)
     const workOrderId = searchParams.get('workOrderId')
     const status = searchParams.get('status')
 
-    const quotes = await db.quote.findMany({
+    const quotes = await tdb.quote.findMany({
       where: {
         ...(workOrderId ? { workOrderId } : {}),
         ...(status ? { status } : {}),
@@ -31,6 +33,9 @@ export async function GET(req: NextRequest) {
 
     return ok(quotes)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar cotizaciones', e)
   }
 }
@@ -38,6 +43,8 @@ export async function GET(req: NextRequest) {
 // POST /api/quotes - crear cotización
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
 
     if (!body.workOrderId) return badRequest('Orden de trabajo es obligatoria')
@@ -45,11 +52,11 @@ export async function POST(req: NextRequest) {
       return badRequest('Debe incluir al menos un ítem')
     }
 
-    const wo = await db.workOrder.findUnique({ where: { id: body.workOrderId } })
+    const wo = await tdb.workOrder.findUnique({ where: { id: body.workOrderId } })
     if (!wo) return notFound('Orden de trabajo no encontrada')
 
     // Generar código correlativo
-    const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+    const settings = await tdb.workshopSetting.findFirst()
     const nextNumber = (settings?.counterQuote || 0) + 1
     const year = new Date().getFullYear()
     const code = `COT-${year}-${String(nextNumber).padStart(3, '0')}`
@@ -79,13 +86,18 @@ export async function POST(req: NextRequest) {
       ? new Date(body.validUntil)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 días por defecto
 
-    const quote = await db.$transaction(async (tx) => {
-      await tx.workshopSetting.update({
-        where: { id: 'default' },
-        data: { counterQuote: nextNumber },
-      })
+    const quote = await tdb.$transaction(async (tx) => {
+      // Settings del taller (id ya no es 'default': 1 por tenant)
+      const ws = await tx.workshopSetting.findFirst()
+      if (ws) {
+        await tx.workshopSetting.update({
+          where: { id: ws.id },
+          data: { counterQuote: nextNumber },
+        })
+      }
 
       const q = await tx.quote.create({
+        // tenantId lo inyecta dbFor() en runtime
         data: {
           workOrderId: body.workOrderId,
           code,
@@ -99,7 +111,7 @@ export async function POST(req: NextRequest) {
           total,
           ...(body.sendImmediately ? { sentAt: new Date() } : {}),
           items: { create: items },
-        },
+        } as any,
         include: {
           workOrder: { include: { customer: true, device: true } },
           items: { include: { part: true } },
@@ -144,7 +156,7 @@ export async function POST(req: NextRequest) {
       return q
     })
 
-    const createdQuote = await db.quote.findUnique({
+    const createdQuote = await tdb.quote.findUnique({
       where: { id: quote.id },
       include: {
         workOrder: { include: { customer: true, device: true } },
@@ -154,6 +166,9 @@ export async function POST(req: NextRequest) {
 
     return created(createdQuote)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al crear cotización', e)
   }
 }

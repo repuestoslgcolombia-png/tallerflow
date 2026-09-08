@@ -1,18 +1,20 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, serverError } from '@/lib/api'
 import { WORK_ORDER_STATUS } from '@/lib/constants'
 
 // GET /api/dashboard - métricas para el dashboard
 export async function GET(_req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfWeek = new Date(now)
     startOfWeek.setDate(now.getDate() - 7)
 
     // Conteos por estado
-    const statusCounts = await db.workOrder.groupBy({
+    const statusCounts = await tdb.workOrder.groupBy({
       by: ['status'],
       _count: { _all: true },
     })
@@ -21,13 +23,13 @@ export async function GET(_req: NextRequest) {
     statusCounts.forEach((s) => (statusMap[s.status] = s._count._all))
 
     // Totales
-    const totalCustomers = await db.customer.count()
-    const totalDevices = await db.device.count()
-    const totalWorkOrders = await db.workOrder.count()
-    const totalParts = await db.part.count({ where: { active: true } })
+    const totalCustomers = await tdb.customer.count()
+    const totalDevices = await tdb.device.count()
+    const totalWorkOrders = await tdb.workOrder.count()
+    const totalParts = await tdb.part.count({ where: { active: true } })
 
     // Ingresos del mes (facturas pagadas)
-    const paidInvoices = await db.invoice.findMany({
+    const paidInvoices = await tdb.invoice.findMany({
       where: {
         status: 'paid',
         paidAt: { gte: startOfMonth },
@@ -37,14 +39,14 @@ export async function GET(_req: NextRequest) {
     const monthRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.paid || 0), 0)
 
     // Valor pendiente por aprobar (cotizaciones enviadas)
-    const pendingQuotes = await db.quote.findMany({
+    const pendingQuotes = await tdb.quote.findMany({
       where: { status: 'sent' },
       select: { total: true },
     })
     const pendingQuoteValue = pendingQuotes.reduce((sum, q) => sum + q.total, 0)
 
     // Valor en proceso (órdenes activas)
-    const activeOrders = await db.workOrder.findMany({
+    const activeOrders = await tdb.workOrder.findMany({
       where: {
         status: { in: ['received', 'diagnosing', 'quoted', 'approved', 'in_progress', 'ready'] },
       },
@@ -53,16 +55,16 @@ export async function GET(_req: NextRequest) {
     const activeOrdersValue = activeOrders.reduce((sum, o) => sum + o.totalAmount, 0)
 
     // Repuestos con stock bajo
-    const lowStockParts = await db.part.findMany({
+    const lowStockParts = await tdb.part.findMany({
       where: { active: true, stock: { lte: 0 } },
     })
-    const partsNearMinStock = await db.part.findMany({
+    const partsNearMinStock = await tdb.part.findMany({
       where: { active: true },
     })
     const lowStock = partsNearMinStock.filter((p) => p.stock <= p.minStock)
 
     // Órdenes recientes (últimas 5)
-    const recentOrders = await db.workOrder.findMany({
+    const recentOrders = await tdb.workOrder.findMany({
       take: 6,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -73,7 +75,7 @@ export async function GET(_req: NextRequest) {
     })
 
     // Distribución por prioridad
-    const priorityCounts = await db.workOrder.groupBy({
+    const priorityCounts = await tdb.workOrder.groupBy({
       by: ['priority'],
       _count: { _all: true },
     })
@@ -81,7 +83,7 @@ export async function GET(_req: NextRequest) {
     priorityCounts.forEach((p) => (priorityMap[p.priority] = p._count._all))
 
     // Técnicos con carga de trabajo
-    const technicianWorkloads = await db.user.findMany({
+    const technicianWorkloads = await tdb.user.findMany({
       where: { role: 'technician', active: true },
       include: {
         workOrders: {
@@ -100,7 +102,7 @@ export async function GET(_req: NextRequest) {
 
     // Tasa de aprobación de cotizaciones (últimos 30 días)
     const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    const quotes30 = await db.quote.findMany({
+    const quotes30 = await tdb.quote.findMany({
       where: { createdAt: { gte: last30 } },
       select: { status: true },
     })
@@ -116,7 +118,7 @@ export async function GET(_req: NextRequest) {
       const next = new Date(day)
       next.setDate(day.getDate() + 1)
 
-      const count = await db.workOrder.count({
+      const count = await tdb.workOrder.count({
         where: { createdAt: { gte: day, lt: next } },
       })
 
@@ -140,7 +142,7 @@ export async function GET(_req: NextRequest) {
     const endOfToday = new Date(startOfToday)
     endOfToday.setDate(endOfToday.getDate() + 1)
 
-    const remindersToday = await db.reminder.findMany({
+    const remindersToday = await tdb.reminder.findMany({
       where: {
         status: 'pending',
         dueDate: { gte: startOfToday, lt: endOfToday },
@@ -153,14 +155,14 @@ export async function GET(_req: NextRequest) {
       take: 5,
     })
 
-    const overdueReminders = await db.reminder.count({
+    const overdueReminders = await tdb.reminder.count({
       where: {
         status: 'pending',
         dueDate: { lt: startOfToday },
       },
     })
 
-    const pendingRemindersCount = await db.reminder.count({
+    const pendingRemindersCount = await tdb.reminder.count({
       where: { status: 'pending' },
     })
 
@@ -193,6 +195,9 @@ export async function GET(_req: NextRequest) {
       remindersToday,
     })
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 401 })
+    }
     return serverError('Error al obtener dashboard', e)
   }
 }

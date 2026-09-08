@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 const VALID_ROLES = ['admin', 'technician', 'receptionist']
@@ -7,8 +7,10 @@ const VALID_ROLES = ['admin', 'technician', 'receptionist']
 // PATCH /api/users/[id] - actualizar usuario (editar / activar / desactivar)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.user.findUnique({ where: { id } })
+    const existing = await tdb.user.findUnique({ where: { id } })
     if (!existing) return notFound('Usuario no encontrado')
 
     const body = await req.json()
@@ -22,13 +24,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     if (body.active !== undefined) data.active = Boolean(body.active)
 
-    const user = await db.user.update({
+    const user = await tdb.user.update({
       where: { id },
       data,
       select: { id: true, name: true, email: true, role: true, phone: true, active: true },
     })
     return ok(user)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar usuario', e)
   }
 }

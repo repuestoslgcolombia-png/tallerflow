@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { dbFor } from '@/lib/tenant/db-for'
 import { randomUUID } from 'crypto'
 import { logQuoteEvent } from '@/lib/quotes/history'
 import {
@@ -34,20 +35,20 @@ function customerName(c: { firstName: string; lastName: string }): string {
 
 // ============== RESOLUCIÓN DE ENTIDADES ==============
 
-async function resolveCustomer(args: Record<string, unknown>) {
+async function resolveCustomer(tdb: any, args: Record<string, unknown>) {
   if (args.customerId) {
-    return db.customer.findUnique({ where: { id: String(args.customerId) } })
+    return tdb.customer.findUnique({ where: { id: String(args.customerId) } })
   }
   if (args.customerPhone) {
     const p = normalizePhone(String(args.customerPhone))
-    const exact = await db.customer.findFirst({ where: { phone: p } })
+    const exact = await tdb.customer.findFirst({ where: { phone: p } })
     if (exact) return exact
-    return db.customer.findFirst({ where: { phone: { contains: p } } })
+    return tdb.customer.findFirst({ where: { phone: { contains: p } } })
   }
   if (args.customerName) {
     const name = String(args.customerName).trim()
     const parts = name.split(/\s+/)
-    return db.customer.findFirst({
+    return tdb.customer.findFirst({
       where: {
         OR: [
           { firstName: { contains: name } },
@@ -62,15 +63,15 @@ async function resolveCustomer(args: Record<string, unknown>) {
   return null
 }
 
-async function resolveDevice(args: Record<string, unknown>, customerId?: string) {
+async function resolveDevice(tdb: any, args: Record<string, unknown>, customerId?: string) {
   if (args.deviceId) {
-    return db.device.findUnique({
+    return tdb.device.findUnique({
       where: { id: String(args.deviceId) },
       include: { customer: true },
     })
   }
   if (customerId) {
-    const byCustomer = await db.device.findFirst({
+    const byCustomer = await tdb.device.findFirst({
       where: { customerId },
       include: { customer: true },
       orderBy: { createdAt: 'desc' },
@@ -79,7 +80,7 @@ async function resolveDevice(args: Record<string, unknown>, customerId?: string)
   }
   if (args.deviceDescription) {
     const q = String(args.deviceDescription)
-    const byMatch = await db.device.findFirst({
+    const byMatch = await tdb.device.findFirst({
       where: {
         ...(customerId ? { customerId } : {}),
         OR: [
@@ -96,55 +97,58 @@ async function resolveDevice(args: Record<string, unknown>, customerId?: string)
   return null
 }
 
-async function resolveTechnician(args: Record<string, unknown>) {
+async function resolveTechnician(tdb: any, args: Record<string, unknown>) {
   if (args.technicianId) {
-    return db.user.findUnique({ where: { id: String(args.technicianId) } })
+    return tdb.user.findUnique({ where: { id: String(args.technicianId) } })
   }
   if (args.technicianName) {
-    return db.user.findFirst({
+    return tdb.user.findFirst({
       where: { name: { contains: String(args.technicianName) }, active: true },
     })
   }
   return null
 }
 
-async function resolveWorkOrder(args: Record<string, unknown>) {
+async function resolveWorkOrder(tdb: any, args: Record<string, unknown>) {
   if (args.workOrderId) {
-    return db.workOrder.findUnique({ where: { id: String(args.workOrderId) } })
+    return tdb.workOrder.findUnique({ where: { id: String(args.workOrderId) } })
   }
   const code = args.workOrderCode || args.code
   if (code) {
-    return db.workOrder.findUnique({ where: { code: String(code) } })
+    // unique compuesto tenantId_code: findFirst plano (la extensión filtra tenant)
+    return tdb.workOrder.findFirst({ where: { code: String(code) } })
   }
   return null
 }
 
 // ============== EJECUTOR ==============
 
-export async function executeAction(action: string, args: Record<string, unknown>): Promise<ExecResult> {
+export async function executeAction(action: string, args: Record<string, unknown>, tenantId: string): Promise<ExecResult> {
+  // El caller (API /assistant/confirm) pasa el tenantId de la sesión autenticada
+  const tdb = dbFor(tenantId)
   switch (action) {
     case 'registroRapido':
-      return executeRegistroRapido(args)
+      return executeRegistroRapido(tdb, args)
     case 'crearCliente':
-      return executeCrearCliente(args)
+      return executeCrearCliente(tdb, args)
     case 'crearEquipo':
-      return executeCrearEquipo(args)
+      return executeCrearEquipo(tdb, args)
     case 'crearOrdenServicio':
-      return executeCrearOrdenServicio(args)
+      return executeCrearOrdenServicio(tdb, args)
     case 'actualizarEstadoOrden':
-      return executeActualizarEstado(args)
+      return executeActualizarEstado(tdb, args)
     case 'asignarTecnico':
-      return executeAsignarTecnico(args)
+      return executeAsignarTecnico(tdb, args)
     case 'crearRecordatorio':
-      return executeCrearRecordatorio(args)
+      return executeCrearRecordatorio(tdb, args)
     case 'crearCotizacion':
-      return executeCrearCotizacion(args)
+      return executeCrearCotizacion(tdb, args)
     case 'crearFactura':
-      return executeCrearFactura(args)
+      return executeCrearFactura(tdb, args)
     case 'registrarPago':
-      return executeRegistrarPago(args)
+      return executeRegistrarPago(tdb, args)
     case 'crearTareaDiaria':
-      return executeCrearTareaDiaria(args)
+      return executeCrearTareaDiaria(tdb, args)
     default:
       throw new Error(`Acción desconocida: ${action}`)
   }
@@ -157,7 +161,7 @@ function requireFields(args: Record<string, unknown>, fields: string[]): void {
   }
 }
 
-async function executeRegistroRapido(args: Record<string, unknown>): Promise<ExecResult> {
+async function executeRegistroRapido(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
   requireFields(args, ['firstName', 'lastName', 'phone', 'address', 'deviceType', 'reportedIssue'])
 
   const phone = normalizePhone(String(args.phone))
@@ -179,9 +183,11 @@ async function executeRegistroRapido(args: Record<string, unknown>): Promise<Exe
     scheduledVisitAt = new Date(String(args.scheduledVisitAt))
   }
 
-  const result = await db.$transaction(async (tx) => {
+  const result = await tdb.$transaction(async (tx) => {
+    // Settings del taller (id ya no es 'default': 1 por tenant)
+    const ws = await tx.workshopSetting.findFirst()
     const updated = await tx.workshopSetting.update({
-      where: { id: 'default' },
+      where: { id: ws!.id },
       data: { counterWorkOrder: { increment: 1 } },
     })
     const code = `OT-${year}-${String(updated.counterWorkOrder).padStart(3, '0')}`
@@ -285,12 +291,12 @@ async function executeRegistroRapido(args: Record<string, unknown>): Promise<Exe
   }
 }
 
-async function executeCrearCliente(args: Record<string, unknown>): Promise<ExecResult> {
+async function executeCrearCliente(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
   requireFields(args, ['firstName', 'lastName'])
   const phone = args.phone ? normalizePhone(String(args.phone)) : null
 
   if (phone) {
-    const existing = await db.customer.findFirst({ where: { phone } })
+    const existing = await tdb.customer.findFirst({ where: { phone } })
     if (existing) {
       return {
         ok: true,
@@ -300,7 +306,7 @@ async function executeCrearCliente(args: Record<string, unknown>): Promise<ExecR
     }
   }
 
-  const customer = await db.customer.create({
+  const customer = await tdb.customer.create({
     data: {
       firstName: String(args.firstName),
       lastName: String(args.lastName),
@@ -319,8 +325,8 @@ async function executeCrearCliente(args: Record<string, unknown>): Promise<ExecR
   }
 }
 
-async function executeCrearEquipo(args: Record<string, unknown>): Promise<ExecResult> {
-  const customer = await resolveCustomer(args)
+async function executeCrearEquipo(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const customer = await resolveCustomer(tdb, args)
   if (!customer) throw new Error('No encontré el cliente. Pásame un id, teléfono o nombre.')
 
   const deviceType = String(args.type || args.deviceType || 'other')
@@ -328,7 +334,7 @@ async function executeCrearEquipo(args: Record<string, unknown>): Promise<ExecRe
     throw new Error(`Tipo de equipo inválido: "${deviceType}". Válidos: ${VALID_DEVICE_TYPES.join(', ')}`)
   }
 
-  const device = await db.device.create({
+  const device = await tdb.device.create({
     data: {
       customerId: customer.id,
       type: deviceType,
@@ -347,24 +353,26 @@ async function executeCrearEquipo(args: Record<string, unknown>): Promise<ExecRe
   }
 }
 
-async function executeCrearOrdenServicio(args: Record<string, unknown>): Promise<ExecResult> {
+async function executeCrearOrdenServicio(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
   requireFields(args, ['reportedIssue'])
 
-  const customer = await resolveCustomer(args)
+  const customer = await resolveCustomer(tdb, args)
   if (!customer) throw new Error('No encontré el cliente. Pásame un id, teléfono o nombre.')
 
-  const device = await resolveDevice(args, customer.id)
+  const device = await resolveDevice(tdb, args, customer.id)
   if (!device) throw new Error(`No encontré un equipo para ${customerName(customer)}. Describe el equipo o regístralo.`)
 
-  const technician = await resolveTechnician(args)
+  const technician = await resolveTechnician(tdb, args)
 
   const year = new Date().getFullYear()
   let scheduledVisitAt: Date | null = null
   if (args.scheduledVisitAt) scheduledVisitAt = new Date(String(args.scheduledVisitAt))
 
-  const result = await db.$transaction(async (tx) => {
+  const result = await tdb.$transaction(async (tx) => {
+    // Settings del taller (id ya no es 'default': 1 por tenant)
+    const ws = await tx.workshopSetting.findFirst()
     const updated = await tx.workshopSetting.update({
-      where: { id: 'default' },
+      where: { id: ws!.id },
       data: { counterWorkOrder: { increment: 1 } },
     })
     const code = `OT-${year}-${String(updated.counterWorkOrder).padStart(3, '0')}`
@@ -418,8 +426,8 @@ async function executeCrearOrdenServicio(args: Record<string, unknown>): Promise
   }
 }
 
-async function executeActualizarEstado(args: Record<string, unknown>): Promise<ExecResult> {
-  const wo = await resolveWorkOrder(args)
+async function executeActualizarEstado(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const wo = await resolveWorkOrder(tdb, args)
   if (!wo) throw new Error('No encontré la orden de trabajo. Pásame su código o id.')
 
   const status = String(args.status)
@@ -441,7 +449,7 @@ async function executeActualizarEstado(args: Record<string, unknown>): Promise<E
     )
   }
 
-  const updated = await db.$transaction(async (tx) => {
+  const updated = await tdb.$transaction(async (tx) => {
     const u = await tx.workOrder.update({
       where: { id: wo.id },
       data: { status },
@@ -474,14 +482,14 @@ async function executeActualizarEstado(args: Record<string, unknown>): Promise<E
   }
 }
 
-async function executeAsignarTecnico(args: Record<string, unknown>): Promise<ExecResult> {
-  const wo = await resolveWorkOrder(args)
+async function executeAsignarTecnico(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const wo = await resolveWorkOrder(tdb, args)
   if (!wo) throw new Error('No encontré la orden de trabajo. Pásame su código o id.')
 
-  const technician = await resolveTechnician(args)
+  const technician = await resolveTechnician(tdb, args)
   if (!technician) throw new Error('No encontré el técnico. Pásame su id o nombre.')
 
-  const updated = await db.$transaction(async (tx) => {
+  const updated = await tdb.$transaction(async (tx) => {
     const u = await tx.workOrder.update({
       where: { id: wo.id },
       data: { technicianId: technician.id },
@@ -512,8 +520,8 @@ async function executeAsignarTecnico(args: Record<string, unknown>): Promise<Exe
   }
 }
 
-async function executeCrearRecordatorio(args: Record<string, unknown>): Promise<ExecResult> {
-  const customer = await resolveCustomer(args)
+async function executeCrearRecordatorio(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const customer = await resolveCustomer(tdb, args)
   if (!customer) throw new Error('No encontré el cliente. Pásame un id, teléfono o nombre.')
 
   const type = String(args.type || 'follow_up')
@@ -535,13 +543,13 @@ async function executeCrearRecordatorio(args: Record<string, unknown>): Promise<
 
   let workOrderId: string | null = null
   if (args.workOrderId || args.workOrderCode || args.code) {
-    const wo = await resolveWorkOrder(args)
+    const wo = await resolveWorkOrder(tdb, args)
     workOrderId = wo?.id || null
   }
 
   const title = args.title ? String(args.title) : `${(REMINDER_TYPES as Record<string, { label: string }>)[type].label} - ${customerName(customer)}`
 
-  const reminder = await db.reminder.create({
+  const reminder = await tdb.reminder.create({
     data: {
       customerId: customer.id,
       workOrderId,
@@ -569,15 +577,15 @@ async function executeCrearRecordatorio(args: Record<string, unknown>): Promise<
   }
 }
 
-async function executeCrearCotizacion(args: Record<string, unknown>): Promise<ExecResult> {
-  const wo = await resolveWorkOrder(args)
+async function executeCrearCotizacion(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const wo = await resolveWorkOrder(tdb, args)
   if (!wo) throw new Error('No encontré la orden de trabajo. Pásame su código o id.')
 
   if (!Array.isArray(args.items) || args.items.length === 0) {
     throw new Error('Debe incluir al menos un ítem (repuesto o mano de obra) para la cotización.')
   }
 
-  const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+  const settings = await tdb.workshopSetting.findFirst()
   const taxRate = settings?.taxRate || 0
   let subtotal = 0
   const items = (args.items as any[]).map((it) => {
@@ -599,9 +607,11 @@ async function executeCrearCotizacion(args: Record<string, unknown>): Promise<Ex
   const year = new Date().getFullYear()
   const sendImmediately = Boolean(args.sendImmediately)
 
-  const result = await db.$transaction(async (tx) => {
+  const result = await tdb.$transaction(async (tx) => {
+    // Settings del taller (id ya no es 'default': 1 por tenant)
+    const ws = await tx.workshopSetting.findFirst()
     const updated = await tx.workshopSetting.update({
-      where: { id: 'default' },
+      where: { id: ws!.id },
       data: { counterQuote: { increment: 1 } },
     })
     const code = `COT-${year}-${String(updated.counterQuote).padStart(3, '0')}`
@@ -681,11 +691,11 @@ async function executeCrearCotizacion(args: Record<string, unknown>): Promise<Ex
   }
 }
 
-async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecResult> {
-  const wo = await resolveWorkOrder(args)
+async function executeCrearFactura(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
+  const wo = await resolveWorkOrder(tdb, args)
   if (!wo) throw new Error('No encontré la orden de trabajo. Pásame su código o id.')
 
-  const existing = await db.invoice.findUnique({ where: { workOrderId: wo.id } })
+  const existing = await tdb.invoice.findUnique({ where: { workOrderId: wo.id } })
   if (existing) {
     return {
       ok: true,
@@ -694,7 +704,7 @@ async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecR
     }
   }
 
-  const settings = await db.workshopSetting.findFirst({ where: { id: 'default' } })
+  const settings = await tdb.workshopSetting.findFirst()
   const taxRate = settings?.taxRate || 0
 
   let itemsData: any[]
@@ -711,7 +721,7 @@ async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecR
       }
     })
   } else {
-    const approved = await db.quote.findFirst({
+    const approved = await tdb.quote.findFirst({
       where: { workOrderId: wo.id, status: 'approved' },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
@@ -742,9 +752,11 @@ async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecR
   const total = subtotal + tax
   const year = new Date().getFullYear()
 
-  const result = await db.$transaction(async (tx) => {
+  const result = await tdb.$transaction(async (tx) => {
+    // Settings del taller (id ya no es 'default': 1 por tenant)
+    const ws = await tx.workshopSetting.findFirst()
     const updated = await tx.workshopSetting.update({
-      where: { id: 'default' },
+      where: { id: ws!.id },
       data: { counterInvoice: { increment: 1 } },
     })
     const code = `FAC-${year}-${String(updated.counterInvoice).padStart(3, '0')}`
@@ -800,15 +812,16 @@ async function executeCrearFactura(args: Record<string, unknown>): Promise<ExecR
   }
 }
 
-async function executeRegistrarPago(args: Record<string, unknown>): Promise<ExecResult> {
+async function executeRegistrarPago(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
   let invoice
   if (args.invoiceId || args.invoiceCode) {
     invoice = args.invoiceId
-      ? await db.invoice.findUnique({ where: { id: String(args.invoiceId) } })
-      : await db.invoice.findUnique({ where: { code: String(args.invoiceCode) } })
+      ? await tdb.invoice.findUnique({ where: { id: String(args.invoiceId) } })
+      // unique compuesto tenantId_code: findFirst plano (la extensión filtra tenant)
+      : await tdb.invoice.findFirst({ where: { code: String(args.invoiceCode) } })
   } else {
-    const wo = await resolveWorkOrder(args)
-    invoice = wo ? await db.invoice.findUnique({ where: { workOrderId: wo.id } }) : null
+    const wo = await resolveWorkOrder(tdb, args)
+    invoice = wo ? await tdb.invoice.findFirst({ where: { workOrderId: wo.id } }) : null
   }
   if (!invoice) throw new Error('No encontré la factura asociada a la orden. Pásame el código de factura o de orden.')
 
@@ -818,7 +831,7 @@ async function executeRegistrarPago(args: Record<string, unknown>): Promise<Exec
   const newPaid = Math.min(invoice.total, (invoice.paid || 0) + amount)
   const status = newPaid >= invoice.total ? 'paid' : 'partial'
 
-  const result = await db.$transaction(async (tx) => {
+  const result = await tdb.$transaction(async (tx) => {
     const inv = await tx.invoice.update({
       where: { id: invoice.id },
       data: {
@@ -858,7 +871,7 @@ async function executeRegistrarPago(args: Record<string, unknown>): Promise<Exec
   }
 }
 
-async function executeCrearTareaDiaria(args: Record<string, unknown>): Promise<ExecResult> {
+async function executeCrearTareaDiaria(tdb: any, args: Record<string, unknown>): Promise<ExecResult> {
   requireFields(args, ['title'])
 
   let taskDate = new Date()
@@ -873,11 +886,11 @@ async function executeCrearTareaDiaria(args: Record<string, unknown>): Promise<E
 
   let assigneeId: string | null = null
   if (args.assigneeId || args.assigneeName) {
-    const t = await resolveTechnician(args)
+    const t = await resolveTechnician(tdb, args)
     assigneeId = t?.id || null
   }
 
-  const task = await db.dailyTask.create({
+  const task = await tdb.dailyTask.create({
     data: {
       title: String(args.title),
       description: args.description ? String(args.description) : null,

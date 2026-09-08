@@ -1,5 +1,6 @@
 import { tool, jsonSchema } from 'ai'
 import { db } from '@/lib/db'
+import { dbFor } from '@/lib/tenant/db-for'
 import { createPendingAction } from './pending'
 
 export const WRITE_ACTIONS = [
@@ -33,7 +34,7 @@ const dateRange = (fecha?: string) => {
 
 // ============== HERRAMIENTAS DE LECTURA (ejecución inmediata) ==============
 
-export const buscarClientes = tool({
+const buscarClientesFn = (tdb: any) => tool({
   description:
     'Busca clientes por nombre, apellido, teléfono o documento. Úsalo antes de crear o asociar órdenes, para obtener el customerId.',
   inputSchema: s({
@@ -42,7 +43,7 @@ export const buscarClientes = tool({
     additionalProperties: false,
   }),
   execute: async ({ query }) => {
-    const clients = await db.customer.findMany({
+    const clients = await tdb.customer.findMany({
       where: query
         ? {
             OR: [
@@ -69,7 +70,7 @@ export const buscarClientes = tool({
   },
 })
 
-export const buscarEquipos = tool({
+const buscarEquiposFn = (tdb: any) => tool({
   description:
     'Busca equipos/dispositivos (lavadoras, neveras, aires, televisores...) por marca, modelo o tipo, o por cliente. Devuelve deviceId para usarlos en órdenes.',
   inputSchema: s({
@@ -81,7 +82,7 @@ export const buscarEquipos = tool({
     additionalProperties: false,
   }),
   execute: async ({ query, customerId }) => {
-    const devices = await db.device.findMany({
+    const devices = await tdb.device.findMany({
       where: {
         ...(customerId ? { customerId } : {}),
         ...(query
@@ -104,7 +105,7 @@ export const buscarEquipos = tool({
   },
 })
 
-export const buscarOrdenes = tool({
+const buscarOrdenesFn = (tdb: any) => tool({
   description:
     'Busca órdenes de trabajo por código, cliente, estado o técnico. Devuelve el id y código de la orden.',
   inputSchema: s({
@@ -117,7 +118,7 @@ export const buscarOrdenes = tool({
     additionalProperties: false,
   }),
   execute: async ({ query, status, customerId }) => {
-    const orders = await db.workOrder.findMany({
+    const orders = await tdb.workOrder.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(customerId ? { customerId } : {}),
@@ -152,7 +153,7 @@ export const buscarOrdenes = tool({
   },
 })
 
-export const verDetalleOrden = tool({
+const verDetalleOrdenFn = (tdb: any) => tool({
   description:
     'Devuelve el detalle completo de una orden de trabajo: cliente, equipo, técnico, diagnóstico, cotizaciones, factura y recordatorios. Úsalo para conocer el contexto de una orden antes de proponer acciones.',
   inputSchema: s({
@@ -162,7 +163,7 @@ export const verDetalleOrden = tool({
     additionalProperties: false,
   }),
   execute: async ({ query }) => {
-    const wo = await db.workOrder.findFirst({
+    const wo = await tdb.workOrder.findFirst({
       where: { OR: [{ code: { equals: query } }, { id: { equals: query } }] },
       include: {
         customer: true,
@@ -238,7 +239,7 @@ export const verDetalleOrden = tool({
   },
 })
 
-export const verDetalleCliente = tool({
+const verDetalleClienteFn = (tdb: any) => tool({
   description:
     'Devuelve la información de un cliente: datos de contacto, equipos registrados y órdenes de trabajo.',
   inputSchema: s({
@@ -248,7 +249,7 @@ export const verDetalleCliente = tool({
     additionalProperties: false,
   }),
   execute: async ({ query }) => {
-    const c = await db.customer.findFirst({
+    const c = await tdb.customer.findFirst({
       where: {
         OR: [
           { id: { equals: query } },
@@ -290,11 +291,11 @@ export const verDetalleCliente = tool({
   },
 })
 
-export const listarTecnicos = tool({
+const listarTecnicosFn = (tdb: any) => tool({
   description: 'Lista los técnicos activos del taller con su id y nombre. Úsalo para asignar técnicos a órdenes.',
   inputSchema: s({ type: 'object', properties: {}, additionalProperties: false }),
   execute: async () => {
-    const users = await db.user.findMany({
+    const users = await tdb.user.findMany({
       where: { role: 'technician', active: true },
       select: { id: true, name: true, phone: true },
       orderBy: { name: 'asc' },
@@ -303,7 +304,7 @@ export const listarTecnicos = tool({
   },
 })
 
-export const buscarRepuestos = tool({
+const buscarRepuestosFn = (tdb: any) => tool({
   description:
     'Busca repuestos en el inventario por nombre, sku o marca. Úsalo para verificar disponibilidad y obtener el id/stock/precio antes de cotizar.',
   inputSchema: s({
@@ -321,7 +322,7 @@ export const buscarRepuestos = tool({
         Array<{ id: string; sku: string; name: string; stock: number; minstock: number; unitprice: number }>
       >`SELECT id, sku, name, stock, "minStock" as minstock, "unitPrice" as unitprice FROM "Part" WHERE active = true AND stock <= "minStock" ORDER BY stock ASC LIMIT 12`
     } else {
-      const found = await db.part.findMany({
+      const found = await tdb.part.findMany({
         where: query
           ? { OR: [{ name: { contains: query } }, { sku: { contains: query } }, { brand: { contains: query } }] }
           : {},
@@ -341,7 +342,7 @@ export const buscarRepuestos = tool({
   },
 })
 
-export const buscarCotizaciones = tool({
+const buscarCotizacionesFn = (tdb: any) => tool({
   description: 'Busca cotizaciones por estado, orden de trabajo o texto. Devuelve id, código y total.',
   inputSchema: s({
     type: 'object',
@@ -353,7 +354,7 @@ export const buscarCotizaciones = tool({
     additionalProperties: false,
   }),
   execute: async ({ query, workOrderId, status }) => {
-    const quotes = await db.quote.findMany({
+    const quotes = await tdb.quote.findMany({
       where: {
         ...(workOrderId ? { workOrderId } : {}),
         ...(status ? { status } : {}),
@@ -386,7 +387,7 @@ export const buscarCotizaciones = tool({
   },
 })
 
-export const buscarFacturas = tool({
+const buscarFacturasFn = (tdb: any) => tool({
   description: 'Busca facturas por estado, cliente o texto. Devuelve id, código, total, pagado y saldo.',
   inputSchema: s({
     type: 'object',
@@ -397,7 +398,7 @@ export const buscarFacturas = tool({
     additionalProperties: false,
   }),
   execute: async ({ query, status }) => {
-    const invoices = await db.invoice.findMany({
+    const invoices = await tdb.invoice.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(query
@@ -430,7 +431,7 @@ export const buscarFacturas = tool({
   },
 })
 
-export const buscarRecordatorios = tool({
+const buscarRecordatoriosFn = (tdb: any) => tool({
   description:
     'Busca recordatorios por título, cliente, estado o vencimiento. Devuelve id, fecha y estado.',
   inputSchema: s({
@@ -444,7 +445,7 @@ export const buscarRecordatorios = tool({
   }),
   execute: async ({ query, status, dueToday }) => {
     const range = dateRange()
-    const reminders = await db.reminder.findMany({
+    const reminders = await tdb.reminder.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(dueToday ? { dueDate: { gte: range.start, lte: range.end } } : {}),
@@ -473,7 +474,7 @@ export const buscarRecordatorios = tool({
   },
 })
 
-export const agendaDelDia = tool({
+const agendaDelDiaFn = (tdb: any) => tool({
   description:
     'Devuelve la agenda del día: visitas técnicas programadas (órdenes con hora de visita), tareas diarias pendientes y recordatorios que vencen hoy.',
   inputSchema: s({
@@ -484,7 +485,7 @@ export const agendaDelDia = tool({
   execute: async ({ fecha }) => {
     const { start, end } = dateRange(fecha)
     const [visitas, tareas, recordatorios] = await Promise.all([
-      db.workOrder.findMany({
+      tdb.workOrder.findMany({
         where: { scheduledVisitAt: { gte: start, lte: end } },
         include: {
           customer: { select: { firstName: true, lastName: true, phone: true } },
@@ -492,12 +493,12 @@ export const agendaDelDia = tool({
         },
         orderBy: { scheduledVisitAt: 'asc' },
       }),
-      db.dailyTask.findMany({
+      tdb.dailyTask.findMany({
         where: { taskDate: { gte: start, lte: end } },
         include: { assignee: { select: { name: true } } },
         orderBy: { sortOrder: 'asc' },
       }),
-      db.reminder.findMany({
+      tdb.reminder.findMany({
         where: { dueDate: { gte: start, lte: end }, status: { notIn: ['done', 'cancelled'] } },
         include: { customer: { select: { firstName: true, lastName: true, phone: true } } },
         orderBy: { dueDate: 'asc' },
@@ -531,19 +532,19 @@ export const agendaDelDia = tool({
   },
 })
 
-export const estadoDelTaller = tool({
+const estadoDelTallerFn = (tdb: any) => tool({
   description:
     'Devuelve el estado general del taller: órdenes por estado, órdenes del día, repuestos con stock bajo, facturas por cobrar y cotizaciones pendientes.',
   inputSchema: s({ type: 'object', properties: {}, additionalProperties: false }),
   execute: async () => {
     const { start, end } = dateRange()
     const [grouped, ordenesHoy, lowStock, facturas, cotizaciones, recordatoriosHoy] = await Promise.all([
-      db.workOrder.groupBy({ by: ['status'], _count: { _all: true } }),
-      db.workOrder.count({ where: { scheduledVisitAt: { gte: start, lte: end } } }),
+      tdb.workOrder.groupBy({ by: ['status'], _count: { _all: true } }),
+      tdb.workOrder.count({ where: { scheduledVisitAt: { gte: start, lte: end } } }),
       db.$queryRaw<Array<{ id: string; sku: string; name: string; stock: number; minstock: number }>>`SELECT id, sku, name, stock, "minStock" as minstock FROM "Part" WHERE active = true AND stock <= "minStock" ORDER BY stock ASC LIMIT 10`,
-      db.invoice.findMany({ where: { status: { in: ['pending', 'partial'] } }, select: { code: true, total: true, paid: true } }),
-      db.quote.findMany({ where: { status: { in: ['draft', 'sent'] } }, select: { code: true, status: true, total: true } }),
-      db.reminder.count({ where: { dueDate: { gte: start, lte: end }, status: { notIn: ['done', 'cancelled'] } } }),
+      tdb.invoice.findMany({ where: { status: { in: ['pending', 'partial'] } }, select: { code: true, total: true, paid: true } }),
+      tdb.quote.findMany({ where: { status: { in: ['draft', 'sent'] } }, select: { code: true, status: true, total: true } }),
+      tdb.reminder.count({ where: { dueDate: { gte: start, lte: end }, status: { notIn: ['done', 'cancelled'] } } }),
     ])
 
     const statusLabels: Record<string, string> = {
@@ -604,17 +605,21 @@ export const proponerAccion = tool({
   },
 })
 
-export const assistantTools = {
-  buscarClientes,
-  buscarEquipos,
-  buscarOrdenes,
-  verDetalleOrden,
-  verDetalleCliente,
-  listarTecnicos,
-  buscarRepuestos,
-  buscarCotizaciones,
-  buscarFacturas,
-  buscarRecordatorios,
-  agendaDelDia,
-  estadoDelTaller,
+// Herramientas del asistente dentro del taller indicado (multi-tenant)
+export function buildAssistantTools(tenantId: string) {
+  const tdb = dbFor(tenantId)
+  return {
+  buscarClientes: buscarClientesFn(tdb),
+  buscarEquipos: buscarEquiposFn(tdb),
+  buscarOrdenes: buscarOrdenesFn(tdb),
+  verDetalleOrden: verDetalleOrdenFn(tdb),
+  verDetalleCliente: verDetalleClienteFn(tdb),
+  listarTecnicos: listarTecnicosFn(tdb),
+  buscarRepuestos: buscarRepuestosFn(tdb),
+  buscarCotizaciones: buscarCotizacionesFn(tdb),
+  buscarFacturas: buscarFacturasFn(tdb),
+  buscarRecordatorios: buscarRecordatoriosFn(tdb),
+  agendaDelDia: agendaDelDiaFn(tdb),
+  estadoDelTaller: estadoDelTallerFn(tdb),
+  }
 }

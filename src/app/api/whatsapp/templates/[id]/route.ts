@@ -1,13 +1,15 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, badRequest, serverError, notFound } from '@/lib/api'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
     const body = await req.json()
 
-    const existing = await db.whatsAppTemplate.findUnique({ where: { id } })
+    const existing = await tdb.whatsAppTemplate.findUnique({ where: { id } })
     if (!existing) return notFound('Plantilla no encontrada')
 
     // Las plantillas del sistema solo pueden activarse/desactivarse
@@ -15,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return badRequest('Las plantillas del sistema no pueden editarse (solo activar/desactivar)')
     }
 
-    const template = await db.whatsAppTemplate.update({
+    const template = await tdb.whatsAppTemplate.update({
       where: { id },
       data: {
         name: body.name || undefined,
@@ -28,14 +30,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return ok(template)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al actualizar plantilla', e)
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const { id } = await params
-    const existing = await db.whatsAppTemplate.findUnique({ where: { id } })
+    const existing = await tdb.whatsAppTemplate.findUnique({ where: { id } })
     if (!existing) return notFound('Plantilla no encontrada')
 
     if (existing.isSystem) {
@@ -43,12 +50,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Soft delete: desactivar en lugar de borrar
-    const template = await db.whatsAppTemplate.update({
+    const template = await tdb.whatsAppTemplate.update({
       where: { id },
       data: { active: false },
     })
     return ok(template)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al eliminar plantilla', e)
   }
 }

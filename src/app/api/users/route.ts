@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { dbFor, requireTenantSession, TenantSessionError } from '@/lib/tenant'
 import { ok, created, badRequest, serverError } from '@/lib/api'
 
 const VALID_ROLES = ['admin', 'technician', 'receptionist']
@@ -8,9 +8,11 @@ const VALID_ROLES = ['admin', 'technician', 'receptionist']
 // ?all=1 incluye inactivos (para la gestión del equipo en Configuración)
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const showAll = req.nextUrl.searchParams.get('all') === '1'
-    const users = await db.user.findMany({
-      where: showAll ? undefined : { active: true },
+    const users = await tdb.user.findMany({
+      where: showAll ? { tenantId: session.tenantId } : { active: true, tenantId: session.tenantId },
       select: {
         id: true,
         name: true,
@@ -23,6 +25,9 @@ export async function GET(req: NextRequest) {
     })
     return ok(users)
   } catch (e) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     return serverError('Error al listar usuarios', e)
   }
 }
@@ -30,6 +35,8 @@ export async function GET(req: NextRequest) {
 // POST /api/users - crear un usuario (técnico)
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireTenantSession()
+    const tdb = dbFor(session.tenantId)
     const body = await req.json()
     const name = String(body.name || '').trim()
     const phone = String(body.phone || '').trim()
@@ -39,19 +46,23 @@ export async function POST(req: NextRequest) {
     if (!phone) return badRequest('El número de WhatsApp es obligatorio')
     if (!VALID_ROLES.includes(role)) return badRequest('Rol no válido')
 
-    const existing = await db.user.findFirst({ where: { phone } })
+    const existing = await tdb.user.findFirst({ where: { phone, tenantId: session.tenantId } })
     if (existing) return badRequest('Ya existe un usuario con ese número de WhatsApp')
 
-    // El modelo exige email único; se autogenera un placeholder a partir del whatsapp
+    // El modelo exige email único por taller; se autogenera placeholder desde el whatsapp
     const safePhone = phone.replace(/[^0-9]/g, '').slice(-12)
     const email = `tecnico-${safePhone || Math.random().toString(36).slice(2, 8)}@tallerflow.local`
 
-    const user = await db.user.create({
+    const user = await tdb.user.create({
+      // tenantId lo inyecta dbFor() en runtime
       data: { name, phone, role, email },
       select: { id: true, name: true, email: true, role: true, phone: true, active: true },
-    })
+    } as any)
     return created(user)
   } catch (e: any) {
+    if (e instanceof TenantSessionError) {
+      return badRequest(e.message)
+    }
     if (e?.code === 'P2002') {
       return badRequest('Ya existe un usuario con ese número de WhatsApp')
     }
