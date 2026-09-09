@@ -92,9 +92,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!workOrder) return notFound('Orden no encontrada')
     return ok(workOrder)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Orden no encontrada')
     }
     return serverError('Error al obtener orden', e)
   }
@@ -133,9 +136,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     return ok(workOrder)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Orden no encontrada')
     }
     return serverError('Error al actualizar orden', e)
   }
@@ -246,9 +252,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     return badRequest(`Acción no soportada: ${action}`)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Orden no encontrada')
     }
     return serverError('Error al actualizar orden', e)
   }
@@ -269,9 +278,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     await tdb.workOrder.delete({ where: { id } })
     return ok({ deleted: true })
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Orden no encontrada')
     }
     return serverError('Error al eliminar orden', e)
   }

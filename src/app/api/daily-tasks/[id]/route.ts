@@ -34,9 +34,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     return ok(task)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Tarea no encontrada')
     }
     return serverError('Error al actualizar tarea', e)
   }
@@ -53,9 +56,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     await tdb.dailyTask.delete({ where: { id } })
     return ok({ deleted: true })
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Tarea no encontrada')
     }
     return serverError('Error al eliminar tarea', e)
   }

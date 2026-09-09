@@ -58,11 +58,14 @@ function fail(flow, label, detail = '') {
   return check(flow, label, false, detail)
 }
 
+let sessionCookie = null // cookie de sesion Supabase (se llena en login)
+
 async function request(method, path, body, timeoutMs = 30000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   const opts = { method, signal: controller.signal, headers: { 'Content-Type': 'application/json' } }
   if (body !== undefined) opts.body = JSON.stringify(body)
+  if (sessionCookie) opts.headers.Cookie = sessionCookie
   let res
   try {
     res = await fetch(`${BASE}${path}`, opts)
@@ -71,6 +74,11 @@ async function request(method, path, body, timeoutMs = 30000) {
     return { status: 0, data: null, error: e.message }
   }
   clearTimeout(timer)
+  // Capturar la cookie de sesion del login para reusarla
+  if (!sessionCookie) {
+    const setCookie = res.headers.get('set-cookie') || res.headers.get('Set-Cookie')
+    if (setCookie) sessionCookie = setCookie.split(';')[0]
+  }
   let data = null
   try {
     data = await res.json()
@@ -78,6 +86,21 @@ async function request(method, path, body, timeoutMs = 30000) {
     /* body vacio o no JSON */
   }
   return { status: res.status, data }
+}
+
+// Login inicial: el smoke test necesita sesion (auth real desde F1).
+// Credenciales via SMOKE_EMAIL/SMOKE_PASSWORD (default: taller de QA).
+async function login() {
+  const email = process.env.SMOKE_EMAIL || 'tallerflow5@gmail.com'
+  const password = process.env.SMOKE_PASSWORD || 'PilotoTaller5!'
+  console.log(`\n== LOGIN (${email}) ==`)
+  const res = await request('POST', '/api/auth/login', { email, password })
+  if (res.status !== 200) {
+    console.log(`  [FAIL] login > sesion iniciada (HTTP ${res.status} - ${JSON.stringify(res.data)})`)
+    return false
+  }
+  console.log('  [OK] login > sesion iniciada')
+  return true
 }
 
 const approx = (a, b, eps = 0.01) => Math.abs(Number(a) - Number(b)) < eps
@@ -523,6 +546,12 @@ console.log(`Run  : ${runId} (tag ${tag})`)
 console.log('='.repeat(72))
 
 try {
+  const authed = await login()
+  if (!authed) {
+    console.log('\n[ABORT] Sin sesion no se pueden probar los flujos protegidos.')
+    console.log('        Define SMOKE_EMAIL / SMOKE_PASSWORD con una cuenta del taller.')
+    process.exit(1)
+  }
   await flowHealth()
   await flowQuickRegister()
   if (state.workOrderId) await flowQuote()

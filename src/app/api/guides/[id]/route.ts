@@ -16,9 +16,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!guide) return notFound('Guía no encontrada')
     return ok(guide)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Guía no encontrada')
     }
     return serverError('Error al obtener guía', e)
   }
@@ -109,9 +112,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     })
     return ok(guide)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Guía no encontrada')
     }
     return serverError('Error al actualizar guía', e)
   }
@@ -131,9 +137,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       data: { status: 'retired' },
     })
     return ok(guide)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Guía no encontrada')
     }
     return serverError('Error al archivar guía', e)
   }

@@ -16,9 +16,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!device) return notFound('Equipo no encontrado')
     return ok(device)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Equipo no encontrado')
     }
     return serverError('Error al obtener equipo', e)
   }
@@ -48,9 +51,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     return ok(device)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Equipo no encontrado')
     }
     return serverError('Error al actualizar equipo', e)
   }
@@ -71,9 +77,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     await tdb.device.delete({ where: { id } })
     return ok({ deleted: true })
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Equipo no encontrado')
     }
     return serverError('Error al eliminar equipo', e)
   }

@@ -22,9 +22,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!customer) return notFound('Cliente no encontrado')
     return ok(customer)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Cliente no encontrado')
     }
     return serverError('Error al obtener cliente', e)
   }

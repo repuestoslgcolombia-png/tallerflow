@@ -25,9 +25,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!quote) return notFound('Cotización no encontrada')
     return ok(quote)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Cotización no encontrada')
     }
     return serverError('Error al obtener cotización', e)
   }
@@ -225,9 +228,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     return badRequest('Acción no válida')
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Cotización no encontrada')
     }
     return serverError('Error al actualizar cotización', e)
   }
@@ -247,9 +253,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     await tdb.quote.delete({ where: { id } })
     return ok({ deleted: true })
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Cotización no encontrada')
     }
     return serverError('Error al eliminar cotización', e)
   }

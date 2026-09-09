@@ -19,9 +19,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!invoice) return notFound('Factura no encontrada')
     return ok(invoice)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Factura no encontrada')
     }
     return serverError('Error al obtener factura', e)
   }
@@ -270,9 +273,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     return ok(invoice)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Factura no encontrada')
     }
     return serverError('Error al actualizar factura', e)
   }
@@ -293,9 +299,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     await tdb.invoice.delete({ where: { id } })
     return ok({ deleted: true })
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Factura no encontrada')
     }
     return serverError('Error al eliminar factura', e)
   }

@@ -21,9 +21,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     if (!part) return notFound('Repuesto no encontrado')
     return ok(part)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Repuesto no encontrado')
     }
     return serverError('Error al obtener repuesto', e)
   }
@@ -120,9 +123,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     })
     return ok(part)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Repuesto no encontrado')
     }
     return serverError('Error al actualizar repuesto', e)
   }
@@ -142,9 +148,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       data: { active: false },
     })
     return ok(part)
-  } catch (e) {
+  } catch (e: any) {
     if (e instanceof TenantSessionError) {
       return badRequest(e.message)
+    }
+    if (e?.code === 'P2025') {
+      return notFound('Repuesto no encontrado')
     }
     return serverError('Error al desactivar repuesto', e)
   }
