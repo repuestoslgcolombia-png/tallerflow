@@ -11,7 +11,7 @@ const PUBLIC_API_PATTERNS = [
   /^\/api\/portal\/[^/]+$/,
   /^\/api\/quotes\/[^/]+\/approve$/,
 ];
-const PUBLIC_PAGES = ["/login", "/auth"];
+const PUBLIC_PAGES = ["/login", "/auth", "/reset-password"];
 const PUBLIC_PAGE_PARAMS = ["quote", "portal"]; // vistas públicas vía query param
 
 export async function middleware(request: NextRequest) {
