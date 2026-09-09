@@ -45,8 +45,21 @@ export async function middleware(request: NextRequest) {
   const isPublicPage =
     PUBLIC_PAGES.some((p) => pathname.startsWith(p)) ||
     PUBLIC_PAGE_PARAMS.some((p) => request.nextUrl.searchParams.has(p));
+
+  // Los enlaces de correo de Supabase pueden caer en /?code=... o /auth/...
+  // con parámetros de verificación: preservarlos SIEMPRE (son de un solo uso
+  // y perderlos invalida el flujo completo de recuperación/confirmación).
+  const authParams = ["code", "token_hash", "type", "next", "error", "error_code"];
+  const hasAuthParams = authParams.some((p) => request.nextUrl.searchParams.has(p));
+
   if (!isPublicPage && !isAuthenticated) {
     const url = request.nextUrl.clone();
+    // ?code= en la raíz es un enlace de correo: enviar a /auth/confirm con
+    // todos los parámetros intactos (allí se procesa el intercambio PKCE)
+    if (hasAuthParams && pathname === "/") {
+      url.pathname = "/auth/confirm";
+      return NextResponse.redirect(url);
+    }
     url.pathname = "/login";
     url.search = "";
     return NextResponse.redirect(url);
