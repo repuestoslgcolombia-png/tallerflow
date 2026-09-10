@@ -19,8 +19,13 @@ export interface TenantSession {
 
 // Cache por-request (React cache): múltiples handlers comparten resolución
 export const getTenantSession = cache(async (): Promise<TenantSession | null> => {
+  let cookieStore
   try {
-    const cookieStore = await cookies()
+    cookieStore = await cookies()
+  } catch {
+    return null
+  }
+  try {
     const supabase = createClient(cookieStore)
     const {
       data: { user },
@@ -40,7 +45,11 @@ export const getTenantSession = cache(async (): Promise<TenantSession | null> =>
       tenantName: membership.tenant.name,
       role: membership.role,
     }
-  } catch {
+  } catch (e) {
+    // Un fallo de infra (p.ej. credenciales de BD mal rotadas) NO debe
+    // reportarse como "no autenticado": loguearlo claramente para que el
+    // diagnóstico sea obvio (401 sistematico con login OK = problema de BD).
+    console.error('[getTenantSession] error resolviendo sesión:', e?.message ?? e)
     return null
   }
 })

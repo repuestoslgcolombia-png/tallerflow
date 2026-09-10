@@ -74,10 +74,18 @@ async function request(method, path, body, timeoutMs = 30000) {
     return { status: 0, data: null, error: e.message }
   }
   clearTimeout(timer)
-  // Capturar la cookie de sesion del login para reusarla
+  // Capturar TODAS las cookies de sesion del login para reusarlas.
+  // Supabase puede partir el token en varias cookies chunked
+  // (auth-token.0, .1, ...) p.ej. tras vincular una identidad OAuth
+  // (Google): hay que capturarlas TODAS y unirlas con "; ".
   if (!sessionCookie) {
-    const setCookie = res.headers.get('set-cookie') || res.headers.get('Set-Cookie')
-    if (setCookie) sessionCookie = setCookie.split(';')[0]
+    const setCookies =
+      typeof res.headers.getSetCookie === 'function'
+        ? res.headers.getSetCookie()
+        : [res.headers.get('set-cookie') || res.headers.get('Set-Cookie')].filter(Boolean)
+    if (setCookies.length) {
+      sessionCookie = setCookies.map((c) => c.split(';')[0]).join('; ')
+    }
   }
   let data = null
   try {
