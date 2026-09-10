@@ -1,8 +1,8 @@
-fix(auth): enlaces de correo Supabase sin perdida de codigo
+feat(auth): sign in con Google (OAuth)
 
-- /auth/confirm soporta los 4 formatos de enlace: token_hash (OTP),
-  ?code= (PKCE), tokens en #hash (implicit) y ?error (expirado, con
-  mensaje accionable). Con sesion vigente y sin datos entra a la app
-- middleware: los ?code/token_hash en la raiz se redirigen a
-  /auth/confirm PRESERVANDO los parametros (antes url.search="" los
-  borraba e invalidaba el flujo de un solo uso)
+- /auth/callback: destino del redirectTo de signInWithOAuth(google);
+  PKCE exchangeCodeForSession -> app; errores accionables
+- login: boton Continuar con Google (marca oficial) + separador
+
+Requiere dashboard: Supabase Providers Google con Client ID/Secret y
+Google Cloud redirect URI https://imcciyppbzweyvsoabnc.supabase.co/auth/v1/callback
