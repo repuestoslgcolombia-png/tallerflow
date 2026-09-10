@@ -25,14 +25,27 @@ function CallbackInner() {
 
     const code = params.get('code')
     const errorParam = params.get('error') || params.get('error_description')
+    const errorCode = params.get('error_code')
+    const errorDescription = params.get('error_description') || params.get('error') || ''
     const oauthError = params.get('oauth_error')
     const supabase = createClient()
 
     async function run() {
       // Error devuelto por Google/Supabase al redirigir de vuelta
       if (errorParam || oauthError) {
+        // Guías según el error exacto (para autodiagnóstico)
+        const help: Record<string, string> = {
+          redirect_uri_mismatch:
+            'Falta el URI de redirección en Google Cloud: APIs & Services > Credentials > tu OAuth Client ID > Authorized redirect URIs > agrega https://imcciyppbzweyvsoabnc.supabase.co/auth/v1/callback (exacto) > Save',
+          access_denied:
+            'Rechazaste el consentimiento o la OAuth consent screen está en modo Testing sin tu cuenta (Google Cloud > OAuth consent screen > Test users > agrega tu Gmail)',
+          server_error:
+            'Supabase no pudo intercambiar el código con Google: revisa el Client Secret en Supabase (Authentication > Providers > Google) — debe ser exactamente el de Google Cloud',
+        }
+        const key = Object.keys(help).find((k) => errorDescription.includes(k))
         setError(
-          'Google rechazó el acceso. Verifica que el proveedor Google esté activo en Supabase (Authentication → Providers) y que el URI de redirección esté registrado en Google Cloud. También puede ser que cerraste la ventana de Google.'
+          (errorDescription ? `Google rechazó el acceso (${errorDescription}${errorCode ? `, código ${errorCode}` : ''}).` : 'Google rechazó el acceso.') +
+            (key ? ` ${help[key]}` : '')
         )
         return
       }
@@ -41,7 +54,7 @@ function CallbackInner() {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
           setError(
-            'No pudimos completar el ingreso en este navegador (el enlace se inició en otro dispositivo). Vuelve a la pantalla de inicio de sesión e inténtalo de nuevo desde aquí.'
+            `No se pudo completar el ingreso: ${error.message}. Si dice código ya usado o verificador, vuelve a /login e inténtalo de nuevo desde este navegador.`
           )
           return
         }

@@ -1,8 +1,6 @@
-feat(auth): sign in con Google (OAuth)
+fix(auth): mostrar error real de OAuth Google en callback
 
-- /auth/callback: destino del redirectTo de signInWithOAuth(google);
-  PKCE exchangeCodeForSession -> app; errores accionables
-- login: boton Continuar con Google (marca oficial) + separador
-
-Requiere dashboard: Supabase Providers Google con Client ID/Secret y
-Google Cloud redirect URI https://imcciyppbzweyvsoabnc.supabase.co/auth/v1/callback
+- error_description + error_code de Google visibles en pantalla
+- guias de autodiagnostico para redirect_uri_mismatch, access_denied
+  y server_error (secret incorrecto)
+- exchangeCodeForSession expone el mensaje real del fallo
