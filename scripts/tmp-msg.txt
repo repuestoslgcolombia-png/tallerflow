@@ -1,6 +1,0 @@
-fix(auth): mostrar error real de OAuth Google en callback
-
-- error_description + error_code de Google visibles en pantalla
-- guias de autodiagnostico para redirect_uri_mismatch, access_denied
-  y server_error (secret incorrecto)
-- exchangeCodeForSession expone el mensaje real del fallo
