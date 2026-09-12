@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon, Users, Plus, Loader2, UserRound, ShieldCheck } from 'lucide-react'
-import { useSettings, useSettingsMutation, useUsers, useUserMutations } from '@/lib/hooks/api'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { Store, Phone, Mail, MapPin, Percent, DollarSign, Hash, Save, RotateCcw, ImageIcon, Users, Plus, Loader2, UserRound, ShieldCheck, Globe, Copy, KeyRound, Trash2, Code2, Eye, EyeOff } from 'lucide-react'
+import { useSettings, useSettingsMutation, useUsers, useUserMutations, useApiKeys, useApiKeyMutations } from '@/lib/hooks/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { toast } from 'sonner'
 
 interface SettingsForm {
   name: string
@@ -33,6 +35,8 @@ export function SettingsView() {
   return (
     <>
       <TeamSection />
+      <WebIntegrationsSection />
+      <AccountSection />
       {isLoading || !settings ? (
         <div className="mx-auto max-w-3xl space-y-4">
           <Skeleton className="h-32" />
@@ -459,5 +463,391 @@ function SettingsForm({ settings }: { settings: any }) {
         </Button>
       </div>
     </div>
+  )
+}
+
+// ============== MI CUENTA (cambiar contraseña) ==============
+// El usuario logueado cambia su contraseña sin salir de la app.
+// Cuentas con email/password: se verifica la contraseña actual antes
+// de permitir el cambio. Cuentas solo-Google: definen su primera
+// contraseña (desde entonces pueden ingresar también por correo).
+
+function AccountSection() {
+  const [email, setEmail] = useState('')
+  const [hasPassword, setHasPassword] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+
+  useEffect(() => {
+    // Email + si la cuenta tiene contraseña (provider email con credenciales)
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setEmail(session.user.email ?? '')
+        const emailIdentity = (session.user.identities ?? []).find((i: any) =>
+          (i.identity_data?.email ?? i.provider === 'email')
+        )
+        // provider 'email' con contraseña presente; google-only si no
+        setHasPassword(!!emailIdentity || session.user.app_metadata?.providers?.includes('email') === true)
+      }
+      setChecking(false)
+    })
+  }, [])
+
+  const canSubmit =
+    !checking &&
+    !loading &&
+    newPassword.length >= 8 &&
+    newPassword === confirm &&
+    (!hasPassword || currentPassword.length > 0) &&
+    newPassword !== currentPassword
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (newPassword.length < 8) {
+      toast.error('La nueva contraseña debe tener al menos 8 caracteres')
+      return
+    }
+    if (newPassword !== confirm) {
+      toast.error('Las contraseñas nuevas no coinciden')
+      return
+    }
+    if (hasPassword && newPassword === currentPassword) {
+      toast.error('La nueva contraseña debe ser diferente a la actual')
+      return
+    }
+
+    const supabase = createClient()
+    setLoading(true)
+
+    try {
+      // Verificar la contraseña actual ANTES de cambiar (no basta la sesión:
+      // evita que alguien en una PC compartida cambie la contraseña sin conocerla)
+      if (hasPassword) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: currentPassword,
+        })
+        if (signInError) {
+          toast.error('La contraseña actual es incorrecta')
+          setLoading(false)
+          return
+        }
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) {
+        toast.error(error.message || 'No se pudo actualizar la contraseña')
+        setLoading(false)
+        return
+      }
+
+      toast.success(
+        hasPassword
+          ? 'Contraseña actualizada'
+          : 'Contraseña definida: ya puedes ingresar también con tu correo'
+      )
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirm('')
+      setLoading(false)
+    } catch {
+      toast.error('No se pudo actualizar la contraseña')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="mx-auto max-w-3xl">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="flex size-7 items-center justify-center rounded-md bg-amber-100 text-amber-600">
+            <KeyRound className="size-4" />
+          </div>
+          Mi cuenta
+        </CardTitle>
+        <CardDescription>
+          {hasPassword
+            ? 'Cambia la contraseña de acceso a TallerFlow'
+            : 'Define una contraseña para ingresar también con tu correo'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {checking ? (
+          <Skeleton className="h-40" />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="account-email" className="flex items-center gap-1.5">
+                <Mail className="size-3.5 text-muted-foreground" /> Correo de la cuenta
+              </Label>
+              <Input id="account-email" type="email" value={email} disabled readOnly />
+            </div>
+
+            {hasPassword && (
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password">Contraseña actual</Label>
+                <div className="relative">
+                  <Input
+                    id="current-password"
+                    type={showCurrent ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    disabled={loading}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showCurrent ? 'Ocultar' : 'Mostrar'}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowCurrent((v) => !v)}
+                  >
+                    {showCurrent ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password-account">Nueva contraseña</Label>
+                <div className="relative">
+                  <Input
+                    id="new-password-account"
+                    type={showNew ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    disabled={loading}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showNew ? 'Ocultar' : 'Mostrar'}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowNew((v) => !v)}
+                  >
+                    {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-password-account">Confirmar contraseña</Label>
+                <Input
+                  id="confirm-password-account"
+                  type={showNew ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Mínimo 8 caracteres. Al cambiarla, tu sesión actual se mantiene activa.
+            </p>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={!canSubmit} className="gap-1.5">
+                {loading ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+                {loading ? 'Actualizando...' : 'Actualizar contraseña'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============== INTEGRACIONES WEB (captación de solicitudes) ==============
+// API keys para que la web del taller envíe formularios de solicitud de
+// servicio → bandeja "Solicitudes Web". Incluye snippets listos para copiar.
+
+function WebIntegrationsSection() {
+  const { data: keys, isLoading } = useApiKeys()
+  const { create, revoke } = useApiKeyMutations()
+  const [newName, setNewName] = useState('')
+  const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [showSnippets, setShowSnippets] = useState(false)
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://TU-DOMINIO-TALLERFLOW'
+
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(id)
+      toast.success('Copiado al portapapeles')
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      toast.error('No se pudo copiar')
+    }
+  }
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    const result = await create.mutateAsync(newName.trim())
+    setCreatedKey(result?.key || null)
+    setNewName('')
+  }
+
+  const widgetSnippet = `<!-- Formulario de solicitud de servicio TallerFlow -->
+<div id="tallerflow-form"></div>
+<script src="${baseUrl}/widget.js" data-key="TU_API_KEY" async></script>`
+
+  const curlSnippet = `curl -X POST ${baseUrl}/api/public/leads \\
+  -H "Authorization: Bearer TU_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "firstName": "María", "lastName": "Gómez",
+    "phone": "3001234567", "address": "Calle 10 #5-5",
+    "deviceType": "washing_machine", "deviceBrand": "LG",
+    "reportedIssue": "No desagua"
+  }'`
+
+  const formSnippet = `<form action="${baseUrl}/api/public/leads" method="POST">
+  <input type="hidden" name="sourceUrl" value="https://TU-WEB.COM/contacto">
+  <input type="hidden" name="deviceType" value="washing_machine">
+  <input name="firstName" placeholder="Nombre" required>
+  <input name="lastName" placeholder="Apellido" required>
+  <input name="phone" placeholder="Teléfono" required>
+  <input name="reportedIssue" placeholder="Describe el problema" required>
+  <!-- IMPORTANTE: incluir el header Authorization requiere JS;
+       para formularios HTML puros usa el widget o la API -->
+</form>`
+
+  return (
+    <Card className="mx-auto max-w-3xl">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <div className="flex size-7 items-center justify-center rounded-md bg-teal-100 text-teal-600">
+            <Globe className="size-4" />
+          </div>
+          Integraciones Web
+          </CardTitle>
+        <CardDescription>
+          Conecta la página web de tu taller: las solicitudes de servicio llegan a la bandeja "Solicitudes Web"
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Crear key */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Nombre de la integración (ej. Web del taller)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <Button onClick={handleCreate} disabled={!newName.trim() || create.isPending} className="gap-1.5">
+            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            Crear
+          </Button>
+        </div>
+
+        {/* Key recién creada: mostrar UNA vez */}
+        {createdKey && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-amber-800">
+              <KeyRound className="size-4" /> Copia tu API key ahora — no volverá a mostrarse
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto rounded bg-white px-2 py-1.5 font-mono text-xs">
+                {createdKey}
+              </code>
+              <Button variant="outline" size="sm" onClick={() => copyToClipboard(createdKey, 'new-key')}>
+                {copied === 'new-key' ? '✓' : <Copy className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista de keys */}
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : (keys || []).length === 0 ? (
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            Aún no tienes API keys. Crea una para conectar tu web.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(keys || []).map((k: any) => (
+              <div key={k.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{k.name}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{k.keyPrefix}…</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {k._count?.leads ?? 0} solicitudes ·{' '}
+                    {k.lastUsedAt ? `último uso ${new Date(k.lastUsedAt).toLocaleDateString('es-CO')}` : 'sin uso aún'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={k.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}>
+                    {k.active ? 'Activa' : 'Revocada'}
+                  </Badge>
+                  {k.active && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-rose-600 hover:text-rose-600"
+                      onClick={() => revoke.mutate(k.id)}
+                      title="Revocar"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Snippets */}
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground"
+            onClick={() => setShowSnippets(!showSnippets)}
+          >
+            <Code2 className="size-4" />
+            {showSnippets ? 'Ocultar' : 'Ver'} código de integración
+          </Button>
+          {showSnippets && (
+            <div className="mt-2 space-y-3">
+              <div>
+                <p className="mb-1 text-xs font-medium">1. Widget (recomendado — WordPress, Wix, HTML):</p>
+                <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">{widgetSnippet}</pre>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium">2. API REST (para desarrolladores):</p>
+                <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">{curlSnippet}</pre>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium">3. Formulario HTML (redirect con ?sent=ok):</p>
+                <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">{formSnippet}</pre>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Nota: el método &lt;form&gt; directo no puede enviar el header Authorization (limitación de HTML);
+                  para formularios sin JS usa el widget.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
